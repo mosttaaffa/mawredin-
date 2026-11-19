@@ -55,13 +55,24 @@ async function viewSettings(){
   if(IS_LOCAL){ try{ lanUrls = (await (await fetch('/local-info')).json()).urls || []; }catch(e){} }
   shell({title:'الإعدادات', back:true, nav:'more', body:`
     <div class="card"><div class="section-t">حسابك</div>
-      <div class="kv" style="border:0"><span>داخل باسم</span><span class="num">${esc(me.email)}</span></div></div>
-    <div class="card"><div class="section-t">مين يقدر يستخدم التطبيق</div>
-      ${members.map(m => `<div class="kv"><span class="num">${esc(m.email)}</span><span>${m.is_owner?'صاحب التطبيق':`<button class="link" style="color:var(--red)" onclick="delMember('${esc(m.email)}')">إزالة</button>`}</span></div>`).join('')}
-      <div class="field" style="margin-top:12px"><label>أضف إيميل (أخوك مثلاً)</label>
-        <div class="picker"><input id="newm" type="email" inputmode="email" placeholder="email@example.com" dir="ltr"><button class="btn primary" onclick="addMember()">إضافة</button></div>
-        <div class="hint">بعد الإضافة يفتح رابط التطبيق ويعمل "حساب جديد" بنفس الإيميل.</div></div>
+      <div class="kv"><span>اسمك في السجل</span><span><b>${esc(who(me.email))}</b> <button class="link" onclick="editName('${esc(me.email)}')">تغيير</button></span></div>
+      <div class="kv" style="border:0"><span>الإيميل</span><span class="num">${esc(me.email)}</span></div>
+      ${!myMember(members)?.display_name ? '<div class="note-line">اكتب اسمك عشان يظهر في سجل العمليات بدل الإيميل</div>' : ''}</div>
+    <div class="card"><div class="section-t">المستخدمين (${members.length} من 2) — نفس الصلاحيات الكاملة</div>
+      ${members.map(m => `<div class="mem-row">
+        <div class="avatar">${esc((m.display_name || m.email).trim()[0])}</div>
+        <div class="grow"><div class="t">${esc(m.display_name || shortName(m.email))}${m.email === me.email ? ' <span class="tag cleared">إنت</span>' : ''}</div><div class="s num">${esc(m.email)}</div></div>
+        <button class="link" onclick="editName('${esc(m.email)}')">الاسم</button>
+        ${!m.is_owner && m.email !== me.email ? `<button class="link" style="color:var(--red)" onclick="delMember('${esc(m.email)}')">إزالة</button>` : ''}
+      </div>`).join('')}
+      ${members.length < 2 ? `<div class="field" style="margin-top:12px"><label>إضافة المستخدم التاني (أخوك)</label>
+        <input id="newm" type="email" inputmode="email" placeholder="إيميله الحقيقي" dir="ltr" style="margin-bottom:8px">
+        <div class="picker"><input id="newn" placeholder="اسمه اللي يظهر في السجل (مثلًا: محمد)"><button class="btn primary" onclick="addMember()">إضافة</button></div>
+        <div class="hint">بعد الإضافة: يفتح التطبيق على موبايله ويدوس «أول مرة؟ اعمل حساب جديد» بنفس الإيميل ويختار كلمة السر بتاعته بنفسه، وبعدين يأكد من الرسالة اللي هتوصله على الإيميل. إنت مش محتاج تعرف كلمة السر بتاعته.</div></div>`
+        : '<div class="hint" style="margin-top:8px">التطبيق متاح لمستخدمين اتنين بس.</div>'}
     </div>
+    <div class="card"><div class="section-t">تثبيت التطبيق على الموبايل</div>
+      <button class="btn ghost block" onclick="go('/install')">${I.share}طريقة التثبيت على الآيفون والأندرويد</button></div>
     ${IS_LOCAL ? `<div class="card"><div class="section-t">افتحه من أي جهاز على نفس الشبكة</div>
       <div class="hint" style="margin-bottom:8px">الموبايل لازم يكون على نفس الواي فاي، والكمبيوتر يفضل شغال وشاشة التشغيل مفتوحة.</div>
       ${lanUrls.length ? lanUrls.map(u => `<div class="kv"><span>العنوان</span><span class="num" style="user-select:all">${esc(u)}</span></div>`).join('') : '<div class="hint">مش لاقي عنوان شبكة للكمبيوتر</div>'}
@@ -93,20 +104,35 @@ window.setTheme = t => {
   const m = document.querySelector('meta[name=theme-color]'); if(m) m.content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   buzz(10); viewSettings();
 };
+const myMember = list => list.find(m => m.email === String(me.email).toLowerCase());
+// إضافة/إزالة مستخدم لازم تكون أونلاين (عشان تتطبق على طول ومتعدّيش على طابور المزامنة)
 window.addMember = async () => {
-  const e = $('#newm').value.trim().toLowerCase();
+  const e = $('#newm').value.trim().toLowerCase(), n = $('#newn').value.trim();
   if(!/^\S+@\S+\.\S+$/.test(e)) return toast('اكتب إيميل صحيح', true);
+  if(!n) return toast('اكتب اسمه اللي يظهر في السجل', true);
+  if(!navigator.onLine) return toast('إضافة مستخدم محتاجة نت', true);
   busy(true);
-  try{ await q(ldb.from('members').insert({email:e})); toast('اتضاف ✓'); viewSettings(); }
-  catch(err){ toast(errMsg(err), true); } finally{ busy(false); }
+  try{
+    const { error } = await withTimeout(sb.from('members').insert({email:e, display_name:n}), 15000);
+    if(error) throw error;
+    await syncNow(); toast('اتضاف ✓ — قوله يعمل حساب بنفس الإيميل'); viewSettings();
+  }catch(err){ toast(/row-level|policy/i.test(err.message || '') ? 'التطبيق متاح لمستخدمين اتنين بس' : errMsg(err), true); } finally{ busy(false); }
 };
 window.delMember = async e => {
-  if(!confirm(`إزالة ${e}؟ مش هيقدر يدخل التطبيق تاني.`)) return;
-  try{ await q(ldb.from('members').delete().eq('email', e)); viewSettings(); }catch(err){ toast(errMsg(err), true); }
+  if(!confirm(`إزالة ${who(e)} (${e})؟ مش هيقدر يدخل التطبيق تاني، وكل اللي سجّله هيفضل موجود.`)) return;
+  if(!navigator.onLine) return toast('إزالة مستخدم محتاجة نت', true);
+  try{ const { error } = await withTimeout(sb.from('members').delete().eq('email', e), 15000); if(error) throw error; await syncNow(); viewSettings(); }
+  catch(err){ toast(errMsg(err), true); }
+};
+window.editName = async e => {
+  const cur = store.eff.members.get(e)?.display_name || '';
+  const n = prompt('الاسم اللي يظهر في سجل العمليات:', cur); if(n == null) return;
+  const v = n.trim(); if(!v) return toast('الاسم مينفعش يبقى فاضي', true);
+  try{ await q(ldb.from('members').update({display_name:v}).eq('email', e)); toast('اتحفظ ✓'); viewSettings(); }catch(err){ toast(errMsg(err), true); }
 };
 window.shareApp = async () => {
   const link = shareLink();
-  if(navigator.share){ try{ await navigator.share({title:'حسابات الموردين', url:link}); return; }catch(e){ if(e.name==='AbortError') return; } }
+  if(navigator.share){ try{ await navigator.share({title:'حسابات المحل', url:link}); return; }catch(e){ if(e.name==='AbortError') return; } }
   try{ await navigator.clipboard.writeText(link); toast('اتنسخ الرابط ✓'); }catch(e){ prompt('انسخ الرابط:', link); }
 };
 window.logout = async () => {
@@ -119,6 +145,38 @@ window.logout = async () => {
   location.hash = '#/'; location.reload();
 };
 window.resetCfg = async () => { if(!confirm('هتمسح إعدادات الاتصال من الجهاز ده؟')) return; try{ await sb.auth.signOut(); }catch(e){} localStorage.removeItem(CFG_KEY); location.reload(); };
+
+/* =================== تثبيت التطبيق (PWA) =================== */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; });
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function viewInstall(){
+  const ios = isIOS(), url = location.origin + location.pathname;
+  shell({title:'تثبيت التطبيق', back:true, nav:'more', body:`
+    ${isStandalone() ? '<div class="card"><div class="ek hl"><span>الحالة</span><b>التطبيق متثبت وشغال من الأيقونة ✓</b></div></div>' : ''}
+    <div class="card inst ${ios ? 'on' : ''}">
+      <div class="section-t">الآيفون (لازم من Safari)</div>
+      <ol>
+        <li>افتح الرابط ده في <b>Safari</b> (مش Chrome): <span class="num" style="user-select:all">${esc(url)}</span></li>
+        <li>دوس زرار المشاركة ${I.share} اللي تحت في النص.</li>
+        <li>انزل واختار <b>«إضافة إلى الشاشة الرئيسية»</b> (Add to Home Screen).</li>
+        <li>دوس <b>«إضافة»</b> — هتلاقي أيقونة «حسابات المحل» على الشاشة.</li>
+        <li>افتحه من الأيقونة دايمًا (مش من Safari) عشان يشتغل كتطبيق ويفضل محتفظ ببياناته من غير نت.</li>
+      </ol></div>
+    <div class="card inst ${!ios ? 'on' : ''}">
+      <div class="section-t">الأندرويد (من Chrome)</div>
+      ${installEvt ? `<button class="btn primary block" style="margin-bottom:10px" onclick="doInstall()">${I.plus}ثبّت التطبيق دلوقتي</button>` : ''}
+      <ol>
+        <li>افتح الرابط في <b>Chrome</b>: <span class="num" style="user-select:all">${esc(url)}</span></li>
+        <li>دوس على التلات نقط ⋮ فوق.</li>
+        <li>اختار <b>«تثبيت التطبيق»</b> أو «إضافة إلى الشاشة الرئيسية».</li>
+        <li>وافق — الأيقونة هتظهر مع باقي التطبيقات.</li>
+      </ol></div>
+    <div class="card"><div class="section-t">بعد التثبيت</div>
+      <div class="hint">• أول مرة لازم يكون فيه نت عشان البيانات تتحمّل على الموبايل.<br>• كل واحد يدخل بحسابه هو (إيميله وكلمة السر بتاعته).<br>• أي حاجة بتتسجل من غير نت بتتبعت لوحدها لما النت يرجع وتفتح التطبيق.</div></div>`});
+}
+window.doInstall = async () => { if(!installEvt) return; installEvt.prompt(); await installEvt.userChoice.catch(() => {}); installEvt = null; viewInstall(); };
 
 /* =================== شاشات البداية =================== */
 function logoImg(){ return '<div class="logos"><img src="icons/ward.png" alt="ورد"><img src="icons/zahra.png" alt="زهرة"></div>'; }

@@ -239,7 +239,7 @@ window.showInvoice = async id => {
     ${(() => { const a = allocate(window._sup.invs, window._sup.pays).get(x.id); return `<div class="kv"><span>الحالة</span><span><span class="tag ${a.status}">${INV_ST[a.status]}</span>${a.status!=='paid'?` باقي ${money(a.rem)}`:''}</span></div>`; })()}
     <div class="kv"><span>التاريخ</span><span>${fmtDate(x.inv_date)}</span></div>
     ${x.notes?`<div class="kv"><span>ملاحظات</span><span>${esc(x.notes)}</span></div>`:''}
-    <div class="kv"><span>سجّلها</span><span>${esc(shortName(x.created_by))}</span></div>
+    <div class="kv"><span>سجّلها</span><span>${esc(who(x.created_by))}${x.created_at ? ' · ' + fmtDateTime(x.created_at) : ''}</span></div>
     ${imgSection('invoices', x)}
     <div class="actions" style="margin-top:10px">
       <button class="btn ghost" onclick="go('/invoice/${x.id}')">${I.edit}تعديل</button>
@@ -261,7 +261,7 @@ window.showPayment = async id => {
       <div class="kv"><span>تاريخ الاستحقاق</span><span>${fmtDate(x.due_date)}</span></div>
       <div class="kv"><span>الحالة</span><span><span class="tag ${x.check_status}">${CHK[x.check_status]}</span></span></div>`:''}
     ${x.notes?`<div class="kv"><span>ملاحظات</span><span>${esc(x.notes)}</span></div>`:''}
-    <div class="kv"><span>سجّلها</span><span>${esc(shortName(x.created_by))}</span></div>
+    <div class="kv"><span>سجّلها</span><span>${esc(who(x.created_by))}${x.created_at ? ' · ' + fmtDateTime(x.created_at) : ''}</span></div>
     ${x.method === 'cash' ? '' : imgSection('payments', x)}
     ${x.method==='check' ? checkButtons(x, `viewSupplier(${x.supplier_id})`) : ''}
     <div class="actions" style="margin-top:10px">

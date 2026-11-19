@@ -609,3 +609,20 @@ revoke execute on function public.sync_apply(jsonb) from public, anon;
 revoke execute on function public.resolve_conflict(uuid, text) from public, anon;
 grant execute on function public.sync_apply(jsonb), public.resolve_conflict(uuid, text) to authenticated;
 -- (السجل بيتقرا بالترتيب من آخر رقم الجهاز شافه — بيستخدم المفتاح الأساسي id فمش محتاج فهرس زيادة)
+
+-- =====================================================
+-- المستخدمين (الإصدار 5): اسم عرض لكل مستخدم + حد أقصى مستخدمين اتنين بنفس الصلاحيات
+-- =====================================================
+alter table public.members add column if not exists display_name text;
+create or replace function public.members_count()
+returns int language sql stable security definer set search_path = public as $$ select count(*)::int from public.members $$;
+revoke execute on function public.members_count() from public, anon;
+grant execute on function public.members_count() to authenticated;
+drop policy if exists members_add on public.members;
+create policy members_add on public.members for insert to authenticated
+  with check ((select public.is_member()) and is_owner = false and (select public.members_count()) < 2);
+drop policy if exists members_upd on public.members;
+create policy members_upd on public.members for update to authenticated
+  using ((select public.is_member())) with check ((select public.is_member()));
+revoke update on public.members from authenticated, anon;
+grant update (display_name) on public.members to authenticated;

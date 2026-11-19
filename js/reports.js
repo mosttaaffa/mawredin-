@@ -261,7 +261,7 @@ async function viewLog(){
     const verb = {insert:'سجّل', update:'عدّل', delete:'مسح'}[r.action];
     let t = '', ch = [];
     if(r.entity === 'suppliers') t = `${{insert:'أضاف', update:'عدّل بيانات', delete:'مسح'}[r.action]} المورد ${row.name}`;
-    else if(r.entity === 'members') t = r.action === 'insert' ? `أضاف ${row.email} للتطبيق` : r.action === 'delete' ? `شال ${row.email} من التطبيق` : `عدّل عضو`;
+    else if(r.entity === 'members') t = r.action === 'insert' ? `أضاف المستخدم ${row.display_name || row.email} للتطبيق` : r.action === 'delete' ? `شال المستخدم ${row.display_name || row.email} من التطبيق` : (o.display_name !== n.display_name ? `غيّر اسم العرض ${o.display_name ? 'من ' + o.display_name + ' ' : ''}لـ ${n.display_name || '—'}` : `عدّل بيانات مستخدم`);
     else if(r.entity === 'invoices') t = `${verb} فاتورة${row.inv_no ? ' رقم ' + row.inv_no : ''} بـ ${f(row.amount)}${sup}`;
     else if(r.entity === 'payments'){
       const kind = IS_ADJ(row.method) ? METHOD[row.method] : 'دفعة ' + METHOD[row.method];
@@ -289,7 +289,7 @@ async function viewLog(){
     ${''}
     <div class="card">${rows.length ? rows.map(r => { const w = what(r); return `
       <div class="log-row"><div class="log-dot ${r.action}">${r.action === 'insert' ? I.plus : r.action === 'update' ? I.edit : I.close}</div>
-        <div style="flex:1;min-width:0"><div class="t">${esc(shortName(r.actor))} ${esc(w.t)}</div>
+        <div style="flex:1;min-width:0"><div class="t">${esc(who(r.actor))} ${esc(w.t)}</div>
         ${w.ch.length ? `<div class="chg">${w.ch.map(esc).join(' · ')}</div>` : ''}
         <div class="s"><span class="num">${when(r.at)}</span></div></div></div>`; }).join('') : `<div class="empty">${I.hist}<div>لسه مفيش حركات</div></div>`}
     </div>

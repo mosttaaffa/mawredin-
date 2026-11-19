@@ -55,10 +55,17 @@ const CHK = {pending:'لسه ما اتصرفش', cleared:'اتصرف', bounced:'
 const $ = (s, r=document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = n => `<span class="m"><span class="num">${Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2})}</span> ج</span>`;
+const fmtDateTime = t => { if(!t) return ''; const d = new Date(t); return d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('ar-EG', {hour:'numeric', minute:'2-digit'}); };
 const fmtDate = d => { if(!d) return ''; const [y,m,dd] = String(d).slice(0,10).split('-'); return `<span class="num">${dd}/${m}/${y}</span>`; };
 const today = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
 const daysUntil = d => Math.round((new Date(d+'T00:00:00') - new Date(today()+'T00:00:00')) / 864e5);
 const shortName = e => (e||'').split('@')[0];
+// اسم العرض للمستخدم (بدل الإيميل) في السجل وتفاصيل العمليات
+function who(email){
+  if(!email) return 'النظام';
+  const m = (typeof store !== 'undefined' && store.eff?.members?.get(String(email).toLowerCase())) || null;
+  return (m && m.display_name) || shortName(email);
+}
 
 function toast(msg, err=false){
   document.querySelectorAll('.toast').forEach(t=>t.remove());
@@ -343,6 +350,7 @@ async function route(){
     if(parts[0] === 'settings') return await viewSettings();
     if(parts[0] === 'suppliers') return await viewSuppliers();
     if(parts[0] === 'more') return viewMore();
+    if(parts[0] === 'install') return viewInstall();
     if(parts[0] === 'employees') return await viewEmployees();
     if(parts[0] === 'emp' && parts[1]) return await viewEmployee(+parts[1]);
     if(parts[0] === 'emp-edit') return await formEmployee(parts[1] ? +parts[1] : null);
