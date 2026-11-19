@@ -939,3 +939,7 @@ header.top:not(.home-h) .sync-pill.s-ok{padding:6px}
 .led .amt{font-size:17px}
 .runbal{font-size:12.5px}
 @media (max-width:360px){.sc-bal b{font-size:18px}.sc-grid b{font-size:15px}.sum6 b{font-size:14.5px}.bal3 b{font-size:16.5px}}
+/* الرئيسية: اللوجو من غير الدائرة الدهبي */
+.hh-logo{background:none !important;box-shadow:none !important;padding:0;width:auto;height:auto}
+.hh-logo img{width:46px;height:46px;border:2px solid rgba(255,255,255,.85);box-shadow:0 4px 12px rgba(0,0,0,.35)}
+.hh-logo img+img{margin-inline-start:-14px}
