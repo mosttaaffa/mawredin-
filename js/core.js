@@ -270,6 +270,9 @@ const urlCache = new Map();
 async function signedUrl(path){
   if(!path) return null;
   const c = urlCache.get(path); if(c && c.exp > Date.now()) return c.url;
+  const local = await localBlobUrl(path);              // صورة لسه على الجهاز (مترفعتش)
+  if(local){ urlCache.set(path, {url:local, exp:Date.now()+50*60e3}); return local; }
+  if(!navigator.onLine) return null;
   const { data, error } = await sb.storage.from('attachments').createSignedUrl(path, 3600);
   if(error) return null;
   urlCache.set(path, {url:data.signedUrl, exp:Date.now()+50*60e3});
@@ -278,17 +281,17 @@ async function signedUrl(path){
 async function uploadImage(file, folder){
   const blob = await compressImage(file);
   const path = `${folder}/${new Date().toISOString().slice(0,7)}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
-  const { error } = await sb.storage.from('attachments').upload(path, blob, {contentType:'image/jpeg', upsert:false});
-  if(error) throw error;
+  await enqueueUpload(path, blob);                      // بتتحفظ على الجهاز وتترفع لوحدها لما النت يكون موجود
   return path;
 }
-async function removeImage(path){ if(path) await sb.storage.from('attachments').remove([path]); }
+async function removeImage(path){ if(path) await enqueueRemove(path); }
 
 /* =================== البيانات =================== */
 async function q(promise){ const { data, error } = await promise; if(error) throw error; return data; }
 // Supabase بيرجّع 1000 صف بالكتير في الطلب الواحد — فبنجيب على دفعات لحد ما نجيب كل حاجة
 const PAGE = 1000;
 async function fetchAll(build){
+  const b0 = build(); if(b0 instanceof LQ) return q(b0);     // من الجهاز: كله مرة واحدة
   let out = [], from = 0;
   for(;;){
     const rows = await q(build().range(from, from + PAGE - 1));
@@ -298,27 +301,27 @@ async function fetchAll(build){
   }
 }
 const api = {
-  balances: () => fetchAll(() => sb.from('supplier_balances').select('*').order('balance', {ascending:false}).order('id')),
-  supplier: id => q(sb.from('supplier_balances').select('*').eq('id', id).single()),
-  suppliers: () => fetchAll(() => sb.from('suppliers').select('id,name').order('name').order('id')),
-  invoices: sid => fetchAll(() => sb.from('invoices').select('*').eq('supplier_id', sid).order('inv_date',{ascending:false}).order('id',{ascending:false})),
-  payments: sid => fetchAll(() => sb.from('payments').select('*').eq('supplier_id', sid).order('pay_date',{ascending:false}).order('id',{ascending:false})),
+  balances: () => fetchAll(() => ldb.from('supplier_balances').select('*').order('balance', {ascending:false}).order('id')),
+  supplier: id => q(ldb.from('supplier_balances').select('*').eq('id', id).single()),
+  suppliers: () => fetchAll(() => ldb.from('suppliers').select('id,name').order('name').order('id')),
+  invoices: sid => fetchAll(() => ldb.from('invoices').select('*').eq('supplier_id', sid).order('inv_date',{ascending:false}).order('id',{ascending:false})),
+  payments: sid => fetchAll(() => ldb.from('payments').select('*').eq('supplier_id', sid).order('pay_date',{ascending:false}).order('id',{ascending:false})),
   // الشيكات اللي لسه بس (للتنبيه والصفحة الرئيسية) — كلها مهما كان عددها
-  checks: () => fetchAll(() => sb.from('payments').select('*, suppliers(name)').eq('method','check').eq('check_status','pending').order('due_date').order('id')),
+  checks: () => fetchAll(() => ldb.from('payments').select('*, suppliers(name)').eq('method','check').eq('check_status','pending').order('due_date').order('id')),
   // الشيكات القديمة (اتصرفت/ارتدت) صفحة صفحة
   checksPage: (status, from, n=100) => {
-    let b = sb.from('payments').select('*, suppliers(name)').eq('method','check');
+    let b = ldb.from('payments').select('*, suppliers(name)').eq('method','check');
     if(status !== 'all') b = b.eq('check_status', status);
     return q(b.order('due_date', {ascending:false}).order('id', {ascending:false}).range(from, from + n - 1));
   },
-  members: () => q(sb.from('members').select('*').order('created_at')),
-  allSuppliers: () => fetchAll(() => sb.from('suppliers').select('*').order('id')),
-  allInvoices: () => fetchAll(() => sb.from('invoices').select('*').order('id')),
-  allPayments: () => fetchAll(() => sb.from('payments').select('*').order('id')),
-  log: (from=0, n=200) => q(sb.from('activity_log').select('*').order('id', {ascending:false}).range(from, from + n - 1)),
-  checkSummary: () => q(sb.rpc('checks_summary', {p_days: 3})),
-  reportMonth: ym => q(sb.rpc('report_month', {p_month: ym})),
-  reportSeries: (ym, n=6) => q(sb.rpc('report_series', {p_end: ym, p_n: n})),
+  members: () => q(ldb.from('members').select('*').order('created_at')),
+  allSuppliers: () => fetchAll(() => ldb.from('suppliers').select('*').order('id')),
+  allInvoices: () => fetchAll(() => ldb.from('invoices').select('*').order('id')),
+  allPayments: () => fetchAll(() => ldb.from('payments').select('*').order('id')),
+  log: async (from=0, n=200) => store.log.slice(from, from + n),
+  checkSummary: () => q(ldb.rpc('checks_summary', {p_days: 3})),
+  reportMonth: ym => q(ldb.rpc('report_month', {p_month: ym})),
+  reportSeries: (ym, n=6) => q(ldb.rpc('report_series', {p_end: ym, p_n: n})),
 };
 
 /* =================== التوجيه =================== */
@@ -363,19 +366,20 @@ let lastShown = null;
 function shell({title, back, right='', body, nav=null, fabs='', home=null}){
   const app = $('#app');
   const loading = body.includes('class="skel"');
+  if(loading && store.ready && hasLocalData()) return;      // البيانات على الجهاز: مفيش داعي لشاشة تحميل
   const same = !loading && lastShown === location.hash;   // نفس الصفحة (تحديث/تبويب) = من غير إعادة كل الحركات
   if(!loading) lastShown = location.hash;
   app.innerHTML = `
     ${home ? `<header class="top home-h">
       <div class="hh-logo"><img src="icons/ward.png" alt="ورد"><img src="icons/zahra.png" alt="زهرة"></div>
-      <div class="hh-t"><h1><span>${title}</span><i class="hh-store">${I.store}</i></h1><small><em></em>إدارة مالية شاملة للمحل<em></em></small></div>
+      <div class="hh-t"><h1><span>${title}</span><i class="hh-store">${I.store}</i></h1><small><em></em>إدارة مالية شاملة للمحل<em></em></small>${syncPill()}</div>
       <div class="hh-btns">
         <button class="iconbtn glass" onclick="go('/settings')" aria-label="الإعدادات">${I.gear}</button>
         <button class="iconbtn glass" onclick="go('/checks')" aria-label="الإشعارات">${I.bell}${home.alerts ? `<i class="badge">${home.alerts}</i>` : ''}</button>
       </div>
     </header>` : `<header class="top">
       ${back ? `<button class="iconbtn" onclick="history.length>1?history.back():go('/')" aria-label="رجوع">${I.back}</button>` : headLogos}
-      <h1>${title}</h1>${right}
+      <h1>${title}</h1>${syncPill()}${right}
     </header>`}
     <main class="${same ? 'calm' : 'enter'}"${['suppliers','employees','checks','reports'].includes(nav) ? ` data-art="${nav}"` : ''}>${body}</main>
     ${fabs}

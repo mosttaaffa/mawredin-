@@ -97,19 +97,27 @@ window.addMember = async () => {
   const e = $('#newm').value.trim().toLowerCase();
   if(!/^\S+@\S+\.\S+$/.test(e)) return toast('اكتب إيميل صحيح', true);
   busy(true);
-  try{ await q(sb.from('members').insert({email:e})); toast('اتضاف ✓'); viewSettings(); }
+  try{ await q(ldb.from('members').insert({email:e})); toast('اتضاف ✓'); viewSettings(); }
   catch(err){ toast(errMsg(err), true); } finally{ busy(false); }
 };
 window.delMember = async e => {
   if(!confirm(`إزالة ${e}؟ مش هيقدر يدخل التطبيق تاني.`)) return;
-  try{ await q(sb.from('members').delete().eq('email', e)); viewSettings(); }catch(err){ toast(errMsg(err), true); }
+  try{ await q(ldb.from('members').delete().eq('email', e)); viewSettings(); }catch(err){ toast(errMsg(err), true); }
 };
 window.shareApp = async () => {
   const link = shareLink();
   if(navigator.share){ try{ await navigator.share({title:'حسابات الموردين', url:link}); return; }catch(e){ if(e.name==='AbortError') return; } }
   try{ await navigator.clipboard.writeText(link); toast('اتنسخ الرابط ✓'); }catch(e){ prompt('انسخ الرابط:', link); }
 };
-window.logout = async () => { await sb.auth.signOut(); location.hash = '#/'; boot(); };
+window.logout = async () => {
+  const pend = store.queue.length;
+  if(pend && !confirm(`فيه ${pend} عملية على الجهاز لسه متزامنتش. لو خرجت هتتمسح ومش هتتسجل.\nتخرج برضه؟`)) return;
+  try{ await withTimeout(sb.auth.signOut(), 5000); }catch(e){}
+  // الخروج بيمسح البيانات المحفوظة على الجهاز (أمان لو الجهاز مشترك)
+  try{ if(idb.db) idb.db.close(); await idb.drop(dbName(store.email || me?.email)); }catch(e){}
+  localStorage.removeItem(USER_KEY);
+  location.hash = '#/'; location.reload();
+};
 window.resetCfg = async () => { if(!confirm('هتمسح إعدادات الاتصال من الجهاز ده؟')) return; try{ await sb.auth.signOut(); }catch(e){} localStorage.removeItem(CFG_KEY); location.reload(); };
 
 /* =================== شاشات البداية =================== */
@@ -160,17 +168,42 @@ function viewNotMember(){
     <button class="btn primary block" onclick="afterLogin()">جرّب تاني</button>
     <button class="link" style="margin-top:10px" onclick="logout()">خروج</button></div>`;
 }
+const USER_KEY = 'mawredin_user';
 async function afterLogin(){
-  const { data:{ session } } = await sb.auth.getSession();
-  if(!session){
+  let session = null, cached = null;
+  try{ cached = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }catch(e){}
+  try{ ({ data:{ session } } = await withTimeout(sb.auth.getSession(), 6000)); }catch(e){}
+  if(!session && !cached){
     if(IS_LOCAL){ try{ const i = await (await fetch('/local-info')).json(); if(!i.hasUsers) return viewLogin('up', true); }catch(e){} }
     return viewLogin();
   }
-  me = session.user;
-  const r = await q(sb.rpc('join_app'));
-  if(!r.ok) return viewNotMember();
-  isOwner = r.owner;
+  // من غير نت (أو الجلسة محتاجة تجديد): بنكمل بآخر حساب دخل على الجهاز ده والبيانات المحفوظة عليه
+  me = session ? session.user : {email: cached.email, id: cached.id};
+  if(cached && cached.email !== me.email) cached = null;
+  try{ await storeOpen(me.email); }
+  catch(e){ $('#app').innerHTML = `<div class="center-page">${logoImg()}<h2>مش قادر أخزن البيانات على الجهاز</h2><p class="sub2">لو المتصفح في وضع التصفح الخاص اقفله وافتح التطبيق عادي، أو فضّي مساحة على الموبايل.</p><button class="btn primary block" onclick="location.reload()">حاول تاني</button></div>`; return; }
+  isOwner = !!cached?.owner;
+  const checkMember = async () => {
+    const r = await rpcNet('join_app', {}, 8000);
+    if(!r.ok){ localStorage.removeItem(USER_KEY); viewNotMember(); return false; }
+    isOwner = r.owner;
+    localStorage.setItem(USER_KEY, JSON.stringify({email: me.email, id: me.id, owner: r.owner}));
+    return true;
+  };
+  if(session){
+    if(cached) checkMember().catch(() => {});                 // اتأكدنا قبل كده: نفتح على طول ونتأكد في الخلفية
+    else { try{ if(!await checkMember()) return; }catch(e){ if(!isNetErr(e)) throw e; } }
+  }
+  if(!hasLocalData()){
+    $('#app').innerHTML = `${petals()}<div class="center-page">${logoImg()}<h2>بنجهز البيانات على الجهاز</h2><p class="sub2" id="firstload">أول مرة بس — بعد كده التطبيق هيفتح على طول حتى من غير نت</p><div class="spin" style="margin:16px auto"></div></div>`;
+    await syncNow(true);
+    if(!hasLocalData()){
+      $('#app').innerHTML = `${petals()}<div class="center-page">${logoImg()}<h2>محتاج نت أول مرة</h2><p class="sub2">التطبيق محتاج يجيب البيانات من السيرفر مرة واحدة، وبعد كده يشتغل من غير نت.</p><button class="btn primary block" onclick="afterLogin()">حاول تاني</button><button class="link" style="margin-top:10px" onclick="logout()">خروج</button></div>`;
+      return;
+    }
+  }
   route();
+  scheduleSync(400);
 }
 
 /* =================== التشغيل =================== */
@@ -181,12 +214,7 @@ async function boot(){
   sb = supabase.createClient(cfg.url, cfg.key, {auth:{persistSession:true, autoRefreshToken:true}});
   try{ await afterLogin(); }catch(e){ console.error(e); toast(errMsg(e), true); viewLogin(); }
 }
-// تحديث تلقائي لما ترجع للتطبيق (عشان تشوف اللي أخوك سجّله)
-let lastHidden = 0;
-document.addEventListener('visibilitychange', () => {
-  if(document.hidden){ lastHidden = Date.now(); return; }
-  if(me && Date.now() - lastHidden > 30e3 && !$('.sheet') && !$('#mdl')) route();
-});
+// لما ترجع للتطبيق: المزامنة بتشتغل لوحدها (store.js) وبتعيد رسم الصفحة لو فيه جديد
 if('serviceWorker' in navigator){
   // أي نسخة جديدة تترفع: الموبايل يحدّث لوحده من غير ما تمسح حاجة
   const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false;

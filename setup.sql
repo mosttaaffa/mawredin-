@@ -462,3 +462,150 @@ revoke all on public.employee_balances from anon;
 revoke all on public.employees, public.emp_settlements, public.emp_transactions, public.emp_import_batches from anon;
 revoke execute on function public.import_employee_settlements(jsonb) from public, anon;
 grant execute on function public.import_employee_settlements(jsonb) to authenticated;
+
+-- =====================================================
+-- المزامنة من غير نت (الإصدار 4)
+-- كل عملية من الموبايل ليها رقم مميز (op_id). السيرفر بينفّذها مرة واحدة بس:
+-- لو نفس العملية اتبعتت تاني (النت قطع وهي بتتبعت) بيرجّع نفس النتيجة من غير ما يكررها.
+-- التعديل والمسح بيتأكدوا إن محدش غيّر نفس الخانات من جهاز تاني في الوقت ده، ولو حصل بيتسجل «تعارض» ومش بيتكتب فوقه.
+-- =====================================================
+create table if not exists public.sync_ops (
+  op_id    uuid primary key,
+  actor    text not null default public.current_email(),
+  at       timestamptz not null default now(),
+  tbl      text not null,
+  kind     text not null,
+  row_key  text,
+  status   text not null,
+  result   jsonb
+);
+create table if not exists public.sync_conflicts (
+  id          bigint generated always as identity primary key,
+  op_id       uuid not null,
+  at          timestamptz not null default now(),
+  actor       text not null default public.current_email(),
+  tbl         text not null,
+  kind        text not null,
+  row_key     text,
+  base        jsonb,      -- الرقم اللي الجهاز كان شايفه وقت التعديل
+  mine        jsonb,      -- التعديل اللي اتعمل على الجهاز
+  server      jsonb,      -- اللي على السيرفر دلوقتي
+  resolved_at timestamptz,
+  resolved_by text,
+  resolution  text        -- mine | server
+);
+
+create or replace function public.sync_apply(p jsonb)
+returns jsonb language plpgsql set search_path = public as $$
+declare
+  v_op uuid := (p->>'op_id')::uuid;
+  t text := p->>'table';
+  k text := p->>'kind';
+  keycol text;
+  v_key text := p->>'key';
+  ex jsonb; cur jsonb; r jsonb; res jsonb; cols text; c text; bad boolean := false;
+begin
+  if not public.is_member() then raise exception 'not allowed'; end if;
+  if v_op is null then raise exception 'op_id required'; end if;
+  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions') then raise exception 'table not allowed: %', t; end if;
+  if k not in ('insert','update','delete') then raise exception 'kind not allowed: %', k; end if;
+
+  -- نفس العملية اتنفذت قبل كده؟ رجّع نفس النتيجة
+  select result into ex from public.sync_ops where op_id = v_op;
+  if found then return ex || jsonb_build_object('replayed', true); end if;
+  -- لو جهازين بعتوا نفس العملية في نفس اللحظة: التاني يستنى الأول
+  perform pg_advisory_xact_lock(hashtext(v_op::text));
+  select result into ex from public.sync_ops where op_id = v_op;
+  if found then return ex || jsonb_build_object('replayed', true); end if;
+
+  keycol := case when t = 'members' then 'email' else 'id' end;
+  begin
+    if k = 'insert' then
+      r := p->'row';
+      select string_agg(quote_ident(col.column_name), ',' order by col.ordinal_position) into cols
+      from information_schema.columns col
+      where col.table_schema = 'public' and col.table_name = t
+        and col.is_identity = 'NO' and col.is_generated = 'NEVER'
+        and col.column_name not in ('created_at','created_by')
+        and r ? col.column_name;
+      if cols is null then raise exception 'empty row'; end if;
+      execute format('insert into public.%I (%s) select %s from jsonb_populate_record(null::public.%I, $1) returning to_jsonb(%I.*)', t, cols, cols, t, t)
+        using r into cur;
+      res := jsonb_build_object('status', 'ok', 'row', cur);
+
+    elsif k = 'update' then
+      execute format('select to_jsonb(x) from public.%I x where x.%I::text = $1 for update', t, keycol) using v_key into cur;
+      if cur is null then
+        res := jsonb_build_object('status', 'conflict', 'reason', 'deleted', 'server', null);
+      else
+        for c in select jsonb_object_keys(p->'changes') loop
+          if not (cur ? c) then raise exception 'unknown column: %', c; end if;
+          if (cur->c) is distinct from (p->'base'->c) and (cur->c) is distinct from (p->'changes'->c) then bad := true; end if;
+        end loop;
+        if bad then
+          res := jsonb_build_object('status', 'conflict', 'reason', 'changed', 'server', cur);
+        else
+          select string_agg(quote_ident(x), ',') into cols from jsonb_object_keys(p->'changes') x
+          where x not in ('id','created_at','created_by');
+          if cols is null then
+            res := jsonb_build_object('status', 'ok', 'row', cur);
+          else
+            execute format('update public.%I x set (%s) = (select %s from jsonb_populate_record(null::public.%I, $1)) where x.%I::text = $2 returning to_jsonb(x.*)',
+                           t, cols, cols, t, keycol) using p->'changes', v_key into cur;
+            res := jsonb_build_object('status', 'ok', 'row', cur);
+          end if;
+        end if;
+      end if;
+
+    else -- delete
+      execute format('select to_jsonb(x) from public.%I x where x.%I::text = $1 for update', t, keycol) using v_key into cur;
+      if cur is null then
+        res := jsonb_build_object('status', 'ok', 'row', null, 'already', true);
+      else
+        if p->'base' is not null and jsonb_typeof(p->'base') = 'object' then
+          for c in select jsonb_object_keys(p->'base') loop
+            if c not in ('created_at','created_by') and (cur ? c) and (cur->c) is distinct from (p->'base'->c) then bad := true; end if;
+          end loop;
+        end if;
+        if bad then
+          res := jsonb_build_object('status', 'conflict', 'reason', 'changed', 'server', cur);
+        else
+          execute format('delete from public.%I x where x.%I::text = $1', t, keycol) using v_key;
+          res := jsonb_build_object('status', 'ok', 'row', null);
+        end if;
+      end if;
+    end if;
+  exception when others then
+    res := jsonb_build_object('status', 'error', 'message', sqlerrm, 'code', sqlstate);
+  end;
+
+  if res->>'status' = 'conflict' then
+    insert into public.sync_conflicts(op_id, tbl, kind, row_key, base, mine, server)
+    values (v_op, t, k, v_key, p->'base', coalesce(p->'changes', p->'row'), res->'server');
+  end if;
+  insert into public.sync_ops(op_id, tbl, kind, row_key, status, result)
+  values (v_op, t, k, coalesce(v_key, res->'row'->>keycol), res->>'status', res);
+  return res;
+end $$;
+
+create or replace function public.resolve_conflict(p_op uuid, p_resolution text)
+returns void language sql set search_path = public as $$
+  update public.sync_conflicts set resolved_at = now(), resolved_by = public.current_email(), resolution = p_resolution
+  where op_id = p_op and resolved_at is null and (select public.is_member()) and p_resolution in ('mine','server');
+$$;
+
+alter table public.sync_ops       enable row level security;
+alter table public.sync_conflicts enable row level security;
+drop policy if exists sync_ops_all on public.sync_ops;
+create policy sync_ops_all on public.sync_ops for all to authenticated
+  using ((select public.is_member())) with check ((select public.is_member()));
+drop policy if exists sync_conflicts_all on public.sync_conflicts;
+create policy sync_conflicts_all on public.sync_conflicts for all to authenticated
+  using ((select public.is_member())) with check ((select public.is_member()));
+grant select, insert on public.sync_ops to authenticated;
+grant select, insert, update on public.sync_conflicts to authenticated;
+revoke all on public.sync_ops, public.sync_conflicts from anon;
+revoke execute on function public.sync_apply(jsonb) from public, anon;
+revoke execute on function public.resolve_conflict(uuid, text) from public, anon;
+grant execute on function public.sync_apply(jsonb), public.resolve_conflict(uuid, text) to authenticated;
+-- (السجل بيتقرا بالترتيب من آخر رقم الجهاز شافه — بيستخدم المفتاح الأساسي id فمش محتاج فهرس زيادة)

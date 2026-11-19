@@ -16,7 +16,7 @@ const { PGlite } = require('@electric-sql/pglite');
 
 const PORT = +process.env.PORT || 3000;
 const APP_DIR = path.resolve(__dirname, '..');
-const DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.MAWREDIN_DATA || path.join(__dirname, 'data');
 const FILES_DIR = path.join(DATA_DIR, 'files');
 const SECRET_FILE = path.join(DATA_DIR, 'jwt-secret');
 fs.mkdirSync(FILES_DIR, { recursive: true });

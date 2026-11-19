@@ -153,22 +153,22 @@ window.changeImage = async (table, id) => {
   const f = $('#imgpick').files[0]; if(!f) return;
   busy(true);
   try{
-    const row = await q(sb.from(table).select('id,image_path,supplier_id' + (table === 'payments' ? ',method' : '')).eq('id', id).single());
+    const row = await q(ldb.from(table).select('id,image_path,supplier_id' + (table === 'payments' ? ',method' : '')).eq('id', id).single());
     const folder = table === 'invoices' ? 'invoices' : row.method === 'check' ? 'checks' : row.method === 'transfer' ? 'transfers' : 'returns';
     const path = await uploadImage(f, folder);
-    await q(sb.from(table).update({image_path: path}).eq('id', id));
+    await q(ldb.from(table).update({image_path: path}).eq('id', id));
     if(row.image_path){ removeImage(row.image_path); urlCache.delete(row.image_path); }
     busy(false); toast('اتغيّرت الصورة ✓'); buzz(12);
     await afterImage(table, id, row.supplier_id);
   }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };
 window.delImage = async (table, id) => {
-  const row = await q(sb.from(table).select('id,image_path,supplier_id' + (table === 'payments' ? ',method' : '')).eq('id', id).single());
+  const row = await q(ldb.from(table).select('id,image_path,supplier_id' + (table === 'payments' ? ',method' : '')).eq('id', id).single());
   if(IMG_REQUIRED(table, row)) return toast(table === 'invoices' ? 'صورة الفاتورة لازم تفضل موجودة — تقدر تغيّرها بس' : 'سكرين شوت التحويل لازم يفضل موجود — تقدر تغيّره بس', true);
   if(!confirm(table === 'invoices' ? 'تمسح صورة الفاتورة؟ مش هتقدر ترجّعها.' : 'تمسح الصورة؟ مش هتقدر ترجّعها.')) return;
   busy(true);
   try{
-    await q(sb.from(table).update({image_path: null}).eq('id', id));
+    await q(ldb.from(table).update({image_path: null}).eq('id', id));
     if(row.image_path){ await removeImage(row.image_path); urlCache.delete(row.image_path); }
     busy(false); toast('اتمسحت الصورة');
     await afterImage(table, id, row.supplier_id);
@@ -226,21 +226,21 @@ function checkButtons(x, after){
 window.setCheck = async (id, st, after) => {
   if(st==='bounced' && !confirm('الشيك ارتد؟ مبلغه هيرجع تاني على حساب المورد.')) return;
   busy(true);
-  try{ await q(sb.from('payments').update({check_status:st}).eq('id', id)); busy(false); closeModal(); if(st==='cleared') await celebrate('الشيك اتصرف', true); else toast('اتحدث ✓'); await after(); }
+  try{ await q(ldb.from('payments').update({check_status:st}).eq('id', id)); busy(false); closeModal(); if(st==='cleared') await celebrate('الشيك اتصرف', true); else toast('اتحدث ✓'); await after(); }
   catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };
 window.delInvoice = async id => {
   const x = window._sup.invs.find(i => i.id === id);
   if(!confirm(`متأكد تمسح الفاتورة دي (${Number(x.amount).toLocaleString('en-US')} ج)؟`)) return;
   busy(true);
-  try{ await q(sb.from('invoices').delete().eq('id', id)); await removeImage(x.image_path); toast('اتمسحت'); closeModal(); viewSupplier(x.supplier_id); }
+  try{ await q(ldb.from('invoices').delete().eq('id', id)); await removeImage(x.image_path); toast('اتمسحت'); closeModal(); viewSupplier(x.supplier_id); }
   catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };
 window.delPayment = async id => {
   const x = window._sup.pays.find(i => i.id === id);
   if(!confirm(`متأكد تمسح ال${IS_ADJ(x.method)?METHOD[x.method]:'دفعة'} دي (${Number(x.amount).toLocaleString('en-US')} ج)؟`)) return;
   busy(true);
-  try{ await q(sb.from('payments').delete().eq('id', id)); await removeImage(x.image_path); toast('اتمسحت'); closeModal(); viewSupplier(x.supplier_id); }
+  try{ await q(ldb.from('payments').delete().eq('id', id)); await removeImage(x.image_path); toast('اتمسحت'); closeModal(); viewSupplier(x.supplier_id); }
   catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };
 
@@ -257,7 +257,7 @@ window.quickSupplier = async () => {
   const name = prompt('اسم المورد الجديد:'); if(!name || !name.trim()) return;
   busy(true);
   try{
-    const r = await q(sb.from('suppliers').insert({name:name.trim()}).select().single());
+    const r = await q(ldb.from('suppliers').insert({name:name.trim()}).select().single());
     const sel = $('#sup'); const o = document.createElement('option'); o.value = r.id; o.textContent = r.name; o.selected = true; sel.appendChild(o);
     toast('اتضاف المورد ✓');
   }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
@@ -326,7 +326,7 @@ function formShell(title, body, onSave){
 
 /* =================== فورم الفاتورة =================== */
 async function formInvoice(id, presetSup){
-  const x = id ? await q(sb.from('invoices').select('*').eq('id', id).single()) : null;
+  const x = id ? await q(ldb.from('invoices').select('*').eq('id', id).single()) : null;
   formShell(x ? 'تعديل فاتورة' : 'فاتورة جديدة', `
     ${await supplierPicker(x ? x.supplier_id : presetSup)}
     <div class="field" id="f-amount"><label>قيمة الفاتورة <span class="req">*</span></label>
@@ -350,8 +350,8 @@ async function formInvoice(id, presetSup){
     if(window._rmImg.img) image_path = null;
     if(file) image_path = await uploadImage(file, 'invoices');
     const row = {supplier_id:+sid, amount, inv_date:$('#date').value || today(), inv_no:$('#no').value.trim()||null, notes:$('#notes').value.trim()||null, image_path};
-    if(x){ await q(sb.from('invoices').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
-    else await q(sb.from('invoices').insert(row));
+    if(x){ await q(ldb.from('invoices').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
+    else await q(ldb.from('invoices').insert(row));
     busy(false); await celebrate('اتحفظت الفاتورة');
     location.replace('#/s/' + sid);
   });
@@ -410,7 +410,7 @@ window.pickAmount = v => { $('#amount').value = v; $('#f-amount').classList.remo
 
 /* =================== فورم الدفعة =================== */
 async function formPayment(id, presetSup){
-  const x = id ? await q(sb.from('payments').select('*').eq('id', id).single()) : null;
+  const x = id ? await q(ldb.from('payments').select('*').eq('id', id).single()) : null;
   let method = x?.method || null;
   formShell(x ? 'تعديل دفعة' : 'دفعة جديدة', `
     ${await supplierPicker(x ? x.supplier_id : presetSup)}
@@ -456,8 +456,8 @@ async function formPayment(id, presetSup){
       due_date: method==='check' ? $('#due').value : null,
       check_status: method==='check' ? (x?.check_status || 'pending') : null,
     };
-    if(x){ await q(sb.from('payments').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
-    else await q(sb.from('payments').insert(row));
+    if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
+    else await q(ldb.from('payments').insert(row));
     busy(false); await celebrate('اتحفظت الدفعة', true);
     location.replace('#/s/' + sid);
   });
@@ -477,7 +477,7 @@ async function formPayment(id, presetSup){
 
 /* =================== فورم المرتجع / الخصم =================== */
 async function formAdjust(id, presetSup){
-  const x = id ? await q(sb.from('payments').select('*').eq('id', id).single()) : null;
+  const x = id ? await q(ldb.from('payments').select('*').eq('id', id).single()) : null;
   let method = x?.method || null;
   formShell(x ? 'تعديل ' + METHOD[x.method] : 'مرتجع أو خصم', `
     ${await supplierPicker(x ? x.supplier_id : presetSup)}
@@ -502,8 +502,8 @@ async function formAdjust(id, presetSup){
     if(file) image_path = await uploadImage(file, 'returns');
     const row = {supplier_id:+sid, amount, method, pay_date:$('#date').value || today(), notes:$('#notes').value.trim()||null, image_path,
       invoice_id: $('#invsel').value ? +$('#invsel').value : null, check_no:null, bank:null, due_date:null, check_status:null};
-    if(x){ await q(sb.from('payments').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
-    else await q(sb.from('payments').insert(row));
+    if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
+    else await q(ldb.from('payments').insert(row));
     busy(false); await celebrate(method === 'return' ? 'اتسجل المرتجع' : 'اتسجل الخصم');
     location.replace('#/s/' + sid);
   });
@@ -517,7 +517,7 @@ async function formAdjust(id, presetSup){
 
 /* =================== فورم المورد =================== */
 async function formSupplier(id){
-  const x = id ? await q(sb.from('suppliers').select('*').eq('id', id).single()) : null;
+  const x = id ? await q(ldb.from('suppliers').select('*').eq('id', id).single()) : null;
   formShell(x ? 'تعديل المورد' : 'مورد جديد', `
     <div class="field" id="f-name"><label>اسم المورد <span class="req">*</span></label><input id="name" value="${esc(x?.name||'')}"></div>
     <div class="field"><label>التليفون</label><input id="phone" type="tel" inputmode="tel" value="${esc(x?.phone||'')}"></div>
@@ -526,13 +526,13 @@ async function formSupplier(id){
   `, async () => {
     const name = $('#name').value.trim(); if(!name) return markErr('name', 'اكتب اسم المورد');
     const row = {name, phone:$('#phone').value.trim()||null, notes:$('#notes').value.trim()||null};
-    if(x){ await q(sb.from('suppliers').update(row).eq('id', x.id)); toast('اتحفظ ✓'); location.replace('#/s/'+x.id); }
-    else { const r = await q(sb.from('suppliers').insert(row).select().single()); toast('اتضاف المورد ✓'); location.replace('#/s/'+r.id); }
+    if(x){ await q(ldb.from('suppliers').update(row).eq('id', x.id)); toast('اتحفظ ✓'); location.replace('#/s/'+x.id); }
+    else { const r = await q(ldb.from('suppliers').insert(row).select().single()); toast('اتضاف المورد ✓'); location.replace('#/s/'+r.id); }
   });
 }
 window.delSupplier = async id => {
   if(!confirm('متأكد تمسح المورد؟')) return;
   busy(true);
-  try{ await q(sb.from('suppliers').delete().eq('id', id)); toast('اتمسح'); location.replace('#/suppliers'); }
+  try{ await q(ldb.from('suppliers').delete().eq('id', id)); toast('اتمسح'); location.replace('#/suppliers'); }
   catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };

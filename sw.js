@@ -1,17 +1,23 @@
-// يخلي التطبيق يفتح بسرعة وحتى لو النت ضعيف (البيانات نفسها بتيجي من النت)
-const CACHE = 'mawredin-v24';
-const SHELL = ['./', './index.html', './css/app.css', './js/core.js', './js/suppliers.js', './js/reports.js', './js/home.js', './js/employees.js', './js/app.js', './config.js', './vendor/supabase.js', './manifest.json', './icons/icon-192.png', './icons/apple-touch-icon.png', './icons/ward.png', './icons/zahra.png', './icons/3d/suppliers.webp', './icons/3d/checks.webp', './icons/3d/employees.webp', './icons/3d/reports.webp', './icons/3d/loans.webp', './icons/3d/cash.webp', './icons/3d/banks.webp', './icons/3d/expenses.webp'];
+// التطبيق نفسه (الملفات) متخزن على الجهاز: بيفتح على طول حتى من غير نت.
+// بنعرض النسخة المتخزنة فورًا من غير نت؛ ولما يترفع إصدار جديد، الملف ده بيتغير
+// فالمتصفح بينزّل النسخة الجديدة كلها مرة واحدة والتطبيق بيعيد فتح نفسه عليها.
+const CACHE = 'mawredin-v25';
+const SHELL = ['./', './index.html', './css/app.css', './js/core.js', './js/store.js', './js/suppliers.js', './js/reports.js', './js/home.js', './js/employees.js', './js/app.js',
+  './config.js', './vendor/supabase.js', './manifest.json', './icons/icon-192.png', './icons/apple-touch-icon.png', './icons/ward.png', './icons/zahra.png',
+  './icons/3d/suppliers.webp', './icons/3d/checks.webp', './icons/3d/employees.webp', './icons/3d/reports.webp', './icons/3d/loans.webp', './icons/3d/cash.webp', './icons/3d/banks.webp', './icons/3d/expenses.webp',
+  './vendor/fonts/cairo-arabic-400-normal.woff2', './vendor/fonts/cairo-arabic-600-normal.woff2', './vendor/fonts/cairo-arabic-700-normal.woff2', './vendor/fonts/cairo-arabic-800-normal.woff2',
+  './vendor/fonts/cairo-latin-400-normal.woff2', './vendor/fonts/cairo-latin-600-normal.woff2', './vendor/fonts/cairo-latin-700-normal.woff2', './vendor/fonts/cairo-latin-800-normal.woff2'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache:'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
   const u = new URL(e.request.url);
-  if (e.request.method !== 'GET' || u.hostname.endsWith('supabase.co')) return;
-  e.respondWith(
-    fetch(u.origin === location.origin ? new Request(e.request, {cache:'no-cache'}) : e.request).then(r => {
-      if (r.ok && (u.origin === location.origin || u.hostname.includes('jsdelivr') || u.hostname.includes('fonts.g'))) {
-        const copy = r.clone(); caches.open(CACHE).then(c => c.put(e.request, copy));
-      }
-      return r;
-    }).catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
-  );
+  if (e.request.method !== 'GET' || u.origin !== location.origin) return;                // البيانات (Supabase) مش بتتخزن هنا
+  if (/\/(rest|auth|storage)\/v1\/|\/local-info/.test(u.pathname)) return;            // السيرفر المحلي
+  const isPage = e.request.mode === 'navigate';
+  e.respondWith(caches.open(CACHE).then(async c => {
+    const hit = await c.match(isPage ? './index.html' : e.request, {ignoreSearch: isPage});
+    if (hit) return hit;                                              // من الجهاز فورًا (الإصدار الجديد بييجي مع تغيير الملف ده)
+    return fetch(e.request).then(r => { if (r.ok && !isPage) c.put(e.request, r.clone()); return r; })
+      .catch(() => c.match('./index.html'));
+  }));
 });

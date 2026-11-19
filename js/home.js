@@ -25,7 +25,7 @@ async function viewDashboard(){
   try{
     [rows, cs, emps] = await Promise.all([
       api.balances(), api.checkSummary(),
-      fetchAll(() => sb.from('employee_balances').select('id,balance,base_salary,active').order('id')).catch(() => null),
+      fetchAll(() => ldb.from('employee_balances').select('id,balance,base_salary,active').order('id')).catch(() => null),
     ]);
   }catch(e){
     shell({title:'حسابات المحل', nav:'home', home:{}, body:`<div class="card empty">${I.refresh}<div>مقدرناش نجيب البيانات — اتأكد من النت</div><button class="btn primary" style="margin-top:12px" onclick="route()">حاول تاني</button></div>`});

@@ -828,3 +828,27 @@ details.gsec .egrid{padding:0 12px 12px}
 .fbar i{grid-column:1 / -1;height:8px;border-radius:6px;background:rgba(127,127,127,.15);position:relative;overflow:hidden;order:3}
 .fbar i::after{content:'';position:absolute;inset:0 0 0 auto;width:var(--w);background:linear-gradient(90deg,var(--c),color-mix(in srgb,var(--c) 60%,#fff));border-radius:6px;animation:growW .6s cubic-bezier(.2,.8,.2,1) both}
 @keyframes growW{from{width:0}}
+
+/* ===== مؤشر المزامنة ===== */
+.sync-pill{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#dfe6f3;border-radius:20px;padding:2px 9px 2px 8px;font:inherit;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;max-width:100%;overflow:hidden;flex:none}
+.sync-pill i{width:7px;height:7px;border-radius:50%;background:#10B981;box-shadow:0 0 0 3px rgba(16,185,129,.2);flex:none}
+.sync-pill span{overflow:hidden;text-overflow:ellipsis}
+.sync-pill.s-run i{background:#60A5FA;box-shadow:0 0 0 3px rgba(96,165,250,.25);animation:pulseDot 1s infinite}
+.sync-pill.s-pend i{background:#F5B942;box-shadow:0 0 0 3px rgba(245,185,66,.25)}
+.sync-pill.s-off i{background:#94a3b8;box-shadow:0 0 0 3px rgba(148,163,184,.25)}
+.sync-pill.s-fail i,.sync-pill.s-conf i{background:#EF4444;box-shadow:0 0 0 3px rgba(239,68,68,.25)}
+.sync-pill.s-fail,.sync-pill.s-conf{border-color:rgba(239,68,68,.5);color:#ffc2ca}
+header.home-h .sync-pill{margin:5px auto 0}
+header.top:not(.home-h) .sync-pill{max-width:42%}
+header.top:not(.home-h) .sync-pill.s-ok span{display:none}
+header.top:not(.home-h) .sync-pill.s-ok{padding:6px}
+@keyframes pulseDot{50%{opacity:.35}}
+.sync-head{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.05);margin-bottom:8px}
+.sync-head i{width:10px;height:10px;border-radius:50%;background:#10B981}
+.sync-head.s-run i{background:#60A5FA}.sync-head.s-pend i{background:#F5B942}.sync-head.s-off i{background:#94a3b8}.sync-head.s-fail i,.sync-head.s-conf i{background:#EF4444}
+.sq-item{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line)}
+.sq-item>div{flex:1;min-width:0;display:flex;flex-direction:column}
+.sq-item small{color:var(--muted);font-size:11.5px}
+.sq-item .btn{padding:6px 10px;font-size:12.5px;flex:none}
+.sq-item.st-conflict b,.sq-item.st-failed b{color:#ff8c99}
+.cf-tbl{width:100%;border-collapse:collapse;font-size:12.5px}.cf-tbl th,.cf-tbl td{padding:7px 5px;text-align:right;border-bottom:1px solid var(--line)}

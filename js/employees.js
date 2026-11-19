@@ -24,10 +24,10 @@ const n0 = v => Number(v || 0);
 const signMoney = v => n0(v) < 0 ? `<span class="neg">(${money(Math.abs(n0(v)))})</span>` : money(v);
 
 const empApi = {
-  balances: () => fetchAll(() => sb.from('employee_balances').select('*').order('id')),
-  one: id => q(sb.from('employee_balances').select('*').eq('id', id).single()),
-  settlements: id => fetchAll(() => sb.from('emp_settlements').select('*').eq('employee_id', id).order('period_to', {ascending:false}).order('id', {ascending:false})),
-  txs: id => fetchAll(() => sb.from('emp_transactions').select('*').eq('employee_id', id).order('tx_date', {ascending:false}).order('id', {ascending:false})),
+  balances: () => fetchAll(() => ldb.from('employee_balances').select('*').order('id')),
+  one: id => q(ldb.from('employee_balances').select('*').eq('id', id).single()),
+  settlements: id => fetchAll(() => ldb.from('emp_settlements').select('*').eq('employee_id', id).order('period_to', {ascending:false}).order('id', {ascending:false})),
+  txs: id => fetchAll(() => ldb.from('emp_transactions').select('*').eq('employee_id', id).order('tx_date', {ascending:false}).order('id', {ascending:false})),
 };
 
 /* =================== قائمة الموظفين =================== */
@@ -147,7 +147,7 @@ window.showSettlement = id => {
 
 /* =================== تعديل تسوية =================== */
 async function formSettlement(id){
-  const s = await q(sb.from('emp_settlements').select('*, employees(name)').eq('id', id).single());
+  const s = await q(ldb.from('emp_settlements').select('*, employees(name)').eq('id', id).single());
   formShell('تعديل تسوية: ' + esc(s.employees?.name || ''), `
     <div class="hint" style="margin-bottom:10px">الأرقام الأصلية من الكشف بتفضل محفوظة زي ما هي، والتعديل بيتسجل في سجل التعديلات.</div>
     <div class="row2">${EMP_FIELDS.map(([k,l]) => `<div class="field"><label>${l}</label><input id="s_${k}" inputmode="decimal" value="${s[k] ?? ''}"></div>`).join('')}</div>
@@ -155,7 +155,7 @@ async function formSettlement(id){
   async () => {
     const row = {notes: $('#s_notes').value.trim() || null};
     EMP_FIELDS.forEach(([k]) => { const v = $('#s_' + k).value.trim(); row[k] = v === '' ? null : readAmountSigned(v); });
-    await q(sb.from('emp_settlements').update(row).eq('id', id));
+    await q(ldb.from('emp_settlements').update(row).eq('id', id));
     busy(false); await celebrate('اتحفظ التعديل');
     location.replace('#/emp/' + s.employee_id);
   });
@@ -167,8 +167,8 @@ function readAmountSigned(v){
 
 /* =================== حركة موظف =================== */
 async function formEmpTx(id, presetEmp){
-  const x = id ? await q(sb.from('emp_transactions').select('*').eq('id', id).single()) : null;
-  const emps = await fetchAll(() => sb.from('employees').select('id,name').order('name').order('id'));
+  const x = id ? await q(ldb.from('emp_transactions').select('*').eq('id', id).single()) : null;
+  const emps = await fetchAll(() => ldb.from('employees').select('id,name').order('name').order('id'));
   let kind = x?.kind || null;
   formShell(x ? 'تعديل حركة' : 'حركة موظف جديدة', `
     <div class="field" id="f-emp"><label>الموظف <span class="req">*</span></label>
@@ -192,7 +192,7 @@ async function formEmpTx(id, presetEmp){
     if(!kind) return markErr('kind', 'اختار نوع الحركة');
     if(!(amt > 0)) return markErr('amount', 'اكتب المبلغ');
     const row = {employee_id:+eid, kind, amount: kind === 'adjustment' && $('#neg').checked ? -amt : amt, tx_date:$('#date').value || today(), branch:$('#branch').value || null, notes:$('#notes').value.trim() || null};
-    if(x) await q(sb.from('emp_transactions').update(row).eq('id', x.id)); else await q(sb.from('emp_transactions').insert(row));
+    if(x) await q(ldb.from('emp_transactions').update(row).eq('id', x.id)); else await q(ldb.from('emp_transactions').insert(row));
     busy(false); await celebrate('اتسجلت الحركة');
     location.replace('#/emp/' + eid);
   });
@@ -204,13 +204,13 @@ async function formEmpTx(id, presetEmp){
 window.delEmpTx = async (id, eid) => {
   if(!confirm('تمسح الحركة دي؟')) return;
   busy(true);
-  try{ await q(sb.from('emp_transactions').delete().eq('id', id)); toast('اتمسحت'); location.replace('#/emp/' + eid); }
+  try{ await q(ldb.from('emp_transactions').delete().eq('id', id)); toast('اتمسحت'); location.replace('#/emp/' + eid); }
   catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };
 
 /* =================== بيانات موظف =================== */
 async function formEmployee(id){
-  const x = id ? await q(sb.from('employees').select('*').eq('id', id).single()) : null;
+  const x = id ? await q(ldb.from('employees').select('*').eq('id', id).single()) : null;
   formShell(x ? 'تعديل بيانات الموظف' : 'موظف جديد', `
     <div class="field" id="f-name"><label>الاسم <span class="req">*</span></label><input id="name" value="${esc(x?.name || '')}"></div>
     <div class="row2">
@@ -225,8 +225,8 @@ async function formEmployee(id){
   async () => {
     const name = $('#name').value.trim(); if(!name) return markErr('name', 'اكتب الاسم');
     const row = {name, emp_no:$('#no').value.trim() || null, base_salary: $('#base').value.trim() ? readAmount($('#base').value) : null, branch:$('#branch').value || null, phone:$('#phone').value.trim() || null, notes:$('#notes').value.trim() || null};
-    if(x){ await q(sb.from('employees').update(row).eq('id', x.id)); busy(false); toast('اتحفظ ✓'); location.replace('#/emp/' + x.id); }
-    else { const r = await q(sb.from('employees').insert(row).select().single()); busy(false); toast('اتضاف الموظف ✓'); location.replace('#/emp/' + r.id); }
+    if(x){ await q(ldb.from('employees').update(row).eq('id', x.id)); busy(false); toast('اتحفظ ✓'); location.replace('#/emp/' + x.id); }
+    else { const r = await q(ldb.from('employees').insert(row).select().single()); busy(false); toast('اتضاف الموظف ✓'); location.replace('#/emp/' + r.id); }
   });
 }
 
@@ -408,7 +408,8 @@ window.confirmEmpImport = async (merge=false) => {
     const payload = {branch:d.branch, period_from:d.period_from, period_to:d.period_to, source_image, merge, notes:d.notes || null,
       totals_original:d.totals_original || {}, totals_computed:draftTotals(d),
       rows:d.rows.map(r => ({...Object.fromEntries(EMP_FIELDS.map(([k]) => [k, r[k]])), emp_no:r.emp_no, name:r.name, original:r.original || null, uncertain:r.uncertain || []}))};
-    const res = await q(sb.rpc('import_employee_settlements', {p: payload}));
+    if(!navigator.onLine) throw Object.assign(new Error('استيراد الكشف محتاج نت — المسودة محفوظة على الجهاز، جرّب لما النت يرجع'), {friendly:true});
+    const res = await rpcNet('import_employee_settlements', {p: payload}, 30000).catch(e => { throw isNetErr(e) ? Object.assign(new Error('النت فصل — مفيش حاجة اتسجلت والمسودة محفوظة، جرّب تاني'), {friendly:true}) : e; });
     busy(false);
     if(res.need_confirm){
       if(confirm(`الموظفين دول موجودين بالفعل:\n${res.existing.join('، ')}\n\nتضيف التسوية دي لحساباتهم الموجودة؟`)) return confirmEmpImport(true);
@@ -416,6 +417,7 @@ window.confirmEmpImport = async (merge=false) => {
     }
     if(res.duplicate) return alert(`الفترة دي اتستوردت قبل كده للموظفين دول:\n${res.existing.join('، ')}\n\nمحدش اتسجل — مفيش أي حاجة اتغيرت.`);
     localStorage.removeItem(DRAFT_KEY); empDraft = null;
+    syncNow();
     await celebrate(`اتسجل ${res.settlements} موظف`, true);
     location.replace('#/employees');
   }catch(e){ console.error(e); toast(errMsg(e), true); } finally{ busy(false); }
