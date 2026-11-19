@@ -1,0 +1,363 @@
+/* الأساس: أيقونات، أدوات، إفكتات، الاتصال بقاعدة البيانات، التوجيه، هيكل الصفحة */
+/* =================== أيقونات =================== */
+const I = {
+  ret:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
+  disc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5L5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
+  chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="13" width="3" height="5" rx="1"/></svg>',
+  bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>',
+  doc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>',
+  wa:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4a.5.5 0 0 0 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6a2.7 2.7 0 0 0 1.8-1.2 2.2 2.2 0 0 0 .2-1.2c-.1-.1-.3-.2-.5-.3z"/></svg>',
+  img:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+  print:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>',
+  xls:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 12l6 6M15 12l-6 6"/></svg>',
+  save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>',
+  hist:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 3"/></svg>',
+  scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 12h10"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  refresh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 14h6M16 10h2"/></svg>',
+  gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  receipt:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l3-2 3 2 2-2 2 2 3-2 3 2V2l-3 2-3-2-2 2-2-2-3 2z"/><path d="M8 9h8M8 13h6"/></svg>',
+  cash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg>',
+  transfer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 10h6l-2-2M15 14H9l2 2"/></svg>',
+  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  close:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+  box:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>',
+  logout:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>',
+  share:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
+};
+const METHOD = {cash:'كاش', check:'شيك', transfer:'تحويل', return:'مرتجع', discount:'خصم'};
+const IS_ADJ = m => m === 'return' || m === 'discount';
+const INV_ST = {paid:'مدفوعة', partial:'مدفوعة جزئيًا', unpaid:'لسه'};
+const CHK = {pending:'لسه ما اتصرفش', cleared:'اتصرف', bounced:'ارتد'};
+
+/* =================== أدوات =================== */
+const $ = (s, r=document) => r.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => `<span class="m"><span class="num">${Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2})}</span> ج</span>`;
+const fmtDate = d => { if(!d) return ''; const [y,m,dd] = String(d).slice(0,10).split('-'); return `<span class="num">${dd}/${m}/${y}</span>`; };
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const daysUntil = d => Math.round((new Date(d+'T00:00:00') - new Date(today()+'T00:00:00')) / 864e5);
+const shortName = e => (e||'').split('@')[0];
+
+function toast(msg, err=false){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = document.createElement('div'); t.className = 'toast' + (err?' err':''); t.textContent = msg;
+  document.body.appendChild(t); setTimeout(()=>t.remove(), err?4500:2400);
+}
+let busyEl = null;
+function busy(on){
+  if(on && !busyEl){ busyEl = document.createElement('div'); busyEl.className='busy'; busyEl.innerHTML='<div class="spin"></div>'; document.body.appendChild(busyEl); }
+  if(!on && busyEl){ busyEl.remove(); busyEl = null; }
+}
+function errMsg(e){
+  const m = (e && (e.message || e.error_description || e.msg)) || String(e);
+  if(/Invalid login credentials/i.test(m)) return 'الإيميل أو كلمة السر غلط';
+  if(/Email not confirmed/i.test(m)) return 'لازم تأكد الإيميل الأول من الرسالة اللي جاتلك';
+  if(/already registered/i.test(m)) return 'الإيميل ده عنده حساب بالفعل — اعمل دخول';
+  if(/Password should be/i.test(m)) return 'كلمة السر لازم تكون 6 حروف على الأقل';
+  if(/duplicate key.*suppliers_name/i.test(m)) return 'فيه مورد بنفس الاسم';
+  if(/duplicate key.*members/i.test(m)) return 'الإيميل ده مضاف بالفعل';
+  if(/foreign key/i.test(m)) return 'المورد ده عليه فواتير أو دفعات — امسحها الأول';
+  if(/row-level security/i.test(m)) return 'مش مسموح — حسابك مش مضاف للتطبيق';
+  if(/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'مفيش إنترنت — جرّب تاني';
+  return m;
+}
+
+/* ضغط الصورة قبل الرفع (أسرع وأوفر) */
+function compressImage(file, maxSide=1400, quality=0.72){
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let {width:w, height:h} = img;
+      const s = Math.min(1, maxSide / Math.max(w,h)); w = Math.round(w*s); h = Math.round(h*s);
+      const c = document.createElement('canvas'); c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      c.toBlob(b => { URL.revokeObjectURL(url); resolve(b || file); }, 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
+
+/* =================== إفكتات =================== */
+const REDUCED = false; // الأنيميشن شغال دايمًا
+const buzz = (ms=12) => { try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
+
+// موجة عند الضغط
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.btn,.fab,.iconbtn,.chip,.seg button,.list .item,nav.bottom a');
+  if(!el || REDUCED) return;
+  const r = el.getBoundingClientRect(), d = document.createElement('span');
+  d.className = 'rp'; d.style.left = (e.clientX - r.left) + 'px'; d.style.top = (e.clientY - r.top) + 'px';
+  el.appendChild(d); setTimeout(() => d.remove(), 600);
+}, {passive:true});
+
+// عدّاد الأرقام
+function countUp(root=document){
+  if(REDUCED) return;
+  root.querySelectorAll('.hero .big .num, .hero .mini b .num, .bal3 .num').forEach(el => {
+    const target = Number(el.textContent.replace(/,/g,'')); if(!isFinite(target) || target === 0) return;
+    const dur = 750, t0 = performance.now();
+    const step = t => { const k = Math.min(1, (t - t0) / dur), v = target * (1 - Math.pow(1 - k, 3));
+      el.textContent = v.toLocaleString('en-US', {maximumFractionDigits: k < 1 ? 0 : 2}); if(k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  });
+}
+// ترتيب ظهور العناصر
+function stagger(root=document){ root.querySelectorAll('.list .item').forEach((el,i) => { if(i < 15) el.style.setProperty('--i', i); else el.style.animation = 'none'; }); }
+
+// تحميل بشكل هيكلي بدل الدوّارة
+function skeleton(kind){
+  const row = `<div style="display:flex;gap:12px;align-items:center;padding:13px 4px"><div class="skel" style="width:42px;height:42px"></div><div style="flex:1"><div class="skel" style="height:14px;width:60%;margin-bottom:8px"></div><div class="skel" style="height:11px;width:40%"></div></div><div class="skel" style="width:70px;height:16px"></div></div>`;
+  const top = kind==='sup' ? `<div class="card"><div class="skel" style="height:62px"></div></div><div class="skel" style="height:44px;margin-bottom:12px"></div>` : `<div class="skel" style="height:150px;margin-bottom:12px;border-radius:16px"></div>`;
+  return top + `<div class="card">${row.repeat(4)}</div>`;
+}
+
+// علامة صح + احتفال بعد الحفظ
+function celebrate(text, confetti=false){
+  buzz(18); document.querySelectorAll('.toast').forEach(t => t.remove());
+  if(REDUCED){ toast(text); return Promise.resolve(); }
+  const ov = document.createElement('div'); ov.className = 'done-ov';
+  ov.innerHTML = `<div class="done-box"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="45"/><path d="M30 52 l14 14 l27 -30"/></svg><b>${esc(text)}</b></div>`;
+  document.body.appendChild(ov);
+  if(confetti){
+    const cs = getComputedStyle(document.documentElement); const colors = [cs.getPropertyValue('--accent'), cs.getPropertyValue('--brand'), cs.getPropertyValue('--brand-2'), '#ffffff', cs.getPropertyValue('--accent-soft'), cs.getPropertyValue('--green')];
+    for(let i=0;i<28;i++){
+      const c = document.createElement('div'); c.className = 'confetti';
+      const a = Math.random()*Math.PI*2, dist = 90 + Math.random()*150;
+      c.style.setProperty('--x', Math.cos(a)*dist+'px'); c.style.setProperty('--y', Math.sin(a)*dist+'px'); c.style.setProperty('--r', (Math.random()*720-360)+'deg');
+      c.style.background = colors[i % colors.length]; c.style.boxShadow = '0 0 0 1px rgba(90,108,74,.15)';
+      c.style.animationDelay = (Math.random()*0.12)+'s';
+      document.body.appendChild(c); setTimeout(() => c.remove(), 1200);
+    }
+  }
+  return new Promise(r => setTimeout(() => { ov.style.transition = 'opacity .2s'; ov.style.opacity = 0; setTimeout(() => { ov.remove(); r(); }, 200); }, 950));
+}
+
+// ورد متساقط في شاشة الدخول
+function petals(){
+  if(REDUCED) return '';
+  const cols = ({rose:['#f6cfd6','#ffffff','#e2ecda','#f9dde2','#cfdcc4'], mint:['#b9ecd5','#ffffff','#9fe3c4','#e2f5ee','#cdeedd'], olive:['#e8dcc0','#ffffff','#dfe6cc','#f1e2c4','#cfd8b5']})[document.documentElement.dataset.theme] || ['#ffffff'];
+  let h = '<div class="login-bg"><div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div></div><div class="petals">';
+  for(let i=0;i<22;i++){
+    const left = Math.random()*100, dur = 9 + Math.random()*9, delay = -Math.random()*18, size = 9 + Math.random()*9;
+    h += `<span class="petal" style="left:${left}%;width:${size}px;height:${size*.7}px;background:${cols[i%cols.length]};box-shadow:0 0 0 1px rgba(106,121,85,.18);animation-duration:${dur}s;animation-delay:${delay}s;--dx:${(Math.random()*120-60)}px;--rot:${Math.random()*540-270}deg"></span>`;
+  }
+  return h + '</div>';
+}
+
+// اسحب لتحت للتحديث
+(function(){
+  let y0 = null, dy = 0, el = null;
+  document.addEventListener('touchstart', e => {
+    if(window.scrollY > 0 || !me || $('.sheet') || $('#mdl') || !$('header.top')) { y0 = null; return; }
+    y0 = e.touches[0].clientY; dy = 0;
+  }, {passive:true});
+  document.addEventListener('touchmove', e => {
+    if(y0 === null) return;
+    dy = e.touches[0].clientY - y0; if(dy <= 0) return;
+    if(!el){ el = document.createElement('div'); el.className = 'ptr'; el.innerHTML = I.refresh; document.body.appendChild(el); }
+    const p = Math.min(dy, 110);
+    el.style.transform = `translateY(${p - 70}px) rotate(${p*3}deg)`;
+  }, {passive:true});
+  document.addEventListener('touchend', async () => {
+    if(!el) { y0 = null; return; }
+    const ok = dy > 80, ptr = el; el = null; y0 = null;
+    if(ok){ ptr.classList.add('go'); ptr.style.transform = 'translateY(10px)'; buzz(10); try{ await route(); }catch(e){} }
+    ptr.style.transform = 'translateY(-70px)'; setTimeout(() => ptr.remove(), 250);
+  });
+})();
+
+
+/* =================== أدوات الإصدار 2 =================== */
+const scriptCache = {};
+function loadScript(src){
+  return scriptCache[src] ||= new Promise((ok, bad) => { const sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = () => bad(new Error('مش قادر أحمّل ' + src)); document.head.appendChild(sc); });
+}
+// حالة كل فاتورة: الدفعات المربوطة بفاتورة بتتحسب عليها، والباقي بيتوزع على الأقدم فالأحدث
+function allocate(invs, pays){
+  const st = new Map(invs.map(i => [i.id, {amount:Number(i.amount), paid:0}]));
+  let free = 0;
+  pays.filter(p => p.check_status !== 'bounced').forEach(p => {
+    const a = Number(p.amount);
+    if(p.invoice_id && st.has(p.invoice_id)) st.get(p.invoice_id).paid += a; else free += a;
+  });
+  st.forEach(v => { if(v.paid > v.amount){ free += v.paid - v.amount; v.paid = v.amount; } });
+  [...invs].sort((a,b) => a.inv_date === b.inv_date ? a.id - b.id : (a.inv_date < b.inv_date ? -1 : 1)).forEach(i => {
+    const v = st.get(i.id), take = Math.min(v.amount - v.paid, free); v.paid += take; free -= take;
+  });
+  st.forEach(v => { v.rem = Math.max(0, Math.round((v.amount - v.paid)*100)/100); v.status = v.rem <= 0 ? 'paid' : v.paid > 0 ? 'partial' : 'unpaid'; });
+  return st;
+}
+const soonToChecks = sm => (sm.soon || []).map(c => ({...c, check_status:'pending', method:'check', suppliers:{name:c.name}}));
+const dueText = d => { const n = daysUntil(d); return n < 0 ? `فات ميعاده من ${-n} يوم` : n === 0 ? 'النهارده' : n === 1 ? 'بكرة' : `بعد ${n} يوم`; };
+function dueAlert(checks){
+  const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3);
+  if(!due.length) return '';
+  const over = due.some(c => daysUntil(c.due_date) <= 0);
+  return `<div class="alert ${over?'':'soon'}" onclick="go('/checks')">
+    <div class="ah">${I.bell}${over ? 'شيكات ميعادها النهارده أو فات' : 'شيكات ميعادها قرّب'} (${due.length})</div>
+    ${due.slice(0,4).map(c => `<div class="ar"><span>${esc(c.suppliers?.name)} · ${dueText(c.due_date)}</span><b>${money(c.amount)}</b></div>`).join('')}
+  </div>`;
+}
+// إشعارات الشيكات (مرة واحدة في اليوم لكل شيك)
+async function notifyChecks(checks){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const day = today();
+  for(const c of checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 1)){
+    const key = `ntf_${c.id}_${day}`; if(localStorage.getItem(key)) continue;
+    const title = `شيك ${dueText(c.due_date)}: ${Number(c.amount).toLocaleString('en-US')} ج`;
+    const opts = {body:`${c.suppliers?.name || ''}${c.check_no ? ' · شيك رقم ' + c.check_no : ''}`, icon:'icons/icon-192.png', badge:'icons/icon-192.png', tag:'chk'+c.id, lang:'ar', dir:'rtl'};
+    try{ const reg = await navigator.serviceWorker?.getRegistration(); if(reg) await reg.showNotification(title, opts); else new Notification(title, opts); localStorage.setItem(key, '1'); }catch(e){}
+  }
+}
+setInterval(async () => { if(sb && me){ try{ notifyChecks(soonToChecks(await api.checkSummary())); }catch(e){} } }, 30*60e3);
+function download(blob, name){ const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500); }
+
+/* =================== الاتصال بـ Supabase =================== */
+const CFG_KEY = 'mawredin_cfg';
+function readCfgFromUrl(){
+  const p = new URLSearchParams(location.search);
+  const c = p.get('cfg');
+  if(!c) return;
+  try{
+    const obj = JSON.parse(decodeURIComponent(escape(atob(c))));
+    if(obj.url && obj.key){ localStorage.setItem(CFG_KEY, JSON.stringify(obj)); }
+  }catch(e){}
+  history.replaceState(null, '', location.pathname + location.hash);
+}
+// أي فتح بـ http (localhost أو IP الكمبيوتر على الشبكة) = السيرفر المحلي. GitHub Pages دايمًا https
+const IS_LOCAL = location.protocol === 'http:';
+function getCfg(){
+  // على localhost التطبيق بيتوصل تلقائيًا بالسيرفر المحلي
+  if(IS_LOCAL) return {url: location.origin, key: 'local-dev'};
+  // أونلاين: config.js فيه رابط ومفتاح Supabase، فأي حد يفتح الرابط يلاقيه جاهز
+  const C = window.MAWREDIN_CONFIG;
+  if(C && C.url && C.key && !/PUT_/.test(C.url + C.key)) return {url: C.url, key: C.key};
+  try{ return JSON.parse(localStorage.getItem(CFG_KEY)); }catch(e){ return null; }
+}
+let lanUrls = [];
+function shareLink(){
+  if(IS_LOCAL) return lanUrls[0] || location.origin;
+  const c = getCfg(); const b = btoa(unescape(encodeURIComponent(JSON.stringify(c))));
+  return location.origin + location.pathname + '?cfg=' + b;
+}
+
+let sb = null, me = null, isOwner = false;
+const urlCache = new Map();
+async function signedUrl(path){
+  if(!path) return null;
+  const c = urlCache.get(path); if(c && c.exp > Date.now()) return c.url;
+  const { data, error } = await sb.storage.from('attachments').createSignedUrl(path, 3600);
+  if(error) return null;
+  urlCache.set(path, {url:data.signedUrl, exp:Date.now()+50*60e3});
+  return data.signedUrl;
+}
+async function uploadImage(file, folder){
+  const blob = await compressImage(file);
+  const path = `${folder}/${new Date().toISOString().slice(0,7)}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
+  const { error } = await sb.storage.from('attachments').upload(path, blob, {contentType:'image/jpeg', upsert:false});
+  if(error) throw error;
+  return path;
+}
+async function removeImage(path){ if(path) await sb.storage.from('attachments').remove([path]); }
+
+/* =================== البيانات =================== */
+async function q(promise){ const { data, error } = await promise; if(error) throw error; return data; }
+// Supabase بيرجّع 1000 صف بالكتير في الطلب الواحد — فبنجيب على دفعات لحد ما نجيب كل حاجة
+const PAGE = 1000;
+async function fetchAll(build){
+  let out = [], from = 0;
+  for(;;){
+    const rows = await q(build().range(from, from + PAGE - 1));
+    out = out.concat(rows);
+    if(rows.length < PAGE) return out;
+    from += PAGE;
+  }
+}
+const api = {
+  balances: () => fetchAll(() => sb.from('supplier_balances').select('*').order('balance', {ascending:false}).order('id')),
+  supplier: id => q(sb.from('supplier_balances').select('*').eq('id', id).single()),
+  suppliers: () => fetchAll(() => sb.from('suppliers').select('id,name').order('name').order('id')),
+  invoices: sid => fetchAll(() => sb.from('invoices').select('*').eq('supplier_id', sid).order('inv_date',{ascending:false}).order('id',{ascending:false})),
+  payments: sid => fetchAll(() => sb.from('payments').select('*').eq('supplier_id', sid).order('pay_date',{ascending:false}).order('id',{ascending:false})),
+  // الشيكات اللي لسه بس (للتنبيه والصفحة الرئيسية) — كلها مهما كان عددها
+  checks: () => fetchAll(() => sb.from('payments').select('*, suppliers(name)').eq('method','check').eq('check_status','pending').order('due_date').order('id')),
+  // الشيكات القديمة (اتصرفت/ارتدت) صفحة صفحة
+  checksPage: (status, from, n=100) => {
+    let b = sb.from('payments').select('*, suppliers(name)').eq('method','check');
+    if(status !== 'all') b = b.eq('check_status', status);
+    return q(b.order('due_date', {ascending:false}).order('id', {ascending:false}).range(from, from + n - 1));
+  },
+  members: () => q(sb.from('members').select('*').order('created_at')),
+  allSuppliers: () => fetchAll(() => sb.from('suppliers').select('*').order('id')),
+  allInvoices: () => fetchAll(() => sb.from('invoices').select('*').order('id')),
+  allPayments: () => fetchAll(() => sb.from('payments').select('*').order('id')),
+  log: (from=0, n=200) => q(sb.from('activity_log').select('*').order('id', {ascending:false}).range(from, from + n - 1)),
+  checkSummary: () => q(sb.rpc('checks_summary', {p_days: 3})),
+  reportMonth: ym => q(sb.rpc('report_month', {p_month: ym})),
+  reportSeries: (ym, n=6) => q(sb.rpc('report_series', {p_end: ym, p_n: n})),
+};
+
+/* =================== التوجيه =================== */
+function go(h){ location.hash = h; }
+window.addEventListener('hashchange', route);
+let tab = {}, ledgerShown = {};  // آخر تبويب اتفتح لكل مورد
+
+async function route(){
+  closeModal();
+  if(!sb) return;
+  const h = location.hash.slice(1) || '/';
+  const [path, qs] = h.split('?');
+  const params = new URLSearchParams(qs || '');
+  const parts = path.split('/').filter(Boolean);
+  try{
+    if(parts[0] === 's' && parts[1]) return await viewSupplier(+parts[1]);
+    if(parts[0] === 'checks') return await viewChecks();
+    if(parts[0] === 'settings') return await viewSettings();
+    if(parts[0] === 'invoice') return await formInvoice(parts[1] ? +parts[1] : null, params.get('s'));
+    if(parts[0] === 'payment') return await formPayment(parts[1] ? +parts[1] : null, params.get('s'));
+    if(parts[0] === 'supplier') return await formSupplier(parts[1] ? +parts[1] : null);
+    if(parts[0] === 'adjust') return await formAdjust(parts[1] ? +parts[1] : null, params.get('s'));
+    if(parts[0] === 'statement' && parts[1]) return await viewStatement(+parts[1], params.get('from'), params.get('to'));
+    if(parts[0] === 'reports') return await viewReports();
+    if(parts[0] === 'log') return await viewLog();
+    return await viewHome();
+  }catch(e){ console.error(e); toast(errMsg(e), true); }
+}
+
+/* =================== هيكل الصفحة =================== */
+let lastShown = null;
+function shell({title, back, right='', body, nav=null, fabs=''}){
+  const app = $('#app');
+  const loading = body.includes('class="skel"');
+  const same = !loading && lastShown === location.hash;   // نفس الصفحة (تحديث/تبويب) = من غير إعادة كل الحركات
+  if(!loading) lastShown = location.hash;
+  app.innerHTML = `
+    <header class="top">
+      ${back ? `<button class="iconbtn" onclick="history.length>1?history.back():go('/')" aria-label="رجوع">${I.back}</button>` : headLogos}
+      <h1>${title}</h1>${right}
+    </header>
+    <main class="${same ? 'calm' : 'enter'}">${body}</main>
+    ${fabs}
+    ${nav ? `<nav class="bottom">
+      <a href="#/" class="${nav==='home'?'on':''}">${I.users}الموردين</a>
+      <a href="#/checks" class="${nav==='checks'?'on':''}">${I.check}الشيكات</a>
+      <a href="#/reports" class="${nav==='reports'?'on':''}">${I.chart}التقارير</a>
+      <a href="#/settings" class="${nav==='settings'?'on':''}">${I.gear}الإعدادات</a>
+    </nav>` : ''}`;
+  window.scrollTo(0,0);
+  stagger(app); if(!same) countUp(app);
+  if(same) app.querySelector('.fabs')?.classList.add('calm');
+}
+const refreshBtn = `<button class="iconbtn" onclick="route()" aria-label="تحديث">${I.refresh}</button>`;
+const quickFabs = sid => `<div class="fabs">
+  <button class="fab inv" onclick="go('/invoice${sid?'?s='+sid:''}')">${I.receipt}فاتورة</button>
+  <button class="fab pay" onclick="go('/payment${sid?'?s='+sid:''}')">${I.cash}دفعة</button>
+</div>`;

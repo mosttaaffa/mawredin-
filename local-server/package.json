@@ -1,0 +1,18 @@
+{
+  "name": "mawredin-local",
+  "version": "1.0.0",
+  "description": "سيرفر محلي لتطبيق حسابات الموردين",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16"
+  },
+  "private": true,
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.119.1"
+  }
+}
