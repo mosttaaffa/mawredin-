@@ -71,6 +71,9 @@ async function viewSettings(){
         <div class="hint">بعد الإضافة: يفتح التطبيق على موبايله ويدوس «أول مرة؟ اعمل حساب جديد» بنفس الإيميل ويختار كلمة السر بتاعته بنفسه، وبعدين يأكد من الرسالة اللي هتوصله على الإيميل. إنت مش محتاج تعرف كلمة السر بتاعته.</div></div>`
         : '<div class="hint" style="margin-top:8px">التطبيق متاح لمستخدمين اتنين بس.</div>'}
     </div>
+    <div class="card"><div class="section-t">رقمي الشخصي لاستقبال كشوف الحساب</div>
+      <div class="picker"><input id="mywa" type="tel" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx" value="${esc(localStorage.getItem('mawredin_my_wa') || '')}"><button class="btn primary" onclick="saveMyWa()">حفظ</button></div>
+      <div class="hint">بيتحفظ على الموبايل ده، وبيستخدم في «إرسال الكشف لرقمي» على واتساب.</div></div>
     <div class="card"><div class="section-t">تثبيت التطبيق على الموبايل</div>
       <button class="btn ghost block" onclick="go('/install')">${I.share}طريقة التثبيت على الآيفون والأندرويد</button></div>
     ${IS_LOCAL ? `<div class="card"><div class="section-t">افتحه من أي جهاز على نفس الشبكة</div>
@@ -103,6 +106,12 @@ window.setTheme = t => {
   try{ localStorage.setItem('mawredin_theme', t); }catch(e){}
   const m = document.querySelector('meta[name=theme-color]'); if(m) m.content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
   buzz(10); viewSettings();
+};
+window.saveMyWa = () => {
+  const v = $('#mywa').value.trim();
+  if(v && !waNormalize(v)) return toast('الرقم مش صحيح', true);
+  if(v) localStorage.setItem('mawredin_my_wa', v); else localStorage.removeItem('mawredin_my_wa');
+  toast(v ? 'اتحفظ رقمك ✓' : 'اتشال الرقم');
 };
 const myMember = list => list.find(m => m.email === String(me.email).toLowerCase());
 // إضافة/إزالة مستخدم لازم تكون أونلاين (عشان تتطبق على طول ومتعدّيش على طابور المزامنة)

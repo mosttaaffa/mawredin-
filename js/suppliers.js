@@ -1,6 +1,6 @@
 /* الموردين: الرئيسية، صفحة المورد، الفواتير والدفعات والمرتجعات، قراءة المبلغ من الصورة */
 /* =================== تبويب الموردين =================== */
-const waNum = p => { let d = String(p || '').replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)).replace(/\D/g, ''); if(d.startsWith('00')) d = d.slice(2); else if(d.startsWith('0')) d = '20' + d.slice(1); return d; };
+const waNum = p => waNormalize(p);
 let supSort = 'bal', supFilter = 'all', supQ = '';
 // بطاقة مورد مالية (قابلة لإعادة الاستخدام): كل الإجماليات ظاهرة من غير ما تفتح الحساب
 function supCard(r){
