@@ -13,10 +13,10 @@ function tile3d(m){
   </button>`;
 }
 function homeSkeleton(){
-  return `<div class="dash"><div class="tiles3d">${'<div class="skel tile-sk"></div>'.repeat(8)}</div></div>`;
+  return `<div class="dash fit"><div class="tiles3d">${'<div class="skel tile-sk"></div>'.repeat(8)}</div></div>`;
 }
 async function viewDashboard(){
-  if(!$('.dash')) shell({title:'حسابات المحل', nav:'home', home:{}, body:homeSkeleton()});
+  if(!$('.dash')){ shell({title:'حسابات المحل', nav:'home', home:{}, body:homeSkeleton()}); fitDash(); }
   const N = v => Number(v || 0);
   let rows, cs, emps;
   try{
@@ -43,18 +43,22 @@ async function viewDashboard(){
     {k:'banks', t:'الحسابات البنكية', i:'bank', s:'البنوك والإيداع والسحب والشيكات'},
     {k:'expenses', t:'المصروفات', i:'expense', s:'إدارة مصروفات المحل ونقلها وتصنيفها'},
   ].map(m => m.go ? m : {...m, go: ready(m.k) ? '/' + m.k : '/m/' + m.k, soon: !ready(m.k)});
-  shell({title:'حسابات المحل', nav:'home', home:{alerts: checks.length}, body:`
-    <div class="dash">
-    ${dueAlert(checks)}
+  const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3);
+  const over = due.some(c => daysUntil(c.due_date) <= 0);
+  shell({title:'حسابات المحل', nav:'home', home:{alerts: due.length}, body:`
+    <div class="dash fit">
+    ${due.length ? `<button class="mini-alert ${over ? 'over' : ''}" onclick="go('/checks')">${I.bell}<span>${over ? 'شيكات ميعادها النهارده أو فات' : 'شيكات ميعادها قرّب'}</span><b>${due.length}</b></button>` : ''}
     <div class="tiles3d">${tiles.map(tile3d).join('')}</div>
-    <div class="qa">
-      <button onclick="go('/invoice')">${I.receipt}<span>فاتورة</span></button>
-      <button onclick="go('/payment')">${I.cash}<span>دفعة</span></button>
-      <button onclick="go('/emp-tx')">${I.emp}<span>حركة موظف</span></button>
-      <button onclick="go('/adjust')">${I.ret}<span>مرتجع</span></button>
-    </div>
     </div>`});
+  fitDash();
 }
+// الرئيسية كلها في شاشة واحدة: ارتفاع البطاقات = المساحة بين الهيدر والشريط اللي تحت
+function fitDash(){
+  const d = document.querySelector('.dash.fit'); if(!d) return;
+  const h = document.querySelector('header.top')?.offsetHeight || 0, n = document.querySelector('nav.bottom')?.offsetHeight || 0;
+  d.style.height = Math.max(420, window.innerHeight - h - Math.max(n, parseFloat(getComputedStyle(document.body).paddingBottom) || 0) - 28) + 'px';
+}
+addEventListener('resize', fitDash);
 
 /* =================== المزيد =================== */
 const MODULES = [
