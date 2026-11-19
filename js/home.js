@@ -1,19 +1,22 @@
 /* الرئيسية (ملخص حسابات المحل) + قائمة «المزيد» والأقسام */
 
-/* =================== الرئيسية: بطاقات الأقسام بصور ثلاثية الأبعاد =================== */
+/* =================== الرئيسية: لوحة مالية (ملخص + 8 بطاقات بصور ثلاثية الأبعاد) =================== */
 // بطاقة قسم قابلة لإعادة الاستخدام
-function tile3d(m){
-  return `<button class="tile3d t-${m.k}" onclick="go('${m.go}')">
-    <span class="t3-top"><span class="t3-ico">${I[m.i] || I.folder}</span><span class="t3-arrow">${I.back}</span></span>
-    <img class="t3-img" src="icons/3d/${m.k}.webp" alt="" loading="eager" decoding="async" width="96" height="96">
-    <span class="t3-name">${m.t}</span>
-    ${m.v != null && m.v !== '' ? `<span class="t3-v">${m.v}</span>` : ''}
-    <span class="t3-s">${m.s}</span>
-    ${m.soon ? '<span class="soon">قريبًا</span>' : ''}
+function hcard(m){
+  return `<button class="hcard h-${m.k} ${m.soon ? 'has-soon' : ''}" onclick="go('${m.go}')" aria-label="${m.t}">
+    <img class="hc-img" src="icons/3d/${m.k}.webp" alt="" decoding="async">
+    <span class="hc-ico">${I[m.i] || I.folder}</span>
+    <span class="hc-body">
+      <span class="hc-name">${m.t}</span>
+      ${m.v != null && m.v !== '' ? `<span class="hc-v">${m.v}</span>` : ''}
+      <span class="hc-s">${m.s}</span>
+    </span>
+    ${m.soon ? `<span class="hc-soon">${I.clock}قريبًا</span>` : ''}
+    <span class="hc-go">${I.arrowL}</span>
   </button>`;
 }
 function homeSkeleton(){
-  return `<div class="dash fit"><div class="tiles3d">${'<div class="skel tile-sk"></div>'.repeat(8)}</div></div>`;
+  return `<div class="dash fit2"><div class="skel sum-sk"></div><div class="hgrid">${'<div class="skel hcard-sk"></div>'.repeat(8)}</div></div>`;
 }
 async function viewDashboard(){
   if(!$('.dash')){ shell({title:'حسابات المحل', nav:'home', home:{}, body:homeSkeleton()}); fitDash(); }
@@ -22,7 +25,7 @@ async function viewDashboard(){
   try{
     [rows, cs, emps] = await Promise.all([
       api.balances(), api.checkSummary(),
-      fetchAll(() => sb.from('employee_balances').select('id,balance').order('id')).catch(() => null),
+      fetchAll(() => sb.from('employee_balances').select('id,balance,base_salary,active').order('id')).catch(() => null),
     ]);
   }catch(e){
     shell({title:'حسابات المحل', nav:'home', home:{}, body:`<div class="card empty">${I.refresh}<div>مقدرناش نجيب البيانات — اتأكد من النت</div><button class="btn primary" style="margin-top:12px" onclick="route()">حاول تاني</button></div>`});
@@ -31,32 +34,42 @@ async function viewDashboard(){
   const checks = soonToChecks(cs); notifyChecks(checks);
   const owed = rows.reduce((a,r) => a + Math.max(0, N(r.balance)), 0);
   const owedN = rows.filter(r => N(r.balance) > 0).length;
-  const empSum = (emps || []).reduce((a,r) => a + N(r.balance), 0);
+  const E = emps || [];
+  const empSum = E.reduce((a,r) => a + N(r.balance), 0);
+  const salaries = E.filter(r => r.active !== false).reduce((a,r) => a + N(r.base_salary), 0);
   const ready = k => MODULES.find(m => m.k === k)?.ready;
-  const tiles = [
-    {k:'suppliers', go:'/suppliers', t:'الموردين', i:'users', v:money(owed), s:`${rows.length} مورد · مستحق لـ ${owedN}`},
-    {k:'checks', go:'/checks', t:'الشيكات', i:'check', v:money(cs.sum), s:`${N(cs.n)} شيك مستحق${cs.next ? ' · أقربها ' + fmtDate(cs.next.due_date) : ''}`},
-    {k:'employees', go:'/employees', t:'الموظفين', i:'emp', v:emps ? signMoney(empSum) : '', s:emps ? `${emps.length} موظف مسجل` : 'مش متاح دلوقتي'},
+  const cards = [
+    {k:'suppliers', go:'/suppliers', t:'الموردين', i:'box', v:money(owed), s:`${rows.length} مورد · مستحق لـ ${owedN}`},
+    {k:'checks', go:'/checks', t:'الشيكات', i:'check', v:money(cs.sum), s:`${N(cs.n)} شيك مستحق`},
+    {k:'employees', go:'/employees', t:'الموظفين', i:'users', v:emps ? signMoney(empSum) : '', s:emps ? `${E.length} موظف` : 'مش متاح دلوقتي'},
     {k:'reports', go:'/reports', t:'التقارير', i:'chart', s:'المشتريات والمدفوعات شهريًا'},
-    {k:'loans', t:'القروض', i:'loan', s:'القروض والأقساط والمتبقي'},
+    {k:'loans', t:'القروض', i:'loan', s:'القروض عليك أو لك، والأقساط والمتبقي'},
     {k:'cash', t:'الخزينة', i:'safe', s:'الكاش في المحل، الداخل والخارج والرصيد'},
     {k:'banks', t:'الحسابات البنكية', i:'bank', s:'البنوك والإيداع والسحب والشيكات'},
     {k:'expenses', t:'المصروفات', i:'expense', s:'إدارة مصروفات المحل ونقلها وتصنيفها'},
   ].map(m => m.go ? m : {...m, go: ready(m.k) ? '/' + m.k : '/m/' + m.k, soon: !ready(m.k)});
   const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3);
-  const over = due.some(c => daysUntil(c.due_date) <= 0);
+  const net = empSum;
   shell({title:'حسابات المحل', nav:'home', home:{alerts: due.length}, body:`
-    <div class="dash fit">
-    ${due.length ? `<button class="mini-alert ${over ? 'over' : ''}" onclick="go('/checks')">${I.bell}<span>${over ? 'شيكات ميعادها النهارده أو فات' : 'شيكات ميعادها قرّب'}</span><b>${due.length}</b></button>` : ''}
-    <div class="tiles3d">${tiles.map(tile3d).join('')}</div>
+    <div class="dash fit2">
+    <div class="sumbar">
+      <div class="smi" onclick="go('/employees')"><i>${I.chart}</i><b>${money(salaries)}</b><span>إجمالي المرتبات</span></div>
+      <div class="smi" onclick="go('/suppliers')"><i>${I.box}</i><b>${rows.length}</b><span>مورد</span></div>
+      <div class="smi" onclick="go('/employees')"><i>${I.users}</i><b>${E.length}</b><span>موظف</span></div>
+      <div class="smi" onclick="go('/employees')"><i>${I.coins}</i><b class="${net < 0 ? 'neg-v' : net > 0 ? 'pos-v' : ''}">${money(Math.abs(net))}</b>
+        <span>${net < 0 ? `<em class="dn">${I.down}</em>` : net > 0 ? `<em class="upv">${I.up}</em>` : ''}صافي الأرصدة</span></div>
+    </div>
+    ${due.length ? `<button class="mini-alert ${due.some(c => daysUntil(c.due_date) <= 0) ? 'over' : ''}" onclick="go('/checks')">${I.bell}<span>شيكات ميعادها قرّب</span><b>${due.length}</b></button>` : ''}
+    <div class="hgrid">${cards.map(hcard).join('')}</div>
     </div>`});
   fitDash();
 }
-// الرئيسية كلها في شاشة واحدة: ارتفاع البطاقات = المساحة بين الهيدر والشريط اللي تحت
+// الرئيسية في شاشة واحدة لو المساحة تكفي (وإلا بتنزل لتحت عادي)
 function fitDash(){
-  const d = document.querySelector('.dash.fit'); if(!d) return;
-  const h = document.querySelector('header.top')?.offsetHeight || 0, n = document.querySelector('nav.bottom')?.offsetHeight || 0;
-  d.style.height = Math.max(420, window.innerHeight - h - Math.max(n, parseFloat(getComputedStyle(document.body).paddingBottom) || 0) - 28) + 'px';
+  const d = document.querySelector('.dash.fit2'); if(!d) return;
+  const h = document.querySelector('header.top')?.offsetHeight || 0;
+  const pb = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+  d.style.height = Math.max(560, window.innerHeight - h - pb - 28) + 'px';
 }
 addEventListener('resize', fitDash);
 

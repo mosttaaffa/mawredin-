@@ -1,6 +1,13 @@
 /* الأساس: أيقونات، أدوات، إفكتات، الاتصال بقاعدة البيانات، التوجيه، هيكل الصفحة */
 /* =================== أيقونات =================== */
 const I = {
+  truck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h11v10H2z"/><path d="M13 9h4l4 4v3h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/><path d="M4 9h3M4 12h5"/></svg>',
+  store:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l1.5-5h15L21 9"/><path d="M3 9c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3c0 1.7 1.3 3 3 3s3-1.3 3-3"/><path d="M5 12v8h14v-8"/><path d="M10 20v-5h4v5"/></svg>',
+  coins:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v4c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 10v4c0 1.7 3.1 3 7 3s7-1.3 7-3v-4"/><path d="M5 14v4c0 1.7 3.1 3 7 3s7-1.3 7-3v-4"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+  arrowL:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M6 11l6-6 6 6"/></svg>',
   home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>',
   grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>',
   emp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>',
@@ -360,10 +367,12 @@ function shell({title, back, right='', body, nav=null, fabs='', home=null}){
   if(!loading) lastShown = location.hash;
   app.innerHTML = `
     ${home ? `<header class="top home-h">
-      ${headLogos}
-      <div class="hh-t"><h1>${title}</h1><small>إدارة مالية شاملة للمحل</small></div>
-      <button class="iconbtn glass" onclick="go('/checks')" aria-label="الإشعارات">${I.bell}${home.alerts ? `<i class="badge">${home.alerts}</i>` : ''}</button>
-      <button class="iconbtn glass" onclick="go('/settings')" aria-label="الإعدادات">${I.gear}</button>
+      <div class="hh-logo"><img src="icons/ward.png" alt="ورد"><img src="icons/zahra.png" alt="زهرة"></div>
+      <div class="hh-t"><h1><span>${title}</span><i class="hh-store">${I.store}</i></h1><small><em></em>إدارة مالية شاملة للمحل<em></em></small></div>
+      <div class="hh-btns">
+        <button class="iconbtn glass" onclick="go('/settings')" aria-label="الإعدادات">${I.gear}</button>
+        <button class="iconbtn glass" onclick="go('/checks')" aria-label="الإشعارات">${I.bell}${home.alerts ? `<i class="badge">${home.alerts}</i>` : ''}</button>
+      </div>
     </header>` : `<header class="top">
       ${back ? `<button class="iconbtn" onclick="history.length>1?history.back():go('/')" aria-label="رجوع">${I.back}</button>` : headLogos}
       <h1>${title}</h1>${right}
@@ -372,8 +381,8 @@ function shell({title, back, right='', body, nav=null, fabs='', home=null}){
     ${fabs}
     ${nav ? `<nav class="bottom">
       <a href="#/" class="${nav==='home'?'on':''}" aria-label="الرئيسية">${I.home}<span>الرئيسية</span></a>
-      <a href="#/employees" class="${nav==='employees'?'on':''}" aria-label="الموظفين">${I.emp}<span>الموظفين</span></a>
-      <a href="#/suppliers" class="${nav==='suppliers'?'on':''}" aria-label="الموردين">${I.users}<span>الموردين</span></a>
+      <a href="#/employees" class="${nav==='employees'?'on':''}" aria-label="الموظفين">${I.users}<span>الموظفين</span></a>
+      <a href="#/suppliers" class="${nav==='suppliers'?'on':''}" aria-label="الموردين">${I.truck}<span>الموردين</span></a>
       <a href="#/checks" class="${nav==='checks'?'on':''}" aria-label="الشيكات">${I.check}<span>الشيكات</span></a>
       <a href="#/reports" class="${nav==='reports'?'on':''}" aria-label="التقارير">${I.chart}<span>التقارير</span></a>
       <a href="#/more" class="${nav==='more'?'on':''}" aria-label="المزيد">${I.grid}<span>المزيد</span></a>

@@ -634,3 +634,110 @@ main.calm .tile3d{animation:none}
 .mini-alert b{background:#b7791f;color:#fff;border-radius:10px;min-width:22px;padding:1px 6px}
 .mini-alert.over{background:#fde9ed;color:#b02a46}.mini-alert.over b{background:#d0475f}
 @media (min-width:600px){.dash.fit .tiles3d{grid-template-rows:repeat(2,minmax(0,1fr))}}
+
+/* =====================================================================
+   الإصدار 5 — مطابق للصورة المرجعية (كحلي #071426 + دهبي #D9A441)
+   ===================================================================== */
+[data-theme="navy"]{
+  --bg:#071426; --bg2:#10243D; --gold:#D9A441; --gold-2:#FFD780; --txt2:#B8C5D6;
+  --brand:#B9862F; --brand-2:#D9A441; --brand-soft:#FBF1DC;
+  --hdr-bg:rgba(7,20,38,.86);
+}
+[data-theme="navy"] body{
+  background:radial-gradient(110% 55% at 100% -5%,rgba(217,164,65,.16) 0%,rgba(217,164,65,0) 45%),
+             radial-gradient(120% 70% at 0% 0%,#193657 0%,rgba(25,54,87,0) 60%),
+             linear-gradient(180deg,#0c1d35 0%,#071426 40%,#06101f 100%) fixed;
+  background-color:#071426;
+}
+[data-theme="navy"] main{--ink:#fff;--muted:#B8C5D6}
+
+/* ---------- الهيدر الفاخر ---------- */
+header.home-h{position:relative;overflow:hidden;display:flex;align-items:center;gap:10px;padding:calc(12px + var(--safe-t)) 14px 12px;
+  background:linear-gradient(160deg,#193657 0%,#0d2140 45%,#071426 100%) !important;border-bottom:0 !important}
+header.home-h::before{content:'';position:absolute;inset:auto -10% 0 18%;height:2px;background:linear-gradient(90deg,rgba(217,164,65,0),#D9A441 55%,rgba(255,215,128,.0));opacity:.7}
+header.home-h::after{content:'';position:absolute;top:-60%;right:-20%;width:70%;height:200%;background:radial-gradient(closest-side,rgba(255,215,128,.18),rgba(255,215,128,0));pointer-events:none}
+.hh-logo{position:relative;flex:none;width:66px;height:66px;border-radius:50%;padding:3px;background:conic-gradient(from 200deg,#FFD780,#B9862F,#FFE7A8,#D9A441,#FFD780);box-shadow:0 0 0 3px rgba(7,20,38,.9),0 0 22px rgba(217,164,65,.45);display:flex;align-items:center;justify-content:center;z-index:1}
+.hh-logo img{width:38px;height:38px;border-radius:50%;background:#fff;border:2px solid #071426;object-fit:cover}
+.hh-logo img+img{margin-inline-start:-12px}
+header.home-h .hh-t{flex:1;min-width:0;align-items:center;text-align:center;z-index:1}
+header.home-h .hh-t h1{display:flex;align-items:center;justify-content:center;gap:6px;font-size:21px;font-weight:800;color:#fff;background:none;-webkit-text-fill-color:#fff}
+.hh-store{display:inline-grid;color:#FFD780;font-style:normal}.hh-store svg{width:22px;height:22px}
+header.home-h .hh-t small{display:flex;align-items:center;gap:6px;justify-content:center;color:#FFD780;opacity:1;font-size:11.5px;font-weight:600}
+header.home-h .hh-t small em{display:block;width:16px;height:1.5px;background:linear-gradient(90deg,rgba(217,164,65,0),#D9A441)}
+header.home-h .hh-t small em:last-child{transform:scaleX(-1)}
+.hh-btns{display:flex;gap:8px;flex:none;z-index:1}
+header.home-h .iconbtn{width:40px;height:40px;border-radius:13px;background:linear-gradient(160deg,rgba(255,255,255,.12),rgba(255,255,255,.03));border:1px solid rgba(255,255,255,.14);color:#fff;box-shadow:0 6px 14px -6px rgba(0,0,0,.6)}
+header.home-h .iconbtn svg{width:21px;height:21px}
+header.home-h .badge{box-shadow:0 0 0 2px #10243D}
+
+/* ---------- لوحة الملخص الزجاجية ---------- */
+.dash.fit2{display:flex;flex-direction:column;gap:10px;min-height:0}
+.sumbar{flex:none;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-radius:20px;padding:10px 4px 9px;position:relative;
+  background:linear-gradient(160deg,rgba(25,54,87,.85),rgba(16,36,61,.75));border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 14px 28px -16px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,255,255,.1),inset 0 -2px 0 rgba(217,164,65,.55);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.sumbar::after{content:'';position:absolute;left:12%;right:12%;bottom:-1px;height:10px;background:radial-gradient(closest-side,rgba(217,164,65,.55),rgba(217,164,65,0));filter:blur(3px)}
+.smi{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;padding:0 3px;cursor:pointer;text-align:center}
+.smi+.smi{border-inline-start:1px solid rgba(255,255,255,.12)}
+.smi i{color:#FFD780;display:grid;font-style:normal}.smi i svg{width:21px;height:21px}
+.smi b{font-size:15px;font-weight:800;color:#fff;white-space:nowrap;direction:ltr;unicode-bidi:isolate;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.smi b.neg-v{color:#ff8a9b}.smi b.pos-v{color:#7ee2b0}
+.smi span{font-size:10.5px;color:#B8C5D6;white-space:nowrap;display:flex;align-items:center;gap:2px}
+.smi em{display:grid;font-style:normal}.smi em svg{width:11px;height:11px}.smi em.dn{color:#ff5d72}.smi em.upv{color:#3fd18f}
+.sum-sk{height:74px;border-radius:20px;flex:none}
+
+/* ---------- بطاقات الأقسام ---------- */
+.hgrid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(4,minmax(118px,1fr));gap:10px}
+.hcard{--g1:#fff;--g2:#eee;--ac:#999;--ac2:#777;position:relative;overflow:hidden;border-radius:22px;border:1px solid rgba(255,255,255,.7);padding:0;font:inherit;text-align:right;cursor:pointer;color:#16203a;
+  background:radial-gradient(130% 120% at 100% 0%,rgba(255,255,255,.95) 0%,rgba(255,255,255,0) 50%),linear-gradient(200deg,var(--g1) 0%,var(--g2) 100%);
+  box-shadow:0 14px 26px -16px rgba(0,0,0,.85),inset 0 2px 0 rgba(255,255,255,.7),inset 0 -8px 18px -10px rgba(0,0,0,.12);
+  animation:tileIn .45s cubic-bezier(.2,.8,.2,1) both;transition:transform .14s,box-shadow .2s}
+.hcard:active{transform:scale(.965);box-shadow:0 6px 14px -10px rgba(0,0,0,.85),inset 0 2px 0 rgba(255,255,255,.6)}
+.hcard:nth-child(2){animation-delay:.04s}.hcard:nth-child(3){animation-delay:.08s}.hcard:nth-child(4){animation-delay:.12s}.hcard:nth-child(5){animation-delay:.16s}.hcard:nth-child(6){animation-delay:.2s}.hcard:nth-child(7){animation-delay:.24s}.hcard:nth-child(8){animation-delay:.28s}
+main.calm .hcard{animation:none}
+.hc-img{position:absolute;left:-2px;bottom:8%;width:52%;max-width:132px;aspect-ratio:1;object-fit:contain;object-position:left bottom;filter:drop-shadow(0 10px 10px rgba(0,0,0,.22));pointer-events:none}
+.hc-ico{position:absolute;top:9px;right:10px;width:30px;height:30px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(160deg,var(--ac),var(--ac2));box-shadow:0 5px 10px -4px var(--ac2),inset 0 1px 0 rgba(255,255,255,.4)}
+.hc-ico svg{width:17px;height:17px}
+.hc-body{position:absolute;inset:44px 10px 10px 40%;display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:1px;min-width:0}
+.hc-name{font-weight:800;font-size:16.5px;line-height:1.25;white-space:nowrap}
+.hc-v{font-weight:800;font-size:15.5px;line-height:1.35;direction:ltr;unicode-bidi:isolate;white-space:nowrap;color:#16203a}
+.hc-v .neg{color:#c23a55}
+.hc-s{font-size:11px;line-height:1.4;color:#3f4a66;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hc-soon{margin-top:auto;display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;color:#7a520f;background:linear-gradient(180deg,#FFE3A0,#F4C766);border-radius:20px;padding:2px 9px 2px 8px;box-shadow:0 2px 6px -2px rgba(154,107,30,.5),inset 0 1px 0 rgba(255,255,255,.6)}
+.hc-soon svg{width:12px;height:12px}
+.hc-go{position:absolute;left:9px;bottom:9px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;background:linear-gradient(160deg,var(--ac),var(--ac2));box-shadow:0 5px 12px -4px var(--ac2),inset 0 1px 0 rgba(255,255,255,.35);z-index:2}
+.hc-go svg{width:15px;height:15px}
+.hcard-sk{border-radius:22px;min-height:118px}
+.h-suppliers{--g1:#fbe3ea;--g2:#e9a9bb;--ac:#e0567c;--ac2:#a8264d}
+.h-checks{--g1:#fff6e4;--g2:#ecd2a0;--ac:#e2ad4c;--ac2:#a8761c}
+.h-employees{--g1:#e8f1ff;--g2:#a9c4ec;--ac:#3f7fd8;--ac2:#1d4f9c}
+.h-reports{--g1:#e6f6ea;--g2:#a8dcb8;--ac:#36a564;--ac2:#18703f}
+.h-loans{--g1:#fbf1e1;--g2:#e5c690;--ac:#d6a043;--ac2:#946417}
+.h-cash{--g1:#e1f5f2;--g2:#9fd5cf;--ac:#2aa196;--ac2:#126b62}
+.h-banks{--g1:#f1eafd;--g2:#c7b3ee;--ac:#8a62d8;--ac2:#5a35a8}
+.h-expenses{--g1:#fde6ee;--g2:#efb0c6;--ac:#d9567f;--ac2:#9c2850}
+[data-theme="navy"] .mini-alert{flex:none}
+@media (max-width:360px){.hc-name{font-size:15px}.hc-v{font-size:14px}.hc-s{font-size:10.5px}.smi b{font-size:13.5px}.hh-logo{width:56px;height:56px}.hh-logo img{width:32px;height:32px}header.home-h .hh-t h1{font-size:18px}}
+@media (min-width:600px){.hgrid{grid-template-rows:none;grid-auto-rows:150px}}
+
+/* ---------- الشريط السفلي العائم ---------- */
+[data-theme="navy"] body{padding-bottom:calc(92px + var(--safe-b))}
+[data-theme="navy"] nav.bottom{left:10px;right:10px;bottom:calc(8px + var(--safe-b));border-radius:24px;padding:7px 5px;
+  background:linear-gradient(180deg,rgba(25,54,87,.92),rgba(10,24,45,.95));border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 16px 34px -12px rgba(0,0,0,.85),inset 0 1px 0 rgba(255,255,255,.08)}
+[data-theme="navy"] nav.bottom a{color:#fff;opacity:.88;border-radius:16px;padding:6px 0 4px;border:1px solid transparent}
+[data-theme="navy"] nav.bottom a span{color:#B8C5D6;font-weight:600}
+[data-theme="navy"] nav.bottom a.on{opacity:1;color:#fff;background:linear-gradient(180deg,rgba(217,164,65,.42),rgba(217,164,65,.1));border-color:rgba(255,215,128,.75);box-shadow:0 0 16px -2px rgba(217,164,65,.55),inset 0 1px 0 rgba(255,255,255,.25)}
+[data-theme="navy"] nav.bottom a.on span{color:#FFD780;font-weight:800}
+[data-theme="navy"] nav.bottom a.on svg{filter:drop-shadow(0 0 6px rgba(255,215,128,.6))}
+[data-theme="navy"] .fabs{bottom:calc(96px + var(--safe-b))}
+/* ضبط البطاقات: النص مايدخلش على الصورة */
+.hgrid{grid-template-rows:repeat(4,minmax(104px,1fr));gap:9px}
+.hc-img{width:47%;max-width:124px;bottom:auto;top:50%;translate:0 -50%}
+.hc-body{inset:42px 10px 10px 44%;gap:0}
+.hcard.has-soon .hc-body{bottom:34px}
+.hc-name{white-space:normal;font-size:15.5px;line-height:1.2}
+.hc-v{font-size:15px}
+.hc-s{font-size:10.5px;line-height:1.35}
+.hc-soon{position:absolute;right:10px;bottom:9px;margin:0}
+.hc-ico{width:28px;height:28px;top:9px}
+.hc-go{width:26px;height:26px;left:8px;bottom:8px}
