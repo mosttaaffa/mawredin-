@@ -988,3 +988,9 @@ header.top:not(.home-h) .sync-pill.s-ok{padding:6px}
 [data-theme="navy"] main[data-art] .sup-hero .hero-line{padding-left:66px}
 .hero-line .lbl{font-size:13.5px}
 .hero-line .big{font-size:clamp(19px,6vw,25px)!important}
+/* الموردين: كل المربعات في صف واحد (وعلى الموبايل الصغير بتتسحب يمين وشمال) */
+.sup-hero .sum6{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-inline:-4px;padding:0 4px 2px}
+.sup-hero .sum6::-webkit-scrollbar{display:none}
+.sup-hero .sum6>div{flex:1 0 96px;scroll-snap-align:start;padding:7px 8px}
+.sup-hero .sum6 b{font-size:14.5px}
+.sup-hero .sum6>div>span{font-size:10.5px}
