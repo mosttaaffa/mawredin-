@@ -1006,3 +1006,9 @@ header.top:not(.home-h) .sync-pill.s-ok{padding:6px}
 .ar small{font-weight:400;opacity:.75;font-size:11px}
 .chk-nums b.pos-v{color:var(--green)}.chk-nums b.neg-v{color:var(--red)}
 .chk-nums b{white-space:nowrap;font-size:14px}.chk-nums b .m{white-space:nowrap}
+/* حماية البيانات */
+.vault-list{max-height:200px;overflow:auto;font-size:12.5px;color:var(--muted);line-height:1.8;margin-top:8px;background:rgba(127,127,127,.08);border-radius:10px;padding:8px 10px}
+.health-banner{position:fixed;inset-inline:12px;top:calc(env(safe-area-inset-top) + 64px);z-index:60;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;border:0;background:#7a1d1d;color:#fff;font:inherit;font-size:13px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.35);text-align:start}
+.health-banner svg{width:18px;height:18px;flex:none}
+.bk-ok{background:var(--green-soft)!important;color:var(--green)!important}.bk-warn{background:var(--amber-soft)!important;color:var(--amber)!important}.bk-bad{background:var(--red-soft)!important;color:var(--red)!important}
+.h-ok{color:var(--green)}.h-offline{color:var(--amber)}.h-server,.h-paused,.h-auth{color:var(--red)}

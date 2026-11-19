@@ -357,6 +357,7 @@ async function route(){
   try{
     if(parts[0] === 's' && parts[1]) return await viewSupplier(+parts[1]);
     if(parts[0] === 'checks') return await viewChecks();
+    if(parts[0] === 'backups') return await viewBackups();
     if(parts[0] === 'settings') return await viewSettings();
     if(parts[0] === 'suppliers') return await viewSuppliers();
     if(parts[0] === 'more') return viewMore();

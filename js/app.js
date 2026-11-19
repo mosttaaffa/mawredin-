@@ -90,8 +90,8 @@ async function viewSettings(){
       ${('Notification' in window) && window.isSecureContext && Notification.permission !== 'granted' ? `<button class="btn primary" onclick="enableNotifs()">${I.bell}تشغيل</button>` : ''}</div>
     </div>
     <div class="card"><div class="section-t">البيانات</div>
-      <div class="actions" style="margin-bottom:10px"><button class="btn ghost" onclick="exportExcel()">${I.xls}تصدير Excel</button><button class="btn ghost" onclick="backupJson()">${I.save}نسخة احتياطية</button></div>
-      <div class="hint" style="margin-bottom:10px">${backupAge() == null ? 'لسه ما عملتش نسخة احتياطية من الموبايل ده.' : backupAge() === 0 ? 'آخر نسخة احتياطية: النهارده ✓' : `آخر نسخة احتياطية من ${backupAge()} يوم.`} النسخة فيها كل البيانات وسجل التعديلات — ابعتها لنفسك على واتساب أو Drive.</div>
+      <button class="btn primary block" style="margin-bottom:10px" onclick="go('/backups')">${I.save}النسخ الاحتياطية وحماية البيانات</button>
+      <button class="btn ghost block" style="margin-bottom:10px" onclick="exportExcel()">${I.xls}تصدير Excel</button>
       <button class="btn ghost block" onclick="go('/log')">${I.hist}سجل التعديلات (مين عمل إيه)</button>
     </div>
     <div class="card"><div class="section-t">ألوان التطبيق</div>
@@ -146,24 +146,6 @@ window.shareApp = async () => {
   const link = shareLink();
   if(navigator.share){ try{ await navigator.share({title:'حسابات المحل', url:link}); return; }catch(e){ if(e.name==='AbortError') return; } }
   try{ await navigator.clipboard.writeText(link); toast('اتنسخ الرابط ✓'); }catch(e){ prompt('انسخ الرابط:', link); }
-};
-window.logout = async () => {
-  // الخروج بيمسح نسخة الجهاز — فممنوع طول ما فيه أي عملية لسه ما وصلتش السيرفر
-  const pend = store.queue.filter(o => o.status !== 'done');
-  if(pend.length){
-    if(navigator.onLine){ try{ await syncNow(true); }catch(e){} }
-    const left = store.queue.filter(o => o.status !== 'done');
-    if(left.length){
-      openModal(`<h3>مينفعش تخرج دلوقتي</h3><div class="hint" style="margin-bottom:12px">فيه ${left.length} عملية متسجلة على الموبايل ده ولسه ما وصلتش السيرفر${left.some(o => o.status === 'conflict' || o.status === 'failed') ? ' (منها عمليات محتاجة مراجعة)' : ''}. الخروج بيمسح بيانات الجهاز، فالعمليات دي كانت هتضيع.<br><br>اتصل بالنت وافتح «المزامنة» لحد ما الرقم يبقى صفر، وبعدين اخرج.</div>
-        <button class="btn primary block" onclick="closeModal();openSync()">${I.refresh}افتح المزامنة</button>`);
-      return;
-    }
-  }
-  try{ await withTimeout(sb.auth.signOut(), 5000); }catch(e){}
-  // الخروج بيمسح البيانات المحفوظة على الجهاز (أمان لو الجهاز مشترك)
-  try{ if(idb.db) idb.db.close(); await idb.drop(dbName(store.email || me?.email)); }catch(e){}
-  localStorage.removeItem(USER_KEY);
-  location.hash = '#/'; location.reload();
 };
 window.resetCfg = async () => { if(!confirm('هتمسح إعدادات الاتصال من الجهاز ده؟')) return; try{ await sb.auth.signOut(); }catch(e){} localStorage.removeItem(CFG_KEY); location.reload(); };
 
@@ -230,13 +212,14 @@ function viewLogin(mode='in', firstTime=false){
     e.preventDefault(); busy(true);
     const email = $('#le').value.trim(), password = $('#lp').value;
     try{
-      if(mode==='in'){ const { error } = await sb.auth.signInWithPassword({email, password}); if(error) throw error; }
+      if(mode==='in'){ const { error } = await sb.auth.signInWithPassword({email, password}); if(error) throw error; window._loginPw = password; }
       else{
         const { data, error } = await sb.auth.signUp({email, password, options:{emailRedirectTo: location.origin + location.pathname}}); if(error) throw error;
         if(!data.session){ busy(false); toast('اتعمل الحساب — افتح الإيميل وأكّده وبعدين ادخل'); return viewLogin('in'); }
       }
       await afterLogin();
-    }catch(err){ toast(errMsg(err), true); } finally{ busy(false); }
+      if(window._loginPw && me?.email){ const pw = window._loginPw; window._loginPw = null; await vaultRestore(me.email, pw); }   // عمليات كانت محفوظة مشفرة عند الخروج
+    }catch(err){ toast(errMsg(err), true); } finally{ busy(false); window._loginPw = null; }
   };
 }
 window.viewLogin = viewLogin;
@@ -283,6 +266,7 @@ async function afterLogin(){
   }
   route();
   scheduleSync(400);
+  setTimeout(() => healthCheck(), 1500);
 }
 
 /* =================== التشغيل =================== */

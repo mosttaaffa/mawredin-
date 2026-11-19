@@ -757,3 +757,32 @@ left join (select supplier_id, sum(amount) total, max(inv_date) last_date from p
 left join (select supplier_id, sum(eff) paid, sum(amount) filter (where method in ('return','discount')) adjust,
                   sum(remaining) pending_checks, max(pay_date) last_date from pe group by supplier_id) p on p.supplier_id = s.id;
 grant select on public.supplier_balances to authenticated;
+
+-- =====================================================
+-- النسخ الاحتياطي (الإصدار 8): سجل كل نسخة (التلقائية من GitHub Actions واليدوية من التطبيق)
+-- التلقائية بتتسجل من GitHub بصلاحية قاعدة البيانات. التطبيق يقدر يقرا ويسجل نسخة يدوية بس.
+-- =====================================================
+create table if not exists public.backup_runs (
+  id          bigint generated always as identity primary key,
+  kind        text not null check (kind in ('auto','manual')),
+  ok          boolean not null,
+  verified    boolean not null default false,
+  size_bytes  bigint,
+  rows_total  bigint,
+  details     jsonb,
+  release_tag text,
+  run_url     text,
+  error       text,
+  created_by  text not null default coalesce(public.current_email(), 'github-actions'),
+  created_at  timestamptz not null default now()
+);
+create index if not exists backup_runs_at_idx on public.backup_runs(created_at desc);
+alter table public.backup_runs enable row level security;
+drop policy if exists backup_runs_read on public.backup_runs;
+create policy backup_runs_read on public.backup_runs for select to authenticated using ((select public.is_member()));
+drop policy if exists backup_runs_manual on public.backup_runs;
+create policy backup_runs_manual on public.backup_runs for insert to authenticated
+  with check ((select public.is_member()) and kind = 'manual');
+revoke all on public.backup_runs from anon;
+revoke update, delete on public.backup_runs from authenticated;
+grant select, insert on public.backup_runs to authenticated;

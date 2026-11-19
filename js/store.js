@@ -350,11 +350,12 @@ async function syncNow(manual = false){
     sync.phase = 'pull'; syncUI();
     changed = (await pull()) || changed;
     sync.online = true; sync.lastOk = Date.now(); localStorage.setItem('mawredin_last_sync', String(sync.lastOk));
+    if(typeof health !== 'undefined'){ if(health.state !== 'ok') health.since = Date.now(); health.state = 'ok'; health.fails = 0; health.last = Date.now(); healthBanner(); }
     sync.backoff = 0;
     if(store.queue.some(o => o.status === 'pending')) scheduleSync(1000);
   }catch(e){
     console.warn('sync', e);
-    if(isNetErr(e)) sync.online = false;
+    if(isNetErr(e)){ sync.online = false; if(typeof healthCheck === 'function') setTimeout(healthCheck, 0); }
     sync.err = isNetErr(e) ? null : (e.message || String(e));
     sync.backoff = Math.min(sync.backoff ? sync.backoff * 2 : 5000, 5 * 60e3);   // 5ث، 10ث، 20ث ... لحد 5 دقايق
     scheduleSync(sync.backoff);
@@ -519,9 +520,12 @@ function syncState(){
   if(fail) return {k:'fail', t:`فشلت ${fail} عملية`, n:fail};
   if(sync.authErr) return {k:'fail', t:'سجّل دخول للمزامنة', n:pend};
   if(sync.running && (pend || sync.phase === 'full')) return {k:'run', t: sync.phase === 'full' ? `بنجهز البيانات${sync.progress ? ' ' + sync.progress : ''}…` : 'جاري المزامنة…', n:pend};
-  if(!sync.online) return pend ? {k:'off', t:`بدون نت · ${pend} في الانتظار`, n:pend} : {k:'off', t:'يعمل بدون إنترنت', n:0};
+  const hs = typeof health !== 'undefined' ? health.state : 'ok';
+  if(hs === 'server' || hs === 'paused') return {k:'fail', t:(hs === 'paused' ? 'السيرفر متوقف' : 'السيرفر مش بيرد') + (pend ? ` · ${pend} محفوظة` : ''), n:pend};
+  if(!sync.online || hs === 'offline') return pend ? {k:'off', t:`بدون نت · ${pend} في الانتظار`, n:pend} : {k:'off', t:'يعمل بدون إنترنت', n:0};
   if(pend) return {k:'pend', t:`${pend} ${pend === 1 ? 'عملية' : pend < 11 ? 'عمليات' : 'عملية'} في انتظار المزامنة`, n:pend};
   if(sync.err) return {k:'fail', t:'فشلت المزامنة', n:0};
+  if(hs !== 'ok') return {k:'run', t:'بنتأكد من الاتصال…', n:0};      // «متصل» بس بعد ما السيرفر يرد فعلًا
   return {k:'ok', t:'متصل ومتزامن', n:0};
 }
 function syncPill(){
@@ -533,7 +537,7 @@ function syncUI(){
   const s = syncState(); el.className = 'sync-pill s-' + s.k; el.querySelector('span').textContent = s.t;
   if(document.querySelector('#mdl .sync-panel')) renderSyncPanel();
 }
-const OPNAME = {suppliers:'مورد', invoices:'فاتورة', payments:'دفعة', members:'عضو', employees:'موظف', emp_settlements:'تسوية موظف', emp_transactions:'حركة موظف', _files:'صورة'};
+const OPNAME = {suppliers:'مورد', invoices:'فاتورة', payments:'دفعة', members:'عضو', employees:'موظف', emp_settlements:'تسوية موظف', emp_transactions:'حركة موظف', check_payments:'سداد شيك', _files:'صورة'};
 const KIND = {insert:'إضافة', update:'تعديل', delete:'مسح', upload:'رفع', rmfile:'مسح'};
 const ST = {pending:'محفوظ على الجهاز', sending:'جاري الإرسال', conflict:'تعارض', failed:'فشل'};
 const opLabel = o => `${KIND[o.kind]} ${OPNAME[o.table] || ''}${o.row?.amount ? ' بـ ' + Number(o.row.amount).toLocaleString('en-US') + ' ج' : o.changes?.amount ? ' (المبلغ ' + Number(o.changes.amount).toLocaleString('en-US') + ')' : o.row?.name ? ' ' + o.row.name : ''}`;

@@ -321,35 +321,6 @@ window.exportExcel = async () => {
     toast('اتعمل ملف Excel ✓');
   }catch(e){ console.error(e); toast('مقدرتش أعمل الملف', true); } finally{ busy(false); }
 };
-// نسخة احتياطية كاملة: كل الجداول + سجل التعديلات كله، من السيرفر مباشرة (ولو مفيش نت: من نسخة الجهاز)
-const BK_KEY = 'mawredin_last_backup';
-window.backupJson = async () => {
-  busy(true);
-  try{
-    const tables = Object.keys(TABLES).concat('activity_log'), data = {app:'mawredin', version:3, created_at:new Date().toISOString(), by:me.email, source:'server', tables:{}, counts:{}, missing:[]};
-    const online = navigator.onLine && sync.online;
-    for(const t of tables){
-      try{
-        if(!online) throw new Error('offline');
-        data.tables[t] = await fetchAllNet(() => sb.from(t).select('*').order(TABLES[t] || 'id'));
-      }catch(e){
-        if(t === 'activity_log'){ data.tables[t] = store.log; data.missing.push(t + ' (آخر ' + store.log.length + ' بس)'); }
-        else if(store.base[t]){ data.tables[t] = [...store.base[t].values()]; if(online) data.missing.push(t + ' (من الجهاز)'); }
-      }
-      data.counts[t] = (data.tables[t] || []).length;
-    }
-    if(!online) data.source = 'device';
-    const pend = store.queue.filter(o => o.status !== 'done');
-    if(pend.length) data.unsynced_ops = pend.map(o => ({...o}));   // العمليات اللي لسه على الجهاز بتتحفظ كمان
-    data.images = [...new Set(Object.values(data.tables).flat().flatMap(r => r && (r.image_path || r.extra_images) ? [r.image_path, ...(r.extra_images || [])] : []).filter(Boolean))];
-    const name = `نسخة احتياطية حسابات المحل ${today()}.json`;
-    download(new Blob([JSON.stringify(data, null, 1)], {type:'application/json'}), name);
-    localStorage.setItem(BK_KEY, today());
-    busy(false);
-    alert(`اتحفظت النسخة الاحتياطية ✓\n\n${Object.entries(data.counts).filter(([, n]) => n).map(([t, n]) => `• ${t}: ${n}`).join('\n')}${data.unsynced_ops ? `\n• عمليات لسه متزامنتش: ${data.unsynced_ops.length}` : ''}${data.missing.length ? '\n\nملحوظة: ' + data.missing.join('، ') : ''}\n\nالصور نفسها مش جوه الملف (أسماؤها بس) — هي محفوظة على السيرفر.\nابعت الملف لنفسك على واتساب أو احفظه على Google Drive.`);
-  }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
-};
-const backupAge = () => { const d = localStorage.getItem(BK_KEY); return d ? Math.floor((new Date(today()) - new Date(d)) / 864e5) : null; };
 window.enableNotifs = async () => {
   if(!('Notification' in window) || !window.isSecureContext) return toast('الإشعارات بتشتغل لما التطبيق يتفتح من رابط https (بعد الرفع على GitHub) أو من localhost على الكمبيوتر', true);
   const r = await Notification.requestPermission();
