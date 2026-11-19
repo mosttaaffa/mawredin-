@@ -268,6 +268,10 @@ async function viewLog(){
       if(r.action === 'update' && o.check_status !== n.check_status && n.check_status) t = `علّم الشيك${n.check_no ? ' رقم ' + n.check_no : ''} (${f(n.amount)}) إنه «${CHK[n.check_status]}»${sup}`;
       else t = `${verb} ${kind} بـ ${f(row.amount)}${sup}`;
     }
+    else if(r.entity === 'employees') t = `${{insert:'أضاف', update:'عدّل بيانات', delete:'مسح'}[r.action]} الموظف ${row.name}`;
+    else if(r.entity === 'emp_settlements') t = `${verb} تسوية موظف (${row.period_from} — ${row.period_to}) صافي ${f(row.net_balance ?? 0)}`;
+    else if(r.entity === 'emp_transactions') t = `${verb} حركة موظف (${({salary:'مرتب',commission:'عمولة',advance:'سلفة',deduction:'خصم',payment:'صرف',adjustment:'تسوية'})[row.kind] || ''}) بـ ${f(row.amount)}`;
+    else if(r.entity === 'emp_import_batches') t = `استورد كشف موظفين (${row.employee_count} موظف) ${row.period_from} — ${row.period_to}`;
     if(r.action === 'update'){
       const L = {amount:'المبلغ', inv_date:'التاريخ', pay_date:'التاريخ', inv_no:'رقم الفاتورة', due_date:'الاستحقاق', method:'النوع', name:'الاسم', phone:'التليفون', image_path:'الصورة', invoice_id:'الفاتورة المربوطة', notes:'الملاحظات', check_no:'رقم الشيك', bank:'البنك'};
       Object.keys(L).forEach(k => { if(k in n && JSON.stringify(o[k]) !== JSON.stringify(n[k])){

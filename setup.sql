@@ -285,3 +285,180 @@ create policy attachments_write  on storage.objects for insert to authenticated
   with check (bucket_id = 'attachments' and (select public.is_member()));
 create policy attachments_delete on storage.objects for delete to authenticated
   using (bucket_id = 'attachments' and (select public.is_member()));
+
+-- =====================================================
+-- حسابات الموظفين (الإصدار 3)
+-- =====================================================
+create table if not exists public.employees (
+  id          bigint generated always as identity primary key,
+  emp_no      text,
+  name        text not null unique,
+  branch      text,                      -- زهرة / ورد / زهرة وورد
+  base_salary numeric(14,2),
+  phone       text,
+  notes       text,
+  active      boolean not null default true,
+  created_by  text not null default public.current_email(),
+  created_at  timestamptz not null default now()
+);
+
+-- دفعات الاستيراد (كل كشف بيتستورد = دفعة)
+create table if not exists public.emp_import_batches (
+  id              uuid primary key default gen_random_uuid(),
+  branch          text,
+  period_from     date not null,
+  period_to       date not null,
+  source_image    text,
+  employee_count  int not null default 0,
+  totals_original jsonb,                 -- الإجماليات المكتوبة في الكشف
+  totals_computed jsonb,                 -- الإجماليات المحسوبة من الأرقام
+  notes           text,
+  created_by      text not null default public.current_email(),
+  created_at      timestamptz not null default now()
+);
+
+-- التسويات التاريخية (سطر لكل موظف في كل فترة) — مش حركات جديدة على الخزينة
+create table if not exists public.emp_settlements (
+  id             bigint generated always as identity primary key,
+  employee_id    bigint not null references public.employees(id) on delete restrict,
+  batch_id       uuid references public.emp_import_batches(id) on delete restrict,
+  branch         text,
+  period_from    date not null,
+  period_to      date not null,
+  base_salary    numeric(14,2),
+  work_days      numeric(6,2),
+  earned_salary  numeric(14,2),
+  comm_zahra     numeric(14,2),
+  comm_ward      numeric(14,2),
+  comm_total     numeric(14,2),
+  adv_zahra      numeric(14,2),
+  adv_ward       numeric(14,2),
+  ded_general    numeric(14,2),
+  ded_clothes    numeric(14,2),
+  adv_ded_total  numeric(14,2),
+  late_ded       numeric(14,2),
+  prev_balance   numeric(14,2),
+  net_balance    numeric(14,2),         -- الصافي (موجب = للموظف ، سالب = عليه)
+  original       jsonb,                  -- الأرقام زي ما اتقرت من الكشف بالظبط
+  uncertain      text[],                 -- الخانات اللي كانت مش واضحة
+  source_image   text,
+  is_historical  boolean not null default true,
+  notes          text,
+  created_by     text not null default public.current_email(),
+  created_at     timestamptz not null default now(),
+  unique (employee_id, period_from, period_to)
+);
+create index if not exists emp_settlements_emp_idx on public.emp_settlements(employee_id, period_to desc);
+create index if not exists emp_settlements_batch_idx on public.emp_settlements(batch_id);
+
+-- حركات الموظف بعد آخر تسوية
+-- salary/commission = للموظف (+) ، advance/deduction/payment = عليه (−) ، adjustment = بالإشارة
+create table if not exists public.emp_transactions (
+  id          bigint generated always as identity primary key,
+  employee_id bigint not null references public.employees(id) on delete restrict,
+  tx_date     date not null default current_date,
+  kind        text not null check (kind in ('salary','commission','advance','deduction','payment','adjustment')),
+  amount      numeric(14,2) not null check (kind = 'adjustment' or amount > 0),
+  branch      text,
+  notes       text,
+  image_path  text,
+  created_by  text not null default public.current_email(),
+  created_at  timestamptz not null default now()
+);
+create index if not exists emp_tx_emp_idx on public.emp_transactions(employee_id, tx_date);
+
+-- رصيد كل موظف = صافي آخر تسوية + الحركات اللي بعدها
+drop view if exists public.employee_balances;
+create view public.employee_balances with (security_invoker = true) as
+select e.id, e.emp_no, e.name, e.branch, e.base_salary, e.phone, e.notes, e.active,
+       ls.period_from as last_from, ls.period_to as last_to, ls.net_balance as last_net,
+       coalesce(t.delta, 0) as tx_delta,
+       coalesce(ls.net_balance, 0) + coalesce(t.delta, 0) as balance
+from public.employees e
+left join lateral (select s.period_from, s.period_to, s.net_balance from public.emp_settlements s
+                   where s.employee_id = e.id order by s.period_to desc, s.id desc limit 1) ls on true
+left join lateral (select sum(case when x.kind in ('salary','commission') then x.amount
+                                   when x.kind = 'adjustment' then x.amount else -x.amount end) delta
+                   from public.emp_transactions x
+                   where x.employee_id = e.id and (ls.period_to is null or x.tx_date > ls.period_to)) t on true;
+
+-- استيراد كشف كامل في معاملة واحدة: يا كله يتحفظ يا ولا حاجة
+create or replace function public.import_employee_settlements(p jsonb)
+returns json language plpgsql set search_path = public as $$
+declare
+  r jsonb; v_emp bigint; v_batch uuid; v_from date; v_to date; v_new int := 0; v_n int := 0;
+  v_existing text[]; v_dup text[];
+  num constant text[] := array['base_salary','work_days','earned_salary','comm_zahra','comm_ward','comm_total','adv_zahra','adv_ward',
+                               'ded_general','ded_clothes','adv_ded_total','late_ded','prev_balance','net_balance'];
+begin
+  if not public.is_member() then raise exception 'not allowed'; end if;
+  v_from := (p->>'period_from')::date; v_to := (p->>'period_to')::date;
+  if v_from is null or v_to is null or v_to < v_from then raise exception 'فترة الكشف غلط'; end if;
+  if jsonb_array_length(coalesce(p->'rows','[]')) = 0 then raise exception 'مفيش موظفين في الكشف'; end if;
+
+  -- موظفين موجودين بالفعل؟ لازم تأكيد قبل الدمج
+  select array_agg(distinct e.name) into v_existing
+  from jsonb_array_elements(p->'rows') x join public.employees e on e.name = trim(x->>'name');
+  if v_existing is not null and not coalesce((p->>'merge')::boolean, false) then
+    return json_build_object('ok', false, 'need_confirm', true, 'existing', v_existing);
+  end if;
+
+  -- نفس الفترة اتستوردت قبل كده لنفس الموظف؟ نوقف كل حاجة
+  select array_agg(distinct e.name) into v_dup
+  from jsonb_array_elements(p->'rows') x join public.employees e on e.name = trim(x->>'name')
+  join public.emp_settlements s on s.employee_id = e.id and s.period_from = v_from and s.period_to = v_to;
+  if v_dup is not null then
+    return json_build_object('ok', false, 'duplicate', true, 'existing', v_dup);
+  end if;
+
+  insert into public.emp_import_batches(branch, period_from, period_to, source_image, employee_count, totals_original, totals_computed, notes)
+  values (p->>'branch', v_from, v_to, p->>'source_image', jsonb_array_length(p->'rows'), p->'totals_original', p->'totals_computed', p->>'notes')
+  returning id into v_batch;
+
+  for r in select * from jsonb_array_elements(p->'rows') loop
+    v_emp := null;
+    select id into v_emp from public.employees where name = trim(r->>'name');
+    if v_emp is null then
+      insert into public.employees(emp_no, name, branch, base_salary)
+      values (nullif(r->>'emp_no',''), trim(r->>'name'), p->>'branch', nullif(r->>'base_salary','')::numeric)
+      returning id into v_emp;
+      v_new := v_new + 1;
+    end if;
+    insert into public.emp_settlements(employee_id, batch_id, branch, period_from, period_to,
+      base_salary, work_days, earned_salary, comm_zahra, comm_ward, comm_total, adv_zahra, adv_ward,
+      ded_general, ded_clothes, adv_ded_total, late_ded, prev_balance, net_balance, original, uncertain, source_image)
+    values (v_emp, v_batch, p->>'branch', v_from, v_to,
+      nullif(r->>'base_salary','')::numeric, nullif(r->>'work_days','')::numeric, nullif(r->>'earned_salary','')::numeric,
+      nullif(r->>'comm_zahra','')::numeric, nullif(r->>'comm_ward','')::numeric, nullif(r->>'comm_total','')::numeric,
+      nullif(r->>'adv_zahra','')::numeric, nullif(r->>'adv_ward','')::numeric, nullif(r->>'ded_general','')::numeric,
+      nullif(r->>'ded_clothes','')::numeric, nullif(r->>'adv_ded_total','')::numeric, nullif(r->>'late_ded','')::numeric,
+      nullif(r->>'prev_balance','')::numeric, nullif(r->>'net_balance','')::numeric,
+      r->'original', array(select jsonb_array_elements_text(coalesce(r->'uncertain','[]'))), p->>'source_image');
+    v_n := v_n + 1;
+  end loop;
+  return json_build_object('ok', true, 'batch_id', v_batch, 'employees_created', v_new, 'settlements', v_n);
+end $$;
+
+alter table public.employees          enable row level security;
+alter table public.emp_import_batches enable row level security;
+alter table public.emp_settlements    enable row level security;
+alter table public.emp_transactions   enable row level security;
+do $$
+declare t text;
+begin
+  foreach t in array array['employees','emp_import_batches','emp_settlements','emp_transactions'] loop
+    execute format('drop policy if exists %1$s_all on public.%1$s', t);
+    execute format('create policy %1$s_all on public.%1$s for all to authenticated
+                    using ((select public.is_member())) with check ((select public.is_member()))', t);
+    execute format('drop trigger if exists %1$s_log on public.%1$s', t);
+    execute format('create trigger %1$s_log after insert or update or delete on public.%1$s
+                    for each row execute function public.log_activity()', t);
+  end loop;
+end $$;
+grant select, insert, update, delete on public.employees, public.emp_settlements, public.emp_transactions, public.emp_import_batches to authenticated;
+grant select on public.employee_balances to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+revoke all on public.employee_balances from anon;
+revoke all on public.employees, public.emp_settlements, public.emp_transactions, public.emp_import_batches from anon;
+revoke execute on function public.import_employee_settlements(jsonb) from public, anon;
+grant execute on function public.import_employee_settlements(jsonb) to authenticated;

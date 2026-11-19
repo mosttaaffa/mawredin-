@@ -332,6 +332,13 @@ async function route(){
     if(parts[0] === 'settings') return await viewSettings();
     if(parts[0] === 'suppliers') return await viewSuppliers();
     if(parts[0] === 'more') return viewMore();
+    if(parts[0] === 'employees') return await viewEmployees();
+    if(parts[0] === 'emp' && parts[1]) return await viewEmployee(+parts[1]);
+    if(parts[0] === 'emp-edit') return await formEmployee(parts[1] ? +parts[1] : null);
+    if(parts[0] === 'emp-tx') return await formEmpTx(parts[1] ? +parts[1] : null, params.get('e'));
+    if(parts[0] === 'emp-set' && parts[1]) return await formSettlement(+parts[1]);
+    if(parts[0] === 'emp-statement' && parts[1]) return await viewEmpStatement(+parts[1]);
+    if(parts[0] === 'emp-import') return await viewEmpImport();
     if(parts[0] === 'm' && parts[1]) return viewModule(parts[1]);
     if(parts[0] === 'invoice') return await formInvoice(parts[1] ? +parts[1] : null, params.get('s'));
     if(parts[0] === 'payment') return await formPayment(parts[1] ? +parts[1] : null, params.get('s'));
