@@ -155,7 +155,7 @@ async function collectImages(st, onProg){
       const u = await signedUrl(it.path);
       if(!u) throw new Error(navigator.onLine ? 'مش متاحة' : 'محتاجة نت');
       const blob = await (await withTimeout(fetch(u), 30000)).blob();
-      it.jpg = await shrinkJpeg(blob, 1500, 0.78);
+      it.jpg = await shrinkJpeg(blob, 1100, 0.78);
     }catch(err){ it.err = err.message || 'تعذر التحميل'; missing.push(it); }
     onProg && onProg(++done, list.length);
   }
@@ -308,24 +308,26 @@ async function makeStatementPdf(st, imgs){
   infoList('شيكات لم تُصرف بعد', st.pendChecks, 'محسوبة ضمن المدفوعات من تاريخ كتابتها - حسب طريقة حساب التطبيق - ولسه ما اتصرفتش من البنك:');
   infoList('شيكات مرتدة', st.bounced, 'غير محسوبة في الرصيد:');
 
-  // ----- ملحق المستندات -----
+  // ----- ملحق المستندات: 4 صور في كل صفحة (2 × 2) -----
   if(imgs && imgs.list.length){
-    doc.addPage(); y = M;
-    F('B', 16, NAVY); rtlDraw(doc, 'ملحق المستندات', R, y); y += 26;
-    for(const it of imgs.list){
-      const cap = `${it.e.type} - مستند ${it.e.doc} - ${dmy(it.e.d)}${kind === 'detail' ? ' - حركة ' + it.e.n : ''}${it.pages > 1 ? ` - صورة ${it.page} من ${it.pages}` : ''}`;
-      if(!it.jpg){
-        if(y + 40 > BOTTOM){ doc.addPage(); y = M; }
-        F('B', 10, NAVY); rtlDraw(doc, cap, R, y); y += 16;
-        F('R', 9, RED); rtlDraw(doc, 'الصورة غير متاحة: ' + (it.err || ''), R, y); y += 22; continue;
+    const GAP = 12, CAPH = 30, TOP = M + 28, cw = (CW - GAP) / 2, ch = (BOTTOM - TOP - GAP) / 2, ih = ch - CAPH;
+    imgs.list.forEach((it, i) => {
+      const slot = i % 4;
+      if(slot === 0){
+        doc.addPage();
+        F('B', 14, NAVY); rtlDraw(doc, 'ملحق المستندات', R, M);
+        F('R', 9, GRAY); rtlDraw(doc, `${st.s.name} - صور ${i + 1} إلى ${Math.min(i + 4, imgs.list.length)} من ${imgs.list.length}`, M + 260, M + 4, {align:'left', width:260});
       }
-      const s = Math.min(CW / it.jpg.w, 330 / it.jpg.h), w = it.jpg.w * s, h = it.jpg.h * s;
-      if(y + h + 26 > BOTTOM){ doc.addPage(); y = M; }
-      F('B', 10, NAVY); rtlDraw(doc, cap, R, y); y += 16;
-      doc.image(it.jpg.buf, M + (CW - w) / 2, y, {width:w, height:h});
-      doc.rect(M + (CW - w) / 2, y, w, h).lineWidth(.5).strokeColor(LINE).stroke();
-      y += h + 14;
-    }
+      const cx = R - (slot % 2) * (cw + GAP), x0 = cx - cw, y0 = TOP + Math.floor(slot / 2) * (ch + GAP);
+      doc.rect(x0, y0, cw, ch).lineWidth(.6).strokeColor(LINE).stroke();
+      const cap = `${it.e.type} ${it.e.doc} - ${dmy(it.e.d)}${it.pages > 1 ? ` - صورة ${it.page} من ${it.pages}` : ''}`;
+      doc.rect(x0, y0, cw, CAPH - 6).fill(SOFT);
+      F('B', 9, NAVY); rtlDraw(doc, rtlWrap(doc, cap, cw - 12)[0], cx - 6, y0 + 6);
+      const by = y0 + CAPH - 2, bh = ih - 4, bw = cw - 8;
+      if(!it.jpg){ F('R', 9, RED); rtlDraw(doc, 'الصورة غير متاحة', cx - 6, by + bh / 2 - 6, {align:'center', width:bw}); return; }
+      const sc = Math.min(bw / it.jpg.w, bh / it.jpg.h), w = it.jpg.w * sc, h = it.jpg.h * sc;
+      doc.image(it.jpg.buf, x0 + 4 + (bw - w) / 2, by + (bh - h) / 2, {width:w, height:h});
+    });
   }
 
   // ----- ترقيم الصفحات -----
