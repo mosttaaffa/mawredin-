@@ -24,7 +24,7 @@ const n0 = v => Number(v || 0);
 const signMoney = v => n0(v) < 0 ? `<span class="neg">(${money(Math.abs(n0(v)))})</span>` : money(v);
 
 const empApi = {
-  balances: () => fetchAll(() => sb.from('employee_balances').select('*').order('emp_no', {ascending:true, nullsFirst:false}).order('id')),
+  balances: () => fetchAll(() => sb.from('employee_balances').select('*').order('id')),
   one: id => q(sb.from('employee_balances').select('*').eq('id', id).single()),
   settlements: id => fetchAll(() => sb.from('emp_settlements').select('*').eq('employee_id', id).order('period_to', {ascending:false}).order('id', {ascending:false})),
   txs: id => fetchAll(() => sb.from('emp_transactions').select('*').eq('employee_id', id).order('tx_date', {ascending:false}).order('id', {ascending:false})),
