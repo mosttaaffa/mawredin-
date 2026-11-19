@@ -187,5 +187,13 @@ document.addEventListener('visibilitychange', () => {
   if(document.hidden){ lastHidden = Date.now(); return; }
   if(me && Date.now() - lastHidden > 30e3 && !$('.sheet') && !$('#mdl')) route();
 });
-if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator){
+  // أي نسخة جديدة تترفع: الموبايل يحدّث لوحده من غير ما تمسح حاجة
+  const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if(hadCtrl && !reloaded){ reloaded = true; location.reload(); } });
+  navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(reg => {
+    reg.update();
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') reg.update(); });
+  }).catch(()=>{});
+}
 boot();
