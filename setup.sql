@@ -507,7 +507,8 @@ declare
 begin
   if not public.is_member() then raise exception 'not allowed'; end if;
   if v_op is null then raise exception 'op_id required'; end if;
-  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions') then raise exception 'table not allowed: %', t; end if;
+  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments') then raise exception 'table not allowed: %', t; end if;
+  if t = 'check_payments' and k = 'delete' then raise exception 'دفعة سداد الشيك مبتتمسحش — اعملها إلغاء'; end if;
   if k not in ('insert','update','delete') then raise exception 'kind not allowed: %', k; end if;
 
   -- نفس العملية اتنفذت قبل كده؟ رجّع نفس النتيجة
@@ -633,3 +634,126 @@ grant update (display_name) on public.members to authenticated;
 alter table public.invoices add column if not exists extra_images text[] not null default '{}';
 -- الدفعات والشيكات والمرتجعات كمان ممكن يبقى ليها أكتر من صورة
 alter table public.payments add column if not exists extra_images text[] not null default '{}';
+
+-- =====================================================
+-- سداد الشيكات على دفعات (الإصدار 7)
+-- قيمة الشيك الأصلية مبتتغيرش. كل دفعة سداد صف مستقل في check_payments.
+-- أثر الشيك على حساب المورد (من غير تكرار):
+--   شيك لسه/مسدد جزئي/مسدد بالكامل  → قيمته الأصلية من تاريخ كتابته (نفس سياسة التطبيق قبل كده)
+--   شيك مرتد/ملغي/مستبدل            → اللي اتسدد منه فعلًا بس (مجموع دفعات السداد المعتمدة)
+-- =====================================================
+alter table public.payments drop constraint if exists payments_check_status_check;
+alter table public.payments add constraint payments_check_status_check
+  check (check_status in ('pending','cleared','bounced','cancelled','replaced'));
+alter table public.payments add column if not exists replaced_by bigint references public.payments(id) on delete set null;
+
+create table if not exists public.check_payments (
+  id           bigint generated always as identity primary key,
+  payment_id   bigint not null references public.payments(id) on delete restrict,
+  pay_date     date not null default current_date,
+  amount       numeric(14,2) not null check (amount > 0),
+  method       text not null check (method in ('cash','transfer','instapay','wallet','bank_debit','other')),
+  account      text,                -- الحساب اللي خرج منه المبلغ (لحد ما أقسام الخزينة والبنوك تتعمل)
+  ref_no       text,
+  image_path   text,
+  extra_images text[] not null default '{}',
+  notes        text,
+  voided       boolean not null default false,   -- الإلغاء بدل الحذف عشان الأثر المحاسبي مايضيعش
+  void_reason  text,
+  voided_at    timestamptz,
+  created_by   text not null default public.current_email(),
+  created_at   timestamptz not null default now()
+);
+create index if not exists check_payments_pay_idx on public.check_payments(payment_id);
+
+-- حارس السداد: مايعديش قيمة الشيك (حتى لو جهازين سجلوا في نفس اللحظة) ومينفعش يتمسح
+create or replace function public.check_payments_guard()
+returns trigger language plpgsql set search_path = public as $$
+declare chk public.payments%rowtype; s numeric;
+begin
+  if tg_op = 'DELETE' then raise exception 'دفعة سداد الشيك مبتتمسحش — اعملها إلغاء'; end if;
+  select * into chk from public.payments where id = new.payment_id for update;   -- قفل الشيك
+  if not found or chk.method <> 'check' then raise exception 'الدفعة دي مش مربوطة بشيك'; end if;
+  if tg_op = 'UPDATE' and new.payment_id <> old.payment_id then raise exception 'مينفعش تنقل الدفعة لشيك تاني'; end if;
+  if tg_op = 'UPDATE' and old.voided and not new.voided then raise exception 'الدفعة الملغية مبترجعش'; end if;
+  if not new.voided then
+    if chk.check_status in ('cancelled','replaced') and tg_op = 'INSERT' then raise exception 'الشيك ده ملغي أو مستبدل'; end if;
+    select coalesce(sum(amount), 0) into s from public.check_payments
+      where payment_id = new.payment_id and not voided and id <> coalesce(new.id, -1);
+    if s + new.amount > chk.amount then
+      raise exception 'مجموع السداد (%) أكبر من قيمة الشيك (%)', s + new.amount, chk.amount;
+    end if;
+  end if;
+  if new.voided and new.voided_at is null then new.voided_at := now(); end if;
+  return new;
+end $$;
+drop trigger if exists check_payments_guard on public.check_payments;
+create trigger check_payments_guard before insert or update or delete on public.check_payments
+  for each row execute function public.check_payments_guard();
+
+-- قيمة الشيك مينفعش تقل عن اللي اتسدد منه
+create or replace function public.payments_check_guard()
+returns trigger language plpgsql set search_path = public as $$
+declare s numeric;
+begin
+  if old.method = 'check' then
+    select coalesce(sum(amount), 0) into s from public.check_payments where payment_id = old.id and not voided;
+    if s > 0 and (new.method <> 'check' or new.amount < s) then
+      raise exception 'الشيك اتسدد منه % — مينفعش قيمته تقل عن كده أو يتغير نوعه', s;
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists payments_check_guard on public.payments;
+create trigger payments_check_guard before update on public.payments
+  for each row execute function public.payments_check_guard();
+
+-- سجل التعديلات: دفعات السداد بتتسجل على المورد بتاع الشيك
+create or replace function public.log_activity()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare o jsonb; n jsonb; sid bigint; eid text;
+begin
+  if tg_op <> 'INSERT' then o := to_jsonb(old); end if;
+  if tg_op <> 'DELETE' then n := to_jsonb(new); end if;
+  if tg_table_name = 'suppliers' then sid := coalesce(n->>'id', o->>'id')::bigint;
+  elsif tg_table_name in ('invoices','payments') then sid := coalesce(n->>'supplier_id', o->>'supplier_id')::bigint;
+  elsif tg_table_name = 'check_payments' then
+    select supplier_id into sid from public.payments where id = coalesce(n->>'payment_id', o->>'payment_id')::bigint;
+  end if;
+  eid := coalesce(n->>'id', o->>'id', n->>'email', o->>'email');
+  if tg_op = 'UPDATE' and o = n then return new; end if;
+  insert into public.activity_log(action, entity, entity_id, supplier_id, old_row, new_row)
+  values (lower(tg_op), tg_table_name, eid, sid, o, n);
+  return coalesce(new, old);
+end $$;
+
+alter table public.check_payments enable row level security;
+drop policy if exists check_payments_all on public.check_payments;
+create policy check_payments_all on public.check_payments for all to authenticated
+  using ((select public.is_member())) with check ((select public.is_member()));
+drop trigger if exists check_payments_log on public.check_payments;
+create trigger check_payments_log after insert or update or delete on public.check_payments
+  for each row execute function public.log_activity();
+grant select, insert, update on public.check_payments to authenticated;
+revoke delete on public.check_payments from authenticated;
+revoke all on public.check_payments from anon;
+grant usage, select on all sequences in schema public to authenticated;
+
+-- رصيد المورد على السيرفر بنفس القاعدة
+drop view if exists public.supplier_balances;
+create view public.supplier_balances with (security_invoker = true) as
+with cp as (select payment_id, sum(amount) settled from public.check_payments where not voided group by payment_id),
+pe as (select p.supplier_id, p.method, p.check_status, p.amount, p.pay_date,
+         case when p.method = 'check' and p.check_status in ('bounced','cancelled','replaced') then coalesce(cp.settled, 0)
+              when p.method in ('cash','check','transfer') then p.amount else 0 end eff,
+         case when p.method = 'check' and p.check_status = 'pending' then p.amount - coalesce(cp.settled, 0) else 0 end remaining
+       from public.payments p left join cp on cp.payment_id = p.id)
+select s.id, s.name, s.phone, s.notes,
+  coalesce(i.total, 0) as total_invoices, coalesce(p.paid, 0) as total_paid, coalesce(p.adjust, 0) as total_adjust,
+  coalesce(i.total, 0) - coalesce(p.paid, 0) - coalesce(p.adjust, 0) as balance,
+  coalesce(p.pending_checks, 0) as pending_checks, greatest(i.last_date, p.last_date) as last_activity
+from public.suppliers s
+left join (select supplier_id, sum(amount) total, max(inv_date) last_date from public.invoices group by supplier_id) i on i.supplier_id = s.id
+left join (select supplier_id, sum(eff) paid, sum(amount) filter (where method in ('return','discount')) adjust,
+                  sum(remaining) pending_checks, max(pay_date) last_date from pe group by supplier_id) p on p.supplier_id = s.id;
+grant select on public.supplier_balances to authenticated;

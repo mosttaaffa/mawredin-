@@ -91,8 +91,7 @@ async function viewSupplier(id){
   ].sort((a,b) => a.d===b.d ? (a.c<b.c?-1:1) : (a.d<b.d?-1:1));
   let run = 0;
   ev.forEach(e => {
-    const bounced = e.k==='pay' && e.x.check_status==='bounced';
-    if(e.k==='inv') run += Number(e.x.amount); else if(!bounced) run -= Number(e.x.amount);
+    if(e.k==='inv') run += Number(e.x.amount); else run -= payEffect(e.x) / 100;
     e.run = run;
   });
   ev.reverse();
@@ -107,12 +106,12 @@ async function viewSupplier(id){
       <div><div class="amt" style="color:var(--blue)">+ ${money(x.amount)}</div>${runbal!=null?`<div class="runbal">الرصيد ${money(runbal)}</div>`:''}</div>
     </div>`; };
   const payRow = (x, runbal) => {
-    const b = x.check_status==='bounced', adj = IS_ADJ(x.method);
+    const b = x.method==='check' && CHK_DEAD(x.check_status), adj = IS_ADJ(x.method), ci = x.method==='check' ? checkInfo(x) : null;
     return `
     <div class="item" onclick="showPayment(${x.id})">
       <div class="ico ${b?'bounced':adj?'adj':'pay'}">${x.method==='check'?I.check:x.method==='transfer'?I.transfer:x.method==='return'?I.ret:x.method==='discount'?I.disc:I.cash}</div>
-      <div class="grow"><div class="t">${adj ? METHOD[x.method] : 'دفعة'} ${adj?'':`<span class="tag ${x.method}">${METHOD[x.method]}</span>`}${x.method==='check'?`<span class="tag ${x.check_status}">${CHK[x.check_status]}</span>`:''}${syncTag(x)}</div>
-        <div class="s">${fmtDate(x.pay_date)}${x.method==='check'?' · يستحق '+fmtDate(x.due_date):''}${x.invoice_id && invNo.has(x.invoice_id)?' · عن فاتورة '+esc(invNo.get(x.invoice_id)):''}</div></div>
+      <div class="grow"><div class="t">${adj ? METHOD[x.method] : 'دفعة'} ${adj?'':`<span class="tag ${x.method}">${METHOD[x.method]}</span>`}${x.method==='check'?chkTags(x):''}${syncTag(x)}</div>
+        <div class="s">${fmtDate(x.pay_date)}${x.method==='check'?' · يستحق '+fmtDate(x.due_date):''}${ci && ci.pay==='partial' ? ` · <span class="inv-left">اتسدد ${money(ci.settled/100)} · باقي ${money(ci.remaining/100)}</span>` : ''}${ci && b && ci.paidRows ? ` · <span class="inv-left">محسوب منه المسدد فعليًا ${money(ci.paidRows/100)}</span>` : ''}${x.invoice_id && invNo.has(x.invoice_id)?' · عن فاتورة '+esc(invNo.get(x.invoice_id)):''}</div></div>
       <div><div class="amt pay ${b?'struck':''}">− ${money(x.amount)}</div>${runbal!=null?`<div class="runbal">الرصيد ${money(runbal)}</div>`:''}</div>
     </div>`;
   };
@@ -306,26 +305,16 @@ window.showPayment = async id => {
       <div class="kv"><span>رقم الشيك</span><span class="num">${esc(x.check_no||'—')}</span></div>
       <div class="kv"><span>البنك</span><span>${esc(x.bank||'—')}</span></div>
       <div class="kv"><span>تاريخ الاستحقاق</span><span>${fmtDate(x.due_date)}</span></div>
-      <div class="kv"><span>الحالة</span><span><span class="tag ${x.check_status}">${CHK[x.check_status]}</span></span></div>`:''}
+      <div id="chkpanel"></div>`:''}
     ${x.notes?`<div class="kv"><span>ملاحظات</span><span>${esc(x.notes)}</span></div>`:''}
     <div class="kv"><span>سجّلها</span><span>${esc(who(x.created_by))}${x.created_at ? ' · ' + fmtDateTime(x.created_at) : ''}</span></div>
     ${x.method === 'cash' ? '' : imgSection('payments', x)}
-    ${x.method==='check' ? checkButtons(x, `viewSupplier(${x.supplier_id})`) : ''}
     <div class="actions" style="margin-top:10px">
       <button class="btn ghost" onclick="go('/${IS_ADJ(x.method)?'adjust':'payment'}/${x.id}')">${I.edit}تعديل</button>
       <button class="btn danger" onclick="delPayment(${x.id})">مسح</button>
     </div>`);
   fillGallery('payments', x);
-};
-function checkButtons(x, after){
-  const b = (st, label, cls) => x.check_status===st ? '' : `<button class="btn ${cls}" onclick="setCheck(${x.id},'${st}',()=>${after})">${label}</button>`;
-  return `<div class="actions" style="margin-top:10px">${b('cleared','اتصرف ✓','green')}${b('bounced','ارتد ✗','danger')}${b('pending','لسه','ghost')}</div>`;
-}
-window.setCheck = async (id, st, after) => {
-  if(st==='bounced' && !confirm('الشيك ارتد؟ مبلغه هيرجع تاني على حساب المورد.')) return;
-  busy(true);
-  try{ await q(ldb.from('payments').update({check_status:st}).eq('id', id)); busy(false); closeModal(); if(st==='cleared') await celebrate('الشيك اتصرف', true); else toast('اتحدث ✓'); await after(); }
-  catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
+  if(x.method === 'check') drawCheckPanel(x.id, `viewSupplier(${x.supplier_id}).then(()=>showPayment(${x.id}))`);
 };
 window.delInvoice = async id => {
   const x = window._sup.invs.find(i => i.id === id);
@@ -336,6 +325,7 @@ window.delInvoice = async id => {
 };
 window.delPayment = async id => {
   const x = window._sup.pays.find(i => i.id === id);
+  if(x.method === 'check' && checkPays(x.id).length) return toast('الشيك ده ليه سجل سداد — مينفعش يتمسح. لو اتلغى علّمه «ملغي» من تفاصيل الشيك', true);
   if(!confirm(`متأكد تمسح ال${IS_ADJ(x.method)?METHOD[x.method]:'دفعة'} دي (${Number(x.amount).toLocaleString('en-US')} ج)؟`)) return;
   busy(true);
   try{ await q(ldb.from('payments').delete().eq('id', id)); await removeImage(x.image_path); toast('اتمسحت'); closeModal(); viewSupplier(x.supplier_id); }
@@ -579,6 +569,11 @@ async function formPayment(id, presetSup){
     if(!method) return markErr('method', 'اختار نوع الدفعة: كاش ولا شيك ولا تحويل');
     if(method==='transfer' && !(PG.tr || []).length && !(x && x.method === 'transfer')) return markErr('tr', 'لازم سكرين شوت التحويل');
     if(method==='check' && !$('#due').value) return markErr('due', 'اكتب تاريخ استحقاق الشيك');
+    if(x && x.method === 'check'){
+      const paid = checkPays(x.id).filter(c => !c.voided).reduce((a, c) => a + Number(c.amount), 0);
+      if(paid > 0 && method !== 'check') return markErr('method', `الشيك ده اتسدد منه ${paid.toLocaleString('en-US')} ج — مينفعش يتغير نوعه`);
+      if(paid > 0 && amount < paid) return markErr('amount', `الشيك اتسدد منه ${paid.toLocaleString('en-US')} ج — القيمة مينفعش تقل عن كده`);
+    }
     const pdate = $('#date').value || today();
     if(looksDuplicate(await api.payments(sid), x, r => Number(r.amount) === amount && String(r.pay_date).slice(0,10) === pdate && r.method === method)
        && !confirm(`فيه دفعة ${METHOD[method]} متسجلة لنفس المورد بنفس المبلغ (${amount.toLocaleString('en-US')}) ونفس التاريخ.\nتسجلها تاني برضه؟`)) return;
@@ -612,7 +607,7 @@ async function formPayment(id, presetSup){
   const calc = () => {
     const sid = $('#sup').value, el = $('#paycalc'); if(!el) return; if(!sid){ el.innerHTML = ''; return; }
     let before = supBalance(sid);
-    if(x && String(x.supplier_id) === String(sid) && x.check_status !== 'bounced') before += Number(x.amount);   // التعديل: نشيل الدفعة القديمة الأول
+    if(x && String(x.supplier_id) === String(sid)) before += payEffect(x) / 100;   // التعديل: نشيل الدفعة القديمة الأول
     const a = readAmount($('#amount').value) || 0, after = before - a;
     el.innerHTML = `<div><span>المستحق قبل الدفعة</span><b>${money(before)}</b></div><div class="op">−</div><div><span>الدفعة</span><b>${money(a)}</b></div><div class="op">=</div>
       <div class="${after < 0 ? 'neg-after' : 'after'}"><span>${after < 0 ? 'هيبقى ليك عنده' : 'المتوقع بعد الدفع'}</span><b>${money(Math.abs(after))}</b></div>`;
@@ -661,7 +656,7 @@ async function formAdjust(id, presetSup){
   const calc = () => {
     const sid = $('#sup').value, el = $('#paycalc'); if(!el) return; if(!sid){ el.innerHTML = ''; return; }
     let before = supBalance(sid);
-    if(x && String(x.supplier_id) === String(sid) && x.check_status !== 'bounced') before += Number(x.amount);   // التعديل: نشيل الدفعة القديمة الأول
+    if(x && String(x.supplier_id) === String(sid)) before += payEffect(x) / 100;   // التعديل: نشيل الدفعة القديمة الأول
     const a = readAmount($('#amount').value) || 0, after = before - a;
     el.innerHTML = `<div><span>المستحق قبل الدفعة</span><b>${money(before)}</b></div><div class="op">−</div><div><span>الدفعة</span><b>${money(a)}</b></div><div class="op">=</div>
       <div class="${after < 0 ? 'neg-after' : 'after'}"><span>${after < 0 ? 'هيبقى ليك عنده' : 'المتوقع بعد الدفع'}</span><b>${money(Math.abs(after))}</b></div>`;

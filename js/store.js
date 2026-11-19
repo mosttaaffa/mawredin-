@@ -8,10 +8,10 @@
    - الحسابات (الأرصدة والتقارير) بتتحسب على الجهاز بنفس قواعد قاعدة البيانات بالقرش (من غير كسور عشرية)
    ===================================================================== */
 
-const LDB_VERSION = 1;
-const TABLES = {suppliers:'id', invoices:'id', payments:'id', members:'email', employees:'id', emp_settlements:'id', emp_transactions:'id', emp_import_batches:'id'};
-const SYNC_TABLES = ['suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions'];
-const FK = ['supplier_id','invoice_id','employee_id'];      // أعمدة بتشاور على صفوف تانية (عشان الأرقام المؤقتة)
+const LDB_VERSION = 2;
+const TABLES = {suppliers:'id', invoices:'id', payments:'id', members:'email', employees:'id', emp_settlements:'id', emp_transactions:'id', emp_import_batches:'id', check_payments:'id'};
+const SYNC_TABLES = ['suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments'];
+const FK = ['supplier_id','invoice_id','employee_id','payment_id','replaced_by'];      // أعمدة بتشاور على صفوف تانية (عشان الأرقام المؤقتة)
 const LOG_KEEP = 3000;
 const OVERLAP = 200;                                         // بنعيد آخر 200 حركة من السجل كل مرة احتياطي
 
@@ -104,6 +104,37 @@ function rebuild(){
 function memo(key, fn){ if(!store.memo.has(key)) store.memo.set(key, fn()); return store.memo.get(key); }
 const keyOf = (t, v) => TABLES[t] === 'id' ? (typeof v === 'string' && /^-?\d+$/.test(v) ? Number(v) : v) : v;
 
+/* ---------- الشيكات: السداد على دفعات (قاعدة واحدة لكل التطبيق) ----------
+   قيمة الشيك الأصلية مبتتغيرش. دفعات السداد في check_payments (الملغية مش محسوبة).
+   أثر الشيك على حساب المورد: لسه/جزئي/مسدد → قيمته الأصلية (سياسة التطبيق: بيتحسب من يوم كتابته)
+                               مرتد/ملغي/مستبدل → اللي اتسدد منه فعلًا بس */
+const CHK_DEAD = st => st === 'bounced' || st === 'cancelled' || st === 'replaced';
+function checkPaysMap(){
+  return memo('cpm', () => {
+    const m = new Map();
+    for(const c of store.eff.check_payments.values()){ let a = m.get(c.payment_id); if(!a){ a = []; m.set(c.payment_id, a); } a.push(c); }
+    m.forEach(a => a.sort((x, y) => x.pay_date < y.pay_date ? -1 : x.pay_date > y.pay_date ? 1 : (String(x.created_at || '') < String(y.created_at || '') ? -1 : 1)));
+    return m;
+  });
+}
+function checkPays(pid){ return checkPaysMap().get(pid) || []; }
+function checkInfo(p){
+  const orig = C(p.amount), list = checkPays(p.id), live = list.filter(c => !c.voided);
+  const paidRows = live.reduce((a, c) => a + C(c.amount), 0);
+  const st = p.check_status || 'pending';
+  const settled = st === 'cleared' ? orig : Math.min(orig, paidRows);
+  const remaining = st === 'pending' ? orig - settled : 0;
+  const pay = st === 'pending' ? (settled > 0 ? 'partial' : 'unpaid') : st === 'cleared' ? 'paid' : st;
+  let due = null;
+  if(st === 'pending' && p.due_date){ const t = todayStr(), d = String(p.due_date).slice(0,10); due = d > t ? 'notdue' : d === t ? 'due' : 'overdue'; }
+  return {orig, paidRows, settled, remaining, pay, due, list, live, last: live.length ? live[live.length - 1].pay_date : null};
+}
+// أثر أي دفعة على حساب المورد بالقروش
+function payEffect(p){
+  if(p.method === 'check') return CHK_DEAD(p.check_status) ? checkInfo(p).paidRows : C(p.amount);
+  return C(p.amount);
+}
+
 /* ---------- العروض المحسوبة (بنفس قواعد قاعدة البيانات) ---------- */
 // supplier_balances: المدفوع = كاش + شيكات غير مرتدة + تحويلات ، المرتجعات والخصومات لوحدها
 function supplierBalances(){
@@ -113,10 +144,10 @@ function supplierBalances(){
     for(const i of store.eff.invoices.values()){ const a = g(i.supplier_id); a.inv += C(i.amount); a.ni++; if(i._pending) a.npend++; if(!a.li || i.inv_date > a.li) a.li = i.inv_date; }
     for(const p of store.eff.payments.values()){
       const a = g(p.supplier_id);
-      if(['cash','check','transfer'].includes(p.method) && (p.check_status || '') !== 'bounced') a.paid += C(p.amount);
+      if(['cash','check','transfer'].includes(p.method)) a.paid += payEffect(p);
       if(['return','discount'].includes(p.method)){ a.adj += C(p.amount); a.na++; } else a.np++;
       if(p._pending) a.npend++;
-      if(p.method === 'check' && p.check_status === 'pending') a.pend += C(p.amount);
+      if(p.method === 'check' && p.check_status === 'pending') a.pend += checkInfo(p).remaining;
       if(!a.lp || p.pay_date > a.lp) a.lp = p.pay_date;
     }
     return [...store.eff.suppliers.values()].map(s => {
@@ -162,15 +193,16 @@ const LOCAL_RPC = {
     const pend = [...store.eff.payments.values()].filter(p => p.method === 'check' && p.check_status === 'pending')
       .sort((a, b) => (a.due_date < b.due_date ? -1 : a.due_date > b.due_date ? 1 : a.id - b.id));
     const nx = pend.find(p => p.due_date >= t);
-    return {n:pend.length, sum:fromC(pend.reduce((a, p) => a + C(p.amount), 0)),
-      next: nx ? {due_date:nx.due_date, amount:nx.amount, name:sup.get(nx.supplier_id)?.name} : null,
-      soon: pend.filter(p => p.due_date <= lim).map(p => ({id:p.id, amount:p.amount, due_date:p.due_date, check_no:p.check_no, supplier_id:p.supplier_id, name:sup.get(p.supplier_id)?.name}))};
+    const rem = p => checkInfo(p).remaining;
+    return {n:pend.length, sum:fromC(pend.reduce((a, p) => a + rem(p), 0)),
+      next: nx ? {due_date:nx.due_date, amount:fromC(rem(nx)), name:sup.get(nx.supplier_id)?.name} : null,
+      soon: pend.filter(p => p.due_date <= lim).map(p => ({id:p.id, amount:p.amount, remaining:fromC(rem(p)), paid:fromC(checkInfo(p).settled), due_date:p.due_date, check_no:p.check_no, supplier_id:p.supplier_id, name:sup.get(p.supplier_id)?.name}))};
   },
   report_month({p_month}){
     const d0 = p_month + '-01', d1 = addMonthsYM(p_month, 1) + '-01', inR = d => d >= d0 && d < d1;
     const inv = [...store.eff.invoices.values()].filter(i => inR(i.inv_date));
-    const pay = [...store.eff.payments.values()].filter(p => inR(p.pay_date) && (p.check_status || '') !== 'bounced');
-    const chk = [...store.eff.payments.values()].filter(p => p.method === 'check' && p.check_status === 'pending' && inR(p.due_date || ''));
+    const pay = [...store.eff.payments.values()].filter(p => inR(p.pay_date) && payEffect(p) > 0).map(p => ({...p, amount:fromC(payEffect(p))}));
+    const chk = [...store.eff.payments.values()].filter(p => p.method === 'check' && p.check_status === 'pending' && inR(p.due_date || '')).map(p => ({...p, amount:fromC(checkInfo(p).remaining)}));
     const sumM = m => fromC(pay.filter(p => p.method === m).reduce((a, p) => a + C(p.amount), 0));
     const per = new Map();
     inv.forEach(i => { const x = per.get(i.supplier_id) || {buy:0, pay:0}; x.buy += C(i.amount); per.set(i.supplier_id, x); });
@@ -185,7 +217,7 @@ const LOCAL_RPC = {
     for(let k = n - 1; k >= 0; k--) months.push(addMonthsYM(p_end, -k));
     const buy = new Map(), pay = new Map();
     for(const i of store.eff.invoices.values()){ const m = String(i.inv_date).slice(0,7); buy.set(m, (buy.get(m) || 0) + C(i.amount)); }
-    for(const p of store.eff.payments.values()) if(['cash','check','transfer'].includes(p.method) && (p.check_status || '') !== 'bounced'){ const m = String(p.pay_date).slice(0,7); pay.set(m, (pay.get(m) || 0) + C(p.amount)); }
+    for(const p of store.eff.payments.values()) if(['cash','check','transfer'].includes(p.method)){ const m = String(p.pay_date).slice(0,7); pay.set(m, (pay.get(m) || 0) + payEffect(p)); }
     return months.map(m => ({m, buy:fromC(buy.get(m) || 0), pay:fromC(pay.get(m) || 0)}));
   },
 };
@@ -447,7 +479,8 @@ async function fullLoad(){
   const fresh = {};
   for(const t of Object.keys(TABLES)){
     const k = TABLES[t];
-    fresh[t] = await fetchAllNet(() => sb.from(t).select('*').order(k));
+    try{ fresh[t] = await fetchAllNet(() => sb.from(t).select('*').order(k)); }
+    catch(e){ if(!e.net && /does not exist|schema cache|PGRST205|42P01/i.test(e.message || '')) fresh[t] = []; else throw e; }   // جدول جديد لسه ما اتعملش على السيرفر
   }
   const { data:logs } = await withTimeout(sb.from('activity_log').select('*').order('id', {ascending:false}).limit(500), 20000);
   await idb.tx([...Object.keys(TABLES), 'log'], 'readwrite', tx => {

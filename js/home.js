@@ -48,7 +48,7 @@ async function viewDashboard(){
     {k:'banks', t:'الحسابات البنكية', i:'bank', s:'البنوك والإيداع والسحب والشيكات'},
     {k:'expenses', t:'المصروفات', i:'expense', s:'إدارة مصروفات المحل ونقلها وتصنيفها'},
   ].map(m => m.go ? m : {...m, go: ready(m.k) ? '/' + m.k : '/m/' + m.k, soon: !ready(m.k)});
-  const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3);
+  const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3 && chkRem(c) > 0);
   const net = empSum;
   shell({title:'حسابات المحل', nav:'home', home:{alerts: due.length}, body:`
     <div class="dash fit2">
@@ -60,6 +60,7 @@ async function viewDashboard(){
         <span>${net < 0 ? `<em class="dn">${I.down}</em>` : net > 0 ? `<em class="upv">${I.up}</em>` : ''}صافي الأرصدة</span></div>
     </div>
     ${due.length ? `<button class="mini-alert ${due.some(c => daysUntil(c.due_date) <= 0) ? 'over' : ''}" onclick="go('/checks')">${I.bell}<span>شيكات ميعادها قرّب</span><b>${due.length}</b></button>` : ''}
+    ${(backupAge() == null || backupAge() >= 7) ? `<button class="mini-alert" onclick="backupJson()">${I.save}<span>${backupAge() == null ? 'اعمل أول نسخة احتياطية' : `آخر نسخة احتياطية من ${backupAge()} يوم`}</span><b>حفظ</b></button>` : ''}
     <div class="hgrid">${cards.map(hcard).join('')}</div>
     </div>`});
   fitDash();

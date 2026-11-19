@@ -49,7 +49,16 @@ const I = {
 const METHOD = {cash:'كاش', check:'شيك', transfer:'تحويل', return:'مرتجع', discount:'خصم'};
 const IS_ADJ = m => m === 'return' || m === 'discount';
 const INV_ST = {paid:'مدفوعة', partial:'مدفوعة جزئيًا', unpaid:'لسه'};
-const CHK = {pending:'لسه ما اتصرفش', cleared:'اتصرف', bounced:'ارتد'};
+const CHK = {pending:'لسه ما اتصرفش', cleared:'مسدد بالكامل', bounced:'مرتجع من البنك', cancelled:'ملغي', replaced:'مستبدل بشيك آخر'};
+const CHK_PAY = {unpaid:'لم يُسدد', partial:'مسدد جزئيًا', paid:'مسدد بالكامل', bounced:'مرتجع من البنك', cancelled:'ملغي', replaced:'مستبدل بشيك آخر'};
+const CHK_DUE = {notdue:'لم يحن موعده', due:'مستحق السداد', overdue:'متأخر عن السداد'};
+const CP_METHOD = {cash:'نقدي', transfer:'تحويل بنكي', instapay:'InstaPay', wallet:'محفظة إلكترونية', bank_debit:'خصم من البنك مقابل الشيك', other:'طريقة أخرى'};
+// المتبقي من الشيك (بالجنيه)
+const chkRem = c => c.remaining != null ? Number(c.remaining) : (c.method === 'check' && c.check_status === 'pending' ? checkInfo(c).remaining / 100 : 0);
+function chkTags(c){
+  const i = checkInfo(c), cls = {unpaid:'pending', partial:'partial', paid:'cleared'}[i.pay] || c.check_status;
+  return `<span class="tag ${cls}">${CHK_PAY[i.pay]}</span>${i.due ? `<span class="tag due-${i.due}">${CHK_DUE[i.due]}</span>` : ''}`;
+}
 
 /* =================== أدوات =================== */
 const $ = (s, r=document) => r.querySelector(s);
@@ -208,8 +217,8 @@ function loadScript(src){
 function allocate(invs, pays){
   const st = new Map(invs.map(i => [i.id, {amount:Number(i.amount), paid:0}]));
   let free = 0;
-  pays.filter(p => p.check_status !== 'bounced').forEach(p => {
-    const a = Number(p.amount);
+  pays.filter(p => payEffect(p) > 0).forEach(p => {
+    const a = payEffect(p) / 100;
     if(p.invoice_id && st.has(p.invoice_id)) st.get(p.invoice_id).paid += a; else free += a;
   });
   st.forEach(v => { if(v.paid > v.amount){ free += v.paid - v.amount; v.paid = v.amount; } });
@@ -222,21 +231,22 @@ function allocate(invs, pays){
 const soonToChecks = sm => (sm.soon || []).map(c => ({...c, check_status:'pending', method:'check', suppliers:{name:c.name}}));
 const dueText = d => { const n = daysUntil(d); return n < 0 ? `فات ميعاده من ${-n} يوم` : n === 0 ? 'النهارده' : n === 1 ? 'بكرة' : `بعد ${n} يوم`; };
 function dueAlert(checks){
-  const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3);
+  const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3 && chkRem(c) > 0);
   if(!due.length) return '';
   const over = due.some(c => daysUntil(c.due_date) <= 0);
   return `<div class="alert ${over?'':'soon'}" onclick="go('/checks')">
     <div class="ah">${I.bell}${over ? 'شيكات ميعادها النهارده أو فات' : 'شيكات ميعادها قرّب'} (${due.length})</div>
-    ${due.slice(0,4).map(c => `<div class="ar"><span>${esc(c.suppliers?.name)} · ${dueText(c.due_date)}</span><b>${money(c.amount)}</b></div>`).join('')}
+    ${due.slice(0,4).map(c => { const r = chkRem(c), part = r < Number(c.amount); return `<div class="ar"><span>${esc(c.suppliers?.name)} · ${dueText(c.due_date)}${part ? ' · مسدد جزئيًا' : ''}</span><b>${money(r)}${part ? `<small> باقي من ${money(c.amount)}</small>` : ''}</b></div>`; }).join('')}
   </div>`;
 }
 // إشعارات الشيكات (مرة واحدة في اليوم لكل شيك)
 async function notifyChecks(checks){
   if(!('Notification' in window) || Notification.permission !== 'granted') return;
   const day = today();
-  for(const c of checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 1)){
+  for(const c of checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 1 && chkRem(c) > 0)){
     const key = `ntf_${c.id}_${day}`; if(localStorage.getItem(key)) continue;
-    const title = `شيك ${dueText(c.due_date)}: ${Number(c.amount).toLocaleString('en-US')} ج`;
+    const r = chkRem(c), part = r < Number(c.amount);
+    const title = `شيك ${dueText(c.due_date)}: ${part ? 'باقي ' : ''}${r.toLocaleString('en-US')} ج${part ? ' من ' + Number(c.amount).toLocaleString('en-US') : ''}`;
     const opts = {body:`${c.suppliers?.name || ''}${c.check_no ? ' · شيك رقم ' + c.check_no : ''}`, icon:'icons/icon-192.png', badge:'icons/icon-192.png', tag:'chk'+c.id, lang:'ar', dir:'rtl'};
     try{ const reg = await navigator.serviceWorker?.getRegistration(); if(reg) await reg.showNotification(title, opts); else new Notification(title, opts); localStorage.setItem(key, '1'); }catch(e){}
   }

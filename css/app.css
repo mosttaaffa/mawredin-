@@ -994,3 +994,15 @@ header.top:not(.home-h) .sync-pill.s-ok{padding:6px}
 .sup-hero .sum6>div{flex:1 0 96px;scroll-snap-align:start;padding:7px 8px}
 .sup-hero .sum6 b{font-size:14.5px}
 .sup-hero .sum6>div>span{font-size:10.5px}
+/* سداد الشيكات */
+.chk-box{background:rgba(255,255,255,.05);border:1px solid var(--line);border-radius:14px;padding:10px;margin-top:8px}
+.chk-nums{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;text-align:center}
+.chk-nums span{display:block;font-size:11px;color:var(--muted)}.chk-nums b{font-size:15px}
+.chk-bar{height:7px;border-radius:9px;background:rgba(127,127,127,.2);margin:9px 0 6px;overflow:hidden}.chk-bar i{display:block;height:100%;background:var(--green);border-radius:9px}
+.cp-list .item{padding:9px 0}.cp-list .item.voided .t,.cp-list .item.voided .s{opacity:.55}.cp-list .item.voided .t{text-decoration:line-through}
+.tag.due-notdue{background:rgba(96,165,250,.15);color:#60a5fa}.tag.due-due{background:var(--amber-soft);color:var(--amber)}.tag.due-overdue{background:var(--red-soft);color:var(--red)}
+.tag.cancelled,.tag.replaced{background:rgba(148,163,184,.18);color:#94a3b8}
+.actions.sm .btn{font-size:13px;padding:9px 6px}
+.ar small{font-weight:400;opacity:.75;font-size:11px}
+.chk-nums b.pos-v{color:var(--green)}.chk-nums b.neg-v{color:var(--red)}
+.chk-nums b{white-space:nowrap;font-size:14px}.chk-nums b .m{white-space:nowrap}

@@ -5,48 +5,50 @@ window.moreChecks = async () => { busy(true); try{ chkMore.rows = chkMore.rows.c
 async function viewChecks(){
   if(!$('.chip-row')) shell({title:'الشيكات', right:refreshBtn, nav:'checks', body:skeleton('home')});
   let rows;
-  if(chkFilter === 'pending'){ rows = await api.checks(); notifyChecks(rows); chkMore = null; }
+  if(chkFilter === 'pending' || chkFilter === 'partial'){ rows = await api.checks(); notifyChecks(rows); chkMore = null; if(chkFilter === 'partial') rows = rows.filter(c => checkInfo(c).pay === 'partial'); }
+  else if(chkFilter === 'closed'){ rows = (await fetchAll(() => ldb.from('payments').select('*, suppliers(name)').eq('method','check').order('due_date', {ascending:false}).order('id', {ascending:false}))).filter(c => CHK_DEAD(c.check_status)); chkMore = null; }
   else { if(!chkMore || chkMore.f !== chkFilter){ chkMore = {f:chkFilter, rows: await api.checksPage(chkFilter, 0)}; } rows = chkMore.rows; }
   window._checks = rows;
-  const allRows = rows; if(chkFilter === 'pending' && rows.length > chkShow) rows = rows.slice(0, chkShow);
-  const sum = allRows.reduce((a,c)=>a+Number(c.amount),0);
+  const allRows = rows; if(rows.length > chkShow) rows = rows.slice(0, chkShow);
+  const openF = chkFilter === 'pending' || chkFilter === 'partial';
+  const sum = allRows.reduce((a,c) => a + (openF ? chkRem(c) : Number(c.amount)), 0);
   const dueTxt = c => {
-    if(c.check_status!=='pending') return `<span class="tag ${c.check_status}">${CHK[c.check_status]}</span>`;
-    const d = daysUntil(c.due_date);
-    if(d < 0) return `<span class="chk-due over">فات ميعاده من ${-d} يوم</span>`;
-    if(d === 0) return `<span class="chk-due over">النهارده</span>`;
-    if(d <= 7) return `<span class="chk-due soon">باقي ${d} يوم</span>`;
-    return `<span class="chk-due later">باقي ${d} يوم</span>`;
+    if(c.check_status!=='pending') return chkTags(c);
+    const d = daysUntil(c.due_date), part = checkInfo(c).pay === 'partial' ? '<span class="tag partial">مسدد جزئيًا</span>' : '';
+    if(d < 0) return part + `<span class="chk-due over">متأخر ${-d} يوم</span>`;
+    if(d === 0) return part + `<span class="chk-due over">مستحق النهارده</span>`;
+    if(d <= 7) return part + `<span class="chk-due soon">باقي ${d} يوم</span>`;
+    return part + `<span class="chk-due later">باقي ${d} يوم</span>`;
   };
   shell({title:'الشيكات', right:refreshBtn, nav:'checks', body:`
     <div class="chip-row">
-      ${[['pending','لسه ما اتصرفتش'],['cleared','اتصرفت'],['bounced','ارتدت'],['all','الكل']].map(([k,l]) =>
+      ${[['pending','لسه ما اتسددتش'],['partial','مسددة جزئيًا'],['cleared','مسددة بالكامل'],['closed','مرتدة / ملغاة / مستبدلة'],['all','الكل']].map(([k,l]) =>
         `<button class="chip ${chkFilter===k?'on':''}" onclick="chkFilter='${k}';chkMore=null;chkShow=150;viewChecks()">${l}</button>`).join('')}
     </div>
-    <div class="card hero" style="padding:12px 14px"><div class="lbl">${chkFilter === 'pending' ? 'الإجمالي' : 'إجمالي المعروض'} (${allRows.length} شيك)</div><div class="big" style="font-size:24px">${money(sum)}</div></div>
+    <div class="card hero" style="padding:12px 14px"><div class="lbl">${openF ? 'المتبقي للسداد' : 'إجمالي المعروض'} (${allRows.length} شيك)</div><div class="big" style="font-size:24px">${money(sum)}</div></div>
     <div class="card list">${rows.length ? rows.map(c => `
       <div class="item" onclick="showCheck(${c.id})">
-        <div class="ico ${c.check_status==='bounced'?'bounced':'pay'}">${I.check}</div>
+        <div class="ico ${CHK_DEAD(c.check_status)?'bounced':'pay'}">${I.check}</div>
         <div class="grow"><div class="t">${esc(c.suppliers?.name)}</div>
           <div class="s">يستحق ${fmtDate(c.due_date)}${c.check_no?' · رقم <span class="num">'+esc(c.check_no)+'</span>':''}</div></div>
-        <div style="text-align:left"><div class="amt">${money(c.amount)}</div>${dueTxt(c)}</div>
+        <div style="text-align:left"><div class="amt">${money(c.check_status === 'pending' ? chkRem(c) : c.amount)}</div>${c.check_status === 'pending' && chkRem(c) < Number(c.amount) ? `<div class="runbal">من ${money(c.amount)}</div>` : ''}${dueTxt(c)}</div>
       </div>`).join('') : `<div class="empty">${I.check}<div>مفيش شيكات هنا</div></div>`}</div>
-    ${chkFilter !== 'pending' && rows.length && rows.length % 100 === 0 ? `<button class="btn ghost block" onclick="moreChecks()">عرض أقدم</button>` : ''}
-    ${chkFilter === 'pending' && allRows.length > rows.length ? `<button class="btn ghost block" onclick="chkShow+=200;viewChecks()">عرض المزيد (باقي ${allRows.length - rows.length})</button>` : ''}`});
+    ${(chkFilter === 'cleared' || chkFilter === 'all') && rows.length && rows.length % 100 === 0 ? `<button class="btn ghost block" onclick="moreChecks()">عرض أقدم</button>` : ''}
+    ${allRows.length > rows.length ? `<button class="btn ghost block" onclick="chkShow+=200;viewChecks()">عرض المزيد (باقي ${allRows.length - rows.length})</button>` : ''}`});
 }
 window.showCheck = async id => {
-  const c = window._checks.find(x => x.id === id);
+  const c = window._checks.find(x => x.id === id) || {...chkRow(id), suppliers:{name:store.eff.suppliers.get(chkRow(id)?.supplier_id)?.name}};
   openModal(`<h3>شيك — ${esc(c.suppliers?.name)}</h3>
     <div class="kv"><span>المبلغ</span><span>${money(c.amount)}</span></div>
     <div class="kv"><span>رقم الشيك</span><span class="num">${esc(c.check_no||'—')}</span></div>
     <div class="kv"><span>البنك</span><span>${esc(c.bank||'—')}</span></div>
     <div class="kv"><span>تاريخ الاستحقاق</span><span>${fmtDate(c.due_date)}</span></div>
     <div class="kv"><span>اتكتب يوم</span><span>${fmtDate(c.pay_date)}</span></div>
-    <div class="kv"><span>الحالة</span><span><span class="tag ${c.check_status}">${CHK[c.check_status]}</span></span></div>
+    <div id="chkpanel"></div>
     ${imgSection('payments', c)}
-    ${checkButtons(c, 'viewChecks()')}
     <button class="btn ghost block" style="margin-top:10px" onclick="go('/s/${c.supplier_id}')">افتح حساب المورد</button>`);
   fillGallery('payments', c);
+  drawCheckPanel(c.id, `chkMore=null;viewChecks().then(()=>showCheck(${c.id}))`);
 };
 
 /* =================== الإعدادات =================== */
@@ -89,6 +91,7 @@ async function viewSettings(){
     </div>
     <div class="card"><div class="section-t">البيانات</div>
       <div class="actions" style="margin-bottom:10px"><button class="btn ghost" onclick="exportExcel()">${I.xls}تصدير Excel</button><button class="btn ghost" onclick="backupJson()">${I.save}نسخة احتياطية</button></div>
+      <div class="hint" style="margin-bottom:10px">${backupAge() == null ? 'لسه ما عملتش نسخة احتياطية من الموبايل ده.' : backupAge() === 0 ? 'آخر نسخة احتياطية: النهارده ✓' : `آخر نسخة احتياطية من ${backupAge()} يوم.`} النسخة فيها كل البيانات وسجل التعديلات — ابعتها لنفسك على واتساب أو Drive.</div>
       <button class="btn ghost block" onclick="go('/log')">${I.hist}سجل التعديلات (مين عمل إيه)</button>
     </div>
     <div class="card"><div class="section-t">ألوان التطبيق</div>
@@ -145,8 +148,17 @@ window.shareApp = async () => {
   try{ await navigator.clipboard.writeText(link); toast('اتنسخ الرابط ✓'); }catch(e){ prompt('انسخ الرابط:', link); }
 };
 window.logout = async () => {
-  const pend = store.queue.length;
-  if(pend && !confirm(`فيه ${pend} عملية على الجهاز لسه متزامنتش. لو خرجت هتتمسح ومش هتتسجل.\nتخرج برضه؟`)) return;
+  // الخروج بيمسح نسخة الجهاز — فممنوع طول ما فيه أي عملية لسه ما وصلتش السيرفر
+  const pend = store.queue.filter(o => o.status !== 'done');
+  if(pend.length){
+    if(navigator.onLine){ try{ await syncNow(true); }catch(e){} }
+    const left = store.queue.filter(o => o.status !== 'done');
+    if(left.length){
+      openModal(`<h3>مينفعش تخرج دلوقتي</h3><div class="hint" style="margin-bottom:12px">فيه ${left.length} عملية متسجلة على الموبايل ده ولسه ما وصلتش السيرفر${left.some(o => o.status === 'conflict' || o.status === 'failed') ? ' (منها عمليات محتاجة مراجعة)' : ''}. الخروج بيمسح بيانات الجهاز، فالعمليات دي كانت هتضيع.<br><br>اتصل بالنت وافتح «المزامنة» لحد ما الرقم يبقى صفر، وبعدين اخرج.</div>
+        <button class="btn primary block" onclick="closeModal();openSync()">${I.refresh}افتح المزامنة</button>`);
+      return;
+    }
+  }
   try{ await withTimeout(sb.auth.signOut(), 5000); }catch(e){}
   // الخروج بيمسح البيانات المحفوظة على الجهاز (أمان لو الجهاز مشترك)
   try{ if(idb.db) idb.db.close(); await idb.drop(dbName(store.email || me?.email)); }catch(e){}

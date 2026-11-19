@@ -8,9 +8,9 @@ async function viewStatement(id, from, to){
   const inRange = d => (!from || d >= from) && (!to || d <= to);
   const ev = [
     ...invs.map(x => ({d:String(x.inv_date).slice(0,10), c:x.created_at, desc:'فاتورة' + (x.inv_no ? ' رقم ' + x.inv_no : ''), deb:Number(x.amount), cre:0})),
-    ...pays.filter(p => p.check_status !== 'bounced').map(p => ({d:String(p.pay_date).slice(0,10), c:p.created_at,
+    ...pays.filter(p => payEffect(p) > 0).map(p => ({d:String(p.pay_date).slice(0,10), c:p.created_at,
       desc: IS_ADJ(p.method) ? METHOD[p.method] : ('دفعة ' + METHOD[p.method] + (p.method === 'check' ? (p.check_no ? ` ${p.check_no}` : '') + (p.check_status === 'pending' ? ` (يستحق ${String(p.due_date).slice(5,10).split('-').reverse().join('/')})` : '') : '')),
-      deb:0, cre:Number(p.amount)})),
+      deb:0, cre:payEffect(p) / 100})),
   ].sort((a,b) => a.d === b.d ? (a.c < b.c ? -1 : 1) : (a.d < b.d ? -1 : 1));
   let open = 0; ev.filter(e => from && e.d < from).forEach(e => open += e.deb - e.cre);
   let run = open, td = 0, tc = 0;
@@ -268,6 +268,12 @@ async function viewLog(){
       if(r.action === 'update' && o.check_status !== n.check_status && n.check_status) t = `علّم الشيك${n.check_no ? ' رقم ' + n.check_no : ''} (${f(n.amount)}) إنه «${CHK[n.check_status]}»${sup}`;
       else t = `${verb} ${kind} بـ ${f(row.amount)}${sup}`;
     }
+    else if(r.entity === 'check_payments'){
+      const ck = store.eff.payments.get(row.payment_id), cn = ck?.check_no ? ' رقم ' + ck.check_no : '';
+      t = r.action === 'insert' ? `سجّل سداد ${f(row.amount)} على الشيك${cn} (${CP_METHOD[row.method] || ''})${sup}`
+        : (r.action === 'update' && !o.voided && n.voided) ? `ألغى دفعة سداد ${f(row.amount)} من الشيك${cn}${n.void_reason ? ' — السبب: ' + n.void_reason : ''}${sup}`
+        : `عدّل دفعة سداد على الشيك${cn}${sup}`;
+    }
     else if(r.entity === 'employees') t = `${{insert:'أضاف', update:'عدّل بيانات', delete:'مسح'}[r.action]} الموظف ${row.name}`;
     else if(r.entity === 'emp_settlements') t = `${verb} تسوية موظف (${row.period_from} — ${row.period_to}) صافي ${f(row.net_balance ?? 0)}`;
     else if(r.entity === 'emp_transactions') t = `${verb} حركة موظف (${({salary:'مرتب',commission:'عمولة',advance:'سلفة',deduction:'خصم',payment:'صرف',adjustment:'تسوية'})[row.kind] || ''}) بـ ${f(row.amount)}`;
@@ -310,20 +316,40 @@ window.exportExcel = async () => {
     XLSX.utils.book_append_sheet(wb, sheet(bal.map(b => ({'المورد':b.name, 'التليفون':b.phone||'', 'الفواتير':N(b.total_invoices), 'المدفوع':N(b.total_paid), 'مرتجعات وخصومات':N(b.total_adjust), 'الباقي':N(b.balance), 'شيكات لسه':N(b.pending_checks)})), [24,14,14,14,16,14,14]), 'الموردين');
     XLSX.utils.book_append_sheet(wb, sheet(invs.map(i => ({'التاريخ':String(i.inv_date).slice(0,10), 'المورد':name.get(i.supplier_id), 'رقم الفاتورة':i.inv_no||'', 'المبلغ':N(i.amount), 'ملاحظات':i.notes||'', 'سجّلها':shortName(i.created_by)})), [12,24,14,14,24,12]), 'الفواتير');
     XLSX.utils.book_append_sheet(wb, sheet(pays.map(p => ({'التاريخ':String(p.pay_date).slice(0,10), 'المورد':name.get(p.supplier_id), 'النوع':METHOD[p.method], 'المبلغ':N(p.amount), 'رقم الشيك':p.check_no||'', 'البنك':p.bank||'', 'الاستحقاق':p.due_date?String(p.due_date).slice(0,10):'', 'حالة الشيك':p.check_status?CHK[p.check_status]:'', 'عن فاتورة':p.invoice_id?invNo.get(p.invoice_id)||'':'', 'ملاحظات':p.notes||'', 'سجّلها':shortName(p.created_by)})), [12,24,10,14,12,14,12,14,14,24,12]), 'الدفعات');
-    XLSX.utils.book_append_sheet(wb, sheet(pays.filter(p => p.method === 'check').sort((a,b) => a.due_date < b.due_date ? -1 : 1).map(p => ({'الاستحقاق':String(p.due_date).slice(0,10), 'المورد':name.get(p.supplier_id), 'المبلغ':N(p.amount), 'رقم الشيك':p.check_no||'', 'البنك':p.bank||'', 'الحالة':CHK[p.check_status]})), [12,24,14,12,14,14]), 'الشيكات');
+    XLSX.utils.book_append_sheet(wb, sheet(pays.filter(p => p.method === 'check').sort((a,b) => a.due_date < b.due_date ? -1 : 1).map(p => ({'الاستحقاق':String(p.due_date).slice(0,10), 'المورد':name.get(p.supplier_id), 'المبلغ':N(p.amount), 'رقم الشيك':p.check_no||'', 'البنك':p.bank||'', 'الحالة':CHK_PAY[checkInfo(p).pay], 'المسدد':checkInfo(p).settled/100, 'المتبقي':checkInfo(p).remaining/100})), [12,24,14,12,14,16,14,14]), 'الشيكات');
     XLSX.writeFile(wb, `حسابات الموردين ${today()}.xlsx`);
     toast('اتعمل ملف Excel ✓');
   }catch(e){ console.error(e); toast('مقدرتش أعمل الملف', true); } finally{ busy(false); }
 };
+// نسخة احتياطية كاملة: كل الجداول + سجل التعديلات كله، من السيرفر مباشرة (ولو مفيش نت: من نسخة الجهاز)
+const BK_KEY = 'mawredin_last_backup';
 window.backupJson = async () => {
   busy(true);
   try{
-    const [members, suppliers, invoices, payments] = await Promise.all([api.members(), api.allSuppliers(), api.allInvoices(), api.allPayments()]);
-    const data = {app:'mawredin', version:2, created_at:new Date().toISOString(), by:me.email, members, suppliers, invoices, payments};
-    download(new Blob([JSON.stringify(data, null, 1)], {type:'application/json'}), `نسخة احتياطية حسابات الموردين ${today()}.json`);
-    toast('اتحفظت النسخة الاحتياطية ✓');
+    const tables = Object.keys(TABLES).concat('activity_log'), data = {app:'mawredin', version:3, created_at:new Date().toISOString(), by:me.email, source:'server', tables:{}, counts:{}, missing:[]};
+    const online = navigator.onLine && sync.online;
+    for(const t of tables){
+      try{
+        if(!online) throw new Error('offline');
+        data.tables[t] = await fetchAllNet(() => sb.from(t).select('*').order(TABLES[t] || 'id'));
+      }catch(e){
+        if(t === 'activity_log'){ data.tables[t] = store.log; data.missing.push(t + ' (آخر ' + store.log.length + ' بس)'); }
+        else if(store.base[t]){ data.tables[t] = [...store.base[t].values()]; if(online) data.missing.push(t + ' (من الجهاز)'); }
+      }
+      data.counts[t] = (data.tables[t] || []).length;
+    }
+    if(!online) data.source = 'device';
+    const pend = store.queue.filter(o => o.status !== 'done');
+    if(pend.length) data.unsynced_ops = pend.map(o => ({...o}));   // العمليات اللي لسه على الجهاز بتتحفظ كمان
+    data.images = [...new Set(Object.values(data.tables).flat().flatMap(r => r && (r.image_path || r.extra_images) ? [r.image_path, ...(r.extra_images || [])] : []).filter(Boolean))];
+    const name = `نسخة احتياطية حسابات المحل ${today()}.json`;
+    download(new Blob([JSON.stringify(data, null, 1)], {type:'application/json'}), name);
+    localStorage.setItem(BK_KEY, today());
+    busy(false);
+    alert(`اتحفظت النسخة الاحتياطية ✓\n\n${Object.entries(data.counts).filter(([, n]) => n).map(([t, n]) => `• ${t}: ${n}`).join('\n')}${data.unsynced_ops ? `\n• عمليات لسه متزامنتش: ${data.unsynced_ops.length}` : ''}${data.missing.length ? '\n\nملحوظة: ' + data.missing.join('، ') : ''}\n\nالصور نفسها مش جوه الملف (أسماؤها بس) — هي محفوظة على السيرفر.\nابعت الملف لنفسك على واتساب أو احفظه على Google Drive.`);
   }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };
+const backupAge = () => { const d = localStorage.getItem(BK_KEY); return d ? Math.floor((new Date(today()) - new Date(d)) / 864e5) : null; };
 window.enableNotifs = async () => {
   if(!('Notification' in window) || !window.isSecureContext) return toast('الإشعارات بتشتغل لما التطبيق يتفتح من رابط https (بعد الرفع على GitHub) أو من localhost على الكمبيوتر', true);
   const r = await Notification.requestPermission();
