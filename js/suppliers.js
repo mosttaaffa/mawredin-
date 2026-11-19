@@ -1,39 +1,81 @@
 /* الموردين: الرئيسية، صفحة المورد، الفواتير والدفعات والمرتجعات، قراءة المبلغ من الصورة */
 /* =================== تبويب الموردين =================== */
+const waNum = p => { let d = String(p || '').replace(/[٠-٩]/g, x => '٠١٢٣٤٥٦٧٨٩'.indexOf(x)).replace(/\D/g, ''); if(d.startsWith('00')) d = d.slice(2); else if(d.startsWith('0')) d = '20' + d.slice(1); return d; };
+let supSort = 'bal', supFilter = 'all', supQ = '';
+// بطاقة مورد مالية (قابلة لإعادة الاستخدام): كل الإجماليات ظاهرة من غير ما تفتح الحساب
+function supCard(r){
+  const bal = Number(r.balance), adj = Number(r.total_adjust || 0);
+  return `<div class="scard ${bal > 0 ? 'owe' : bal < 0 ? 'cred' : 'zero'}" data-n="${esc(r.name.toLowerCase())}" onclick="go('/s/${r.id}')">
+    <div class="sc-top">
+      <div class="sc-av"><img src="icons/3d/suppliers.webp" alt="" loading="lazy" decoding="async"><b>${esc(r.name.trim()[0] || '؟')}</b></div>
+      <div class="sc-name"><div class="t">${esc(r.name)}${r.pend_ops ? `<span class="tag pend-sync" title="عمليات على الجهاز لسه متزامنتش">${I.refresh}${r.pend_ops}</span>` : ''}</div>
+        <div class="s">آخر حركة ${r.last_activity ? fmtDate(r.last_activity) : '—'}</div></div>
+      <div class="sc-bal"><span>${bal < 0 ? 'ليك عنده' : bal > 0 ? 'المستحق له' : 'الحساب'}</span><b>${bal === 0 ? 'خالص' : money(Math.abs(bal))}</b></div>
+    </div>
+    <div class="sc-grid">
+      <div><span>الفواتير (${r.inv_n || 0})</span><b class="c-inv">${money(r.total_invoices)}</b></div>
+      <div><span>المدفوع (${r.pay_n || 0})</span><b class="c-pay">${money(r.total_paid)}</b></div>
+      ${adj ? `<div><span>مرتجعات وخصومات (${r.adj_n || 0})</span><b class="c-adj">${money(adj)}</b></div>` : ''}
+      ${Number(r.pending_checks) ? `<div><span>شيكات لسه</span><b class="c-chk">${money(r.pending_checks)}</b></div>` : ''}
+    </div>
+    <div class="sc-acts">
+      <button class="btn ghost" onclick="event.stopPropagation();go('/statement/${r.id}')">${I.doc}كشف الحساب</button>
+      <button class="btn ghost" onclick="event.stopPropagation();go('/invoice?s=${r.id}')">${I.receipt}فاتورة</button>
+      <button class="btn ghost" onclick="event.stopPropagation();go('/payment?s=${r.id}')">${I.cash}دفعة</button>
+    </div>
+  </div>`;
+}
 async function viewSuppliers(){
   if(!$('#suplist')) shell({title:'الموردين', right:refreshBtn, nav:'suppliers', body:skeleton('home')});
   const [rows, cs] = await Promise.all([api.balances(), api.checkSummary()]);
-  const checks = soonToChecks(cs);
-  const total = rows.reduce((a,r)=>a+Number(r.balance),0);
-  const pendN = Number(cs.n), pendSum = Number(cs.sum);
-  const next = cs.next ? {due_date: cs.next.due_date, suppliers:{name: cs.next.name}} : null;
-  notifyChecks(checks);
+  const checks = soonToChecks(cs); notifyChecks(checks);
+  const N = v => Number(v || 0), cents = v => Math.round(N(v) * 100);
+  const owed = rows.reduce((a, r) => a + Math.max(0, cents(r.balance)), 0) / 100;
+  const credit = rows.reduce((a, r) => a + Math.min(0, cents(r.balance)), 0) / 100;
+  const tInv = rows.reduce((a, r) => a + cents(r.total_invoices), 0) / 100;
+  const tPaid = rows.reduce((a, r) => a + cents(r.total_paid), 0) / 100;
+  const tAdj = rows.reduce((a, r) => a + cents(r.total_adjust), 0) / 100;
+  const next = cs.next;
+  let list = rows.filter(r => supFilter === 'all' || (supFilter === 'due' ? N(r.balance) !== 0 : N(r.balance) === 0));
+  list.sort(supSort === 'recent' ? (a, b) => String(b.last_activity || '').localeCompare(String(a.last_activity || '')) || b.id - a.id
+          : supSort === 'name' ? (a, b) => a.name.localeCompare(b.name, 'ar') : (a, b) => N(b.balance) - N(a.balance) || a.id - b.id);
+  const chip = (v, l, cur, fn) => `<button class="chip ${cur === v ? 'on' : ''}" onclick="${fn}='${v}';viewSuppliers()">${l}</button>`;
   const body = `
-    <div class="card hero">
+    <div class="card hero sup-hero">
       <div class="lbl">إجمالي المستحق للموردين</div>
-      <div class="big">${money(total)}</div>
-      <div class="row">
-        <div class="mini"><span>شيكات لسه ما اتصرفتش</span><b>${money(pendSum)}</b><span>${pendN} شيك</span></div>
-        <div class="mini" onclick="go('/checks')" style="cursor:pointer"><span>أقرب شيك</span><b>${next ? fmtDate(next.due_date) : '—'}</b><span>${next ? esc(next.suppliers?.name) : 'مفيش'}</span></div>
+      <div class="big">${money(owed)}</div>
+      ${credit ? `<div class="lbl" style="margin-top:-2px">وليك عند موردين ${money(Math.abs(credit))}</div>` : ''}
+      <div class="sum6">
+        <div><span>إجمالي الفواتير</span><b>${money(tInv)}</b></div>
+        <div><span>إجمالي المدفوع</span><b>${money(tPaid)}</b></div>
+        <div><span>عدد الموردين</span><b>${rows.length}</b></div>
+        ${tAdj ? `<div><span>مرتجعات وخصومات</span><b>${money(tAdj)}</b></div>` : ''}
+        <div onclick="go('/checks')" style="cursor:pointer"><span>شيكات مستحقة (${N(cs.n)})</span><b>${money(cs.sum)}</b></div>
+        <div onclick="go('/checks')" style="cursor:pointer"><span>أقرب شيك</span><b>${next ? fmtDate(next.due_date) : '—'}</b><small>${next ? esc(next.name) + ' · ' + money(next.amount) : 'مفيش'}</small></div>
       </div>
     </div>
-    <div style="display:flex;gap:10px;align-items:center">
-      <input class="search" id="srch" placeholder="ابحث عن مورد..." oninput="filterSup(this.value)">
-      <button class="btn ghost" style="margin-bottom:12px;white-space:nowrap" onclick="go('/supplier')">${I.plus}مورد</button>
+    <div class="sup-tools">
+      <input class="search" id="srch" placeholder="ابحث باسم المورد..." value="${esc(supQ)}" oninput="supQ=this.value;filterSup(this.value)">
+      <button class="btn ghost" onclick="go('/supplier')">${I.plus}مورد</button>
     </div>
-    <div class="card list" id="suplist">
-      ${rows.length ? rows.map(r => `
-        <div class="item" data-n="${esc(r.name.toLowerCase())}" onclick="go('/s/${r.id}')">
-          <div class="avatar">${esc(r.name.trim()[0]||'؟')}</div>
-          <div class="grow"><div class="t">${esc(r.name)}</div>
-            <div class="s">فواتير ${money(r.total_invoices)} · مدفوع ${money(Number(r.total_paid) + Number(r.total_adjust||0))}</div></div>
-          <div class="amt ${Number(r.balance)>0?'debt':'ok'}">${money(r.balance)}</div>
-        </div>`).join('') :
-        `<div class="empty">${I.box}<div>لسه مفيش موردين</div><button class="btn primary" style="margin-top:12px" onclick="go('/supplier')">${I.plus}أضف أول مورد</button></div>`}
+    <div class="chip-row">
+      ${chip('bal', 'أكبر رصيد', supSort, 'supSort')}${chip('recent', 'أحدث حركة', supSort, 'supSort')}${chip('name', 'الاسم', supSort, 'supSort')}
+      <span class="chip-sep"></span>
+      ${chip('all', 'الكل', supFilter, 'supFilter')}${chip('due', 'ليهم رصيد', supFilter, 'supFilter')}${chip('zero', 'رصيد صفر', supFilter, 'supFilter')}
+    </div>
+    <div id="suplist">
+      ${rows.length ? (list.length ? list.map(supCard).join('') : `<div class="card empty">${I.box}<div>مفيش موردين في الفلتر ده</div></div>`) :
+        `<div class="card empty">${I.box}<div>لسه مفيش موردين</div><button class="btn primary" style="margin-top:12px" onclick="go('/supplier')">${I.plus}أضف أول مورد</button></div>`}
+      <div class="card empty" id="nores" style="display:none">${I.box}<div>مفيش مورد بالاسم ده</div></div>
     </div>`;
   shell({title:'الموردين', right:refreshBtn, nav:'suppliers', body, fabs: rows.length ? quickFabs() : ''});
+  if(supQ) filterSup(supQ);
 }
-window.filterSup = v => { v = v.trim().toLowerCase(); document.querySelectorAll('#suplist .item').forEach(el => el.style.display = el.dataset.n.includes(v) ? '' : 'none'); };
+window.filterSup = v => {
+  v = v.trim().toLowerCase(); let n = 0;
+  document.querySelectorAll('#suplist .scard').forEach(el => { const ok = el.dataset.n.includes(v); el.style.display = ok ? '' : 'none'; n += ok; });
+  const e = $('#nores'); if(e) e.style.display = n || !document.querySelector('#suplist .scard') ? 'none' : '';
+};
 
 /* =================== صفحة المورد =================== */
 async function viewSupplier(id){
@@ -55,11 +97,13 @@ async function viewSupplier(id){
     e.run = run;
   });
   ev.reverse();
+  const runOf = new Map(ev.map(e => [e.k + e.x.id, e.run]));   // الرصيد بعد كل حركة (في كل التبويبات)
+  const syncTag = x => x._pending ? `<span class="tag pend-sync">${I.refresh}على الجهاز</span>` : '';
 
   const invRow = (x, runbal) => { const a = alloc.get(x.id); return `
     <div class="item" onclick="showInvoice(${x.id})">
       <div class="ico inv">${I.receipt}</div>
-      <div class="grow"><div class="t">فاتورة ${x.inv_no?'رقم <span class="num">'+esc(x.inv_no)+'</span>':''}<span class="tag ${a.status}">${INV_ST[a.status]}</span></div>
+      <div class="grow"><div class="t">فاتورة ${x.inv_no?'رقم <span class="num">'+esc(x.inv_no)+'</span>':''}<span class="tag ${a.status}">${INV_ST[a.status]}</span>${syncTag(x)}</div>
         <div class="s">${fmtDate(x.inv_date)} ${a.status==='partial'?`· <span class="inv-left">باقي ${money(a.rem)}</span>`:''} ${x.notes?'· '+esc(x.notes):''}</div></div>
       <div><div class="amt" style="color:var(--blue)">+ ${money(x.amount)}</div>${runbal!=null?`<div class="runbal">الرصيد ${money(runbal)}</div>`:''}</div>
     </div>`; };
@@ -68,7 +112,7 @@ async function viewSupplier(id){
     return `
     <div class="item" onclick="showPayment(${x.id})">
       <div class="ico ${b?'bounced':adj?'adj':'pay'}">${x.method==='check'?I.check:x.method==='transfer'?I.transfer:x.method==='return'?I.ret:x.method==='discount'?I.disc:I.cash}</div>
-      <div class="grow"><div class="t">${adj ? METHOD[x.method] : 'دفعة'} ${adj?'':`<span class="tag ${x.method}">${METHOD[x.method]}</span>`}${x.method==='check'?`<span class="tag ${x.check_status}">${CHK[x.check_status]}</span>`:''}</div>
+      <div class="grow"><div class="t">${adj ? METHOD[x.method] : 'دفعة'} ${adj?'':`<span class="tag ${x.method}">${METHOD[x.method]}</span>`}${x.method==='check'?`<span class="tag ${x.check_status}">${CHK[x.check_status]}</span>`:''}${syncTag(x)}</div>
         <div class="s">${fmtDate(x.pay_date)}${x.method==='check'?' · يستحق '+fmtDate(x.due_date):''}${x.invoice_id && invNo.has(x.invoice_id)?' · عن فاتورة '+esc(invNo.get(x.invoice_id)):''}</div></div>
       <div><div class="amt pay ${b?'struck':''}">− ${money(x.amount)}</div>${runbal!=null?`<div class="runbal">الرصيد ${money(runbal)}</div>`:''}</div>
     </div>`;
@@ -76,7 +120,7 @@ async function viewSupplier(id){
 
   // بنعرض 100 حركة الأول والباقي بزرار (عشان الصفحة تفضل سريعة حتى مع آلاف الحركات)
   const src = t==='ledger' ? ev.map(e => () => e.k==='inv' ? invRow(e.x, e.run) : payRow(e.x, e.run))
-            : t==='inv' ? invs.map(x => () => invRow(x)) : pays.map(x => () => payRow(x));
+            : t==='inv' ? invs.map(x => () => invRow(x, runOf.get('inv' + x.id))) : pays.map(x => () => payRow(x, runOf.get('pay' + x.id)));
   const shown = Math.min(src.length, (ledgerShown[id+t] || 100));
   let list = src.slice(0, shown).map(f => f()).join('');
   if(shown < src.length) list += `<div style="padding:10px 0 2px"><button class="btn ghost block" onclick="ledgerShown['${id+t}']=${shown + 200};viewSupplier(${id})">عرض أقدم (باقي ${src.length - shown})</button></div>`;
@@ -95,8 +139,9 @@ async function viewSupplier(id){
           <div class="b"><span>المدفوع</span><b>${money(s.total_paid)}</b></div>
           <div class="c ${bal<=0?'zero':''}"><span>${bal<0?'ليك عنده':'الباقي عليك'}</span><b>${money(Math.abs(bal))}</b></div>
         </div>
-        ${Number(s.total_adjust)>0 ? `<div class="note-line" style="color:#2b6cb0;background:#e8f0fa">مرتجعات وخصومات اتخصمت من الحساب: ${money(s.total_adjust)}</div>`:''}
+        ${Number(s.total_adjust)>0 ? `<div class="note-line adj">مرتجعات وخصومات اتخصمت من الحساب: ${money(s.total_adjust)}</div>`:''}
         ${Number(s.pending_checks)>0 ? `<div class="note-line">منهم شيكات لسه ما اتصرفتش بـ ${money(s.pending_checks)}</div>`:''}
+        <div class="sup-meta"><span>${s.inv_n || 0} فاتورة</span><span>${s.pay_n || 0} دفعة</span>${s.adj_n ? `<span>${s.adj_n} مرتجع/خصم</span>` : ''}<span>آخر حركة ${s.last_activity ? fmtDate(s.last_activity) : '—'}</span></div>
       </div>
       <div class="actions" style="margin-bottom:8px">
         <button class="btn primary" onclick="go('/invoice?s=${id}')">${I.receipt}فاتورة جديدة</button>
@@ -112,7 +157,13 @@ async function viewSupplier(id){
         <button class="${t==='pay'?'on':''}" onclick="setTab(${id},'pay')">الدفعات (${pays.length})</button>
       </div>
       <div class="card list led">${list}</div>
-      ${s.phone ? `<div class="card"><div class="kv" style="border:0"><span>تليفون المورد</span><span><a class="num" href="tel:${esc(s.phone)}">${esc(s.phone)}</a></span></div></div>`:''}
+      <div class="card sup-contact">
+        <div class="section-t">بيانات التواصل</div>
+        ${s.phone ? `<div class="kv"><span>التليفون</span><span class="num">${esc(s.phone)}</span></div>
+          <div class="actions sm" style="margin-top:8px"><a class="btn ghost" href="tel:${esc(s.phone)}">${I.phone || ''}اتصال</a><a class="btn ghost" href="https://wa.me/${esc(waNum(s.phone))}" target="_blank" rel="noopener">${I.wa}واتساب</a></div>`
+          : `<div class="hint">مفيش تليفون متسجل — <a class="link" href="#/supplier/${id}">ضيف رقم</a></div>`}
+        ${s.notes ? `<div class="kv" style="border:0"><span>ملاحظات</span><span>${esc(s.notes)}</span></div>` : ''}
+      </div>
     `
   });
 }
@@ -324,11 +375,18 @@ function formShell(title, body, onSave){
   });
 }
 
+/* =================== مساعدات الفورم =================== */
+const supBalance = sid => { const r = supplierBalances().find(x => String(x.id) === String(sid)); return r ? Number(r.balance) : 0; };
+const savedMsg = what => (sync.online && navigator.onLine) ? `اتحفظت ${what}` : `اتحفظت ${what} على الجهاز`;
+// منع التكرار: لو فيه حركة بنفس المورد والمبلغ والتاريخ (وبنفس الرقم/النوع) نسأل الأول
+function looksDuplicate(list, x, same){ return list.some(r => (!x || r.id !== x.id) && same(r)); }
+
 /* =================== فورم الفاتورة =================== */
 async function formInvoice(id, presetSup){
   const x = id ? await q(ldb.from('invoices').select('*').eq('id', id).single()) : null;
   formShell(x ? 'تعديل فاتورة' : 'فاتورة جديدة', `
     ${await supplierPicker(x ? x.supplier_id : presetSup)}
+    <div class="balhint" id="balhint"></div>
     <div class="field" id="f-amount"><label>قيمة الفاتورة <span class="req">*</span></label>
       <input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x?x.amount:''}"></div>
     <div class="row2">
@@ -348,14 +406,20 @@ async function formInvoice(id, presetSup){
     if(!file && !x) return markErr('img', 'لازم صورة الفاتورة');
     let image_path = x?.image_path || null;
     if(window._rmImg.img) image_path = null;
-    if(file) image_path = await uploadImage(file, 'invoices');
-    const row = {supplier_id:+sid, amount, inv_date:$('#date').value || today(), inv_no:$('#no').value.trim()||null, notes:$('#notes').value.trim()||null, image_path};
+    const row0 = {date:$('#date').value || today(), no:$('#no').value.trim()};
+    if(looksDuplicate(await api.invoices(sid), x, r => Number(r.amount) === amount && String(r.inv_date).slice(0,10) === row0.date && (!row0.no || !r.inv_no || r.inv_no === row0.no))
+       && !confirm(`فيه فاتورة متسجلة لنفس المورد بنفس المبلغ (${amount.toLocaleString('en-US')}) ونفس التاريخ.\nتسجلها تاني برضه؟`)) return;
+    if(file) image_path = await uploadImage(file, 'invoices', {max:1800, q:0.8});   // ضغط مع الحفاظ على وضوح الأرقام
+    const row = {supplier_id:+sid, amount, inv_date:row0.date, inv_no:row0.no||null, notes:$('#notes').value.trim()||null, image_path};
     if(x){ await q(ldb.from('invoices').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
     else await q(ldb.from('invoices').insert(row));
-    busy(false); await celebrate('اتحفظت الفاتورة');
+    busy(false); await celebrate(savedMsg('الفاتورة'));
     location.replace('#/s/' + sid);
   });
   if(x) fillExisting('img', x.image_path, true);
+  const hint = () => { const sid = $('#sup').value; const b = sid ? supBalance(sid) : null; const a = readAmount($('#amount').value) || 0;
+    $('#balhint').innerHTML = sid ? `<span>رصيد المورد دلوقتي</span><b>${money(b)}</b>${!x && a > 0 ? `<span>بعد الفاتورة</span><b class="after">${money(b + a)}</b>` : ''}` : ''; };
+  $('#sup').addEventListener('change', hint); $('#amount').addEventListener('input', hint); hint();
   $('#img').addEventListener('change', () => { if($('#img').files[0]){ $('#ocrbox').style.display = ''; $('#ocrout').innerHTML = ''; } });
 }
 
@@ -416,6 +480,7 @@ async function formPayment(id, presetSup){
     ${await supplierPicker(x ? x.supplier_id : presetSup)}
     <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label>
       <input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x?x.amount:''}"></div>
+    <div class="paycalc" id="paycalc"></div>
     ${invoiceField()}
     <div class="field" id="f-method"><label>نوع الدفعة <span class="req">*</span></label>
       <div class="seg">
@@ -445,6 +510,9 @@ async function formPayment(id, presetSup){
     let file = null;
     if(method==='transfer'){ file = $('#trimg').files[0]; if(!file && !keepOld && !(x && x.method === 'transfer')) return markErr('trimg', 'لازم سكرين شوت التحويل'); }
     if(method==='check'){ file = $('#chkimg').files[0]; if(!$('#due').value) return markErr('due', 'اكتب تاريخ استحقاق الشيك'); }
+    const pdate = $('#date').value || today();
+    if(looksDuplicate(await api.payments(sid), x, r => Number(r.amount) === amount && String(r.pay_date).slice(0,10) === pdate && r.method === method)
+       && !confirm(`فيه دفعة ${METHOD[method]} متسجلة لنفس المورد بنفس المبلغ (${amount.toLocaleString('en-US')}) ونفس التاريخ.\nتسجلها تاني برضه؟`)) return;
     let image_path = method==='cash' ? null : keepOld;
     if(window._rmImg[method === 'check' ? 'chkimg' : 'trimg'] && !file) image_path = null;
     if(file) image_path = await uploadImage(file, method==='check' ? 'checks' : 'transfers');
@@ -458,7 +526,7 @@ async function formPayment(id, presetSup){
     };
     if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
     else await q(ldb.from('payments').insert(row));
-    busy(false); await celebrate('اتحفظت الدفعة', true);
+    busy(false); await celebrate(savedMsg('الدفعة'), true);
     location.replace('#/s/' + sid);
   });
   const setM = m => {
@@ -473,6 +541,16 @@ async function formPayment(id, presetSup){
   if(x?.image_path) fillExisting(x.method==='check' ? 'chkimg' : 'trimg', x.image_path, true);
   fillInvoices($('#sup').value, x?.invoice_id, x?.id);
   $('#sup').addEventListener('change', () => fillInvoices($('#sup').value));
+  // الرصيد قبل وبعد الدفعة (بنفس قاعدة الحساب: الشيك المرتد مش بيتحسب)
+  const calc = () => {
+    const sid = $('#sup').value, el = $('#paycalc'); if(!sid){ el.innerHTML = ''; return; }
+    let before = supBalance(sid);
+    if(x && String(x.supplier_id) === String(sid) && x.check_status !== 'bounced') before += Number(x.amount);   // التعديل: نشيل الدفعة القديمة الأول
+    const a = readAmount($('#amount').value) || 0, after = before - a;
+    el.innerHTML = `<div><span>المستحق قبل الدفعة</span><b>${money(before)}</b></div><div class="op">−</div><div><span>الدفعة</span><b>${money(a)}</b></div><div class="op">=</div>
+      <div class="${after < 0 ? 'neg-after' : 'after'}"><span>${after < 0 ? 'هيبقى ليك عنده' : 'المتوقع بعد الدفع'}</span><b>${money(Math.abs(after))}</b></div>`;
+  };
+  $('#sup').addEventListener('change', calc); $('#amount').addEventListener('input', calc); calc();
 }
 
 /* =================== فورم المرتجع / الخصم =================== */
@@ -513,6 +591,16 @@ async function formAdjust(id, presetSup){
   if(x?.image_path) fillExisting('adjimg', x.image_path, true);
   fillInvoices($('#sup').value, x?.invoice_id, x?.id);
   $('#sup').addEventListener('change', () => fillInvoices($('#sup').value));
+  // الرصيد قبل وبعد الدفعة (بنفس قاعدة الحساب: الشيك المرتد مش بيتحسب)
+  const calc = () => {
+    const sid = $('#sup').value, el = $('#paycalc'); if(!sid){ el.innerHTML = ''; return; }
+    let before = supBalance(sid);
+    if(x && String(x.supplier_id) === String(sid) && x.check_status !== 'bounced') before += Number(x.amount);   // التعديل: نشيل الدفعة القديمة الأول
+    const a = readAmount($('#amount').value) || 0, after = before - a;
+    el.innerHTML = `<div><span>المستحق قبل الدفعة</span><b>${money(before)}</b></div><div class="op">−</div><div><span>الدفعة</span><b>${money(a)}</b></div><div class="op">=</div>
+      <div class="${after < 0 ? 'neg-after' : 'after'}"><span>${after < 0 ? 'هيبقى ليك عنده' : 'المتوقع بعد الدفع'}</span><b>${money(Math.abs(after))}</b></div>`;
+  };
+  $('#sup').addEventListener('change', calc); $('#amount').addEventListener('input', calc); calc();
 }
 
 /* =================== فورم المورد =================== */

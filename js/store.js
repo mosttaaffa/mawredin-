@@ -109,20 +109,22 @@ const keyOf = (t, v) => TABLES[t] === 'id' ? (typeof v === 'string' && /^-?\d+$/
 function supplierBalances(){
   return memo('sb', () => {
     const agg = new Map();
-    const g = id => { let a = agg.get(id); if(!a){ a = {inv:0, paid:0, adj:0, pend:0, li:null, lp:null}; agg.set(id, a); } return a; };
-    for(const i of store.eff.invoices.values()){ const a = g(i.supplier_id); a.inv += C(i.amount); if(!a.li || i.inv_date > a.li) a.li = i.inv_date; }
+    const g = id => { let a = agg.get(id); if(!a){ a = {inv:0, paid:0, adj:0, pend:0, li:null, lp:null, ni:0, np:0, na:0, npend:0}; agg.set(id, a); } return a; };
+    for(const i of store.eff.invoices.values()){ const a = g(i.supplier_id); a.inv += C(i.amount); a.ni++; if(i._pending) a.npend++; if(!a.li || i.inv_date > a.li) a.li = i.inv_date; }
     for(const p of store.eff.payments.values()){
       const a = g(p.supplier_id);
       if(['cash','check','transfer'].includes(p.method) && (p.check_status || '') !== 'bounced') a.paid += C(p.amount);
-      if(['return','discount'].includes(p.method)) a.adj += C(p.amount);
+      if(['return','discount'].includes(p.method)){ a.adj += C(p.amount); a.na++; } else a.np++;
+      if(p._pending) a.npend++;
       if(p.method === 'check' && p.check_status === 'pending') a.pend += C(p.amount);
       if(!a.lp || p.pay_date > a.lp) a.lp = p.pay_date;
     }
     return [...store.eff.suppliers.values()].map(s => {
-      const a = agg.get(s.id) || {inv:0, paid:0, adj:0, pend:0};
+      const a = agg.get(s.id) || {inv:0, paid:0, adj:0, pend:0, ni:0, np:0, na:0, npend:0};
       const last = [a.li, a.lp].filter(Boolean).sort().pop() || null;
       return {id:s.id, name:s.name, phone:s.phone, notes:s.notes, total_invoices:fromC(a.inv), total_paid:fromC(a.paid), total_adjust:fromC(a.adj),
-              balance:fromC(a.inv - a.paid - a.adj), pending_checks:fromC(a.pend), last_activity:last, _pending:s._pending};
+              balance:fromC(a.inv - a.paid - a.adj), pending_checks:fromC(a.pend), last_activity:last, _pending:s._pending,
+              inv_n:a.ni, pay_n:a.np, adj_n:a.na, pend_ops:a.npend};
     });
   });
 }
