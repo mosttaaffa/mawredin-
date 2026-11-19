@@ -381,8 +381,8 @@ function shell({title, back, right='', body, nav=null, fabs='', home=null}){
     ${fabs}
     ${nav ? `<nav class="bottom">
       <a href="#/" class="${nav==='home'?'on':''}" aria-label="الرئيسية">${I.home}<span>الرئيسية</span></a>
-      <a href="#/employees" class="${nav==='employees'?'on':''}" aria-label="الموظفين">${I.users}<span>الموظفين</span></a>
       <a href="#/suppliers" class="${nav==='suppliers'?'on':''}" aria-label="الموردين">${I.truck}<span>الموردين</span></a>
+      <a href="#/employees" class="${nav==='employees'?'on':''}" aria-label="الموظفين">${I.users}<span>الموظفين</span></a>
       <a href="#/checks" class="${nav==='checks'?'on':''}" aria-label="الشيكات">${I.check}<span>الشيكات</span></a>
       <a href="#/reports" class="${nav==='reports'?'on':''}" aria-label="التقارير">${I.chart}<span>التقارير</span></a>
       <a href="#/more" class="${nav==='more'?'on':''}" aria-label="المزيد">${I.grid}<span>المزيد</span></a>
