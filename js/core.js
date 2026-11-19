@@ -353,20 +353,26 @@ async function route(){
 
 /* =================== هيكل الصفحة =================== */
 let lastShown = null;
-function shell({title, back, right='', body, nav=null, fabs=''}){
+function shell({title, back, right='', body, nav=null, fabs='', home=null}){
   const app = $('#app');
   const loading = body.includes('class="skel"');
   const same = !loading && lastShown === location.hash;   // نفس الصفحة (تحديث/تبويب) = من غير إعادة كل الحركات
   if(!loading) lastShown = location.hash;
   app.innerHTML = `
-    <header class="top">
+    ${home ? `<header class="top home-h">
+      ${headLogos}
+      <div class="hh-t"><h1>${title}</h1><small>إدارة مالية شاملة للمحل</small></div>
+      <button class="iconbtn glass" onclick="go('/checks')" aria-label="الإشعارات">${I.bell}${home.alerts ? `<i class="badge">${home.alerts}</i>` : ''}</button>
+      <button class="iconbtn glass" onclick="go('/settings')" aria-label="الإعدادات">${I.gear}</button>
+    </header>` : `<header class="top">
       ${back ? `<button class="iconbtn" onclick="history.length>1?history.back():go('/')" aria-label="رجوع">${I.back}</button>` : headLogos}
       <h1>${title}</h1>${right}
-    </header>
+    </header>`}
     <main class="${same ? 'calm' : 'enter'}">${body}</main>
     ${fabs}
     ${nav ? `<nav class="bottom">
       <a href="#/" class="${nav==='home'?'on':''}" aria-label="الرئيسية">${I.home}<span>الرئيسية</span></a>
+      <a href="#/employees" class="${nav==='employees'?'on':''}" aria-label="الموظفين">${I.emp}<span>الموظفين</span></a>
       <a href="#/suppliers" class="${nav==='suppliers'?'on':''}" aria-label="الموردين">${I.users}<span>الموردين</span></a>
       <a href="#/checks" class="${nav==='checks'?'on':''}" aria-label="الشيكات">${I.check}<span>الشيكات</span></a>
       <a href="#/reports" class="${nav==='reports'?'on':''}" aria-label="التقارير">${I.chart}<span>التقارير</span></a>

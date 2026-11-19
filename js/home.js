@@ -1,32 +1,52 @@
 /* الرئيسية (ملخص حسابات المحل) + قائمة «المزيد» والأقسام */
 
-/* =================== الرئيسية: مربعات الأقسام (بنفس شكل «المزيد» من غير الإعدادات والسجل) =================== */
+/* =================== الرئيسية: بطاقات الأقسام بصور ثلاثية الأبعاد =================== */
+// بطاقة قسم قابلة لإعادة الاستخدام
+function tile3d(m){
+  return `<button class="tile3d t-${m.k}" onclick="go('${m.go}')">
+    <span class="t3-top"><span class="t3-ico">${I[m.i] || I.folder}</span><span class="t3-arrow">${I.back}</span></span>
+    <img class="t3-img" src="icons/3d/${m.k}.webp" alt="" loading="eager" decoding="async" width="96" height="96">
+    <span class="t3-name">${m.t}</span>
+    ${m.v != null && m.v !== '' ? `<span class="t3-v">${m.v}</span>` : ''}
+    <span class="t3-s">${m.s}</span>
+    ${m.soon ? '<span class="soon">قريبًا</span>' : ''}
+  </button>`;
+}
+function homeSkeleton(){
+  return `<div class="dash"><div class="tiles3d">${'<div class="skel tile-sk"></div>'.repeat(8)}</div></div>`;
+}
 async function viewDashboard(){
-  if(!$('.dash')) shell({title:'حسابات المحل', right:refreshBtn, nav:'home', body:skeleton('home')});
+  if(!$('.dash')) shell({title:'حسابات المحل', nav:'home', home:{}, body:homeSkeleton()});
   const N = v => Number(v || 0);
-  const [rows, cs, emps] = await Promise.all([
-    api.balances(), api.checkSummary(),
-    fetchAll(() => sb.from('employee_balances').select('id,balance').order('id')).catch(() => []),
-  ]);
+  let rows, cs, emps;
+  try{
+    [rows, cs, emps] = await Promise.all([
+      api.balances(), api.checkSummary(),
+      fetchAll(() => sb.from('employee_balances').select('id,balance').order('id')).catch(() => null),
+    ]);
+  }catch(e){
+    shell({title:'حسابات المحل', nav:'home', home:{}, body:`<div class="card empty">${I.refresh}<div>مقدرناش نجيب البيانات — اتأكد من النت</div><button class="btn primary" style="margin-top:12px" onclick="route()">حاول تاني</button></div>`});
+    return;
+  }
   const checks = soonToChecks(cs); notifyChecks(checks);
   const owed = rows.reduce((a,r) => a + Math.max(0, N(r.balance)), 0);
-  const empDue = emps.reduce((a,r) => a + Math.max(0, N(r.balance)), 0), empOwe = emps.reduce((a,r) => a + Math.min(0, N(r.balance)), 0);
+  const owedN = rows.filter(r => N(r.balance) > 0).length;
+  const empSum = (emps || []).reduce((a,r) => a + N(r.balance), 0);
+  const ready = k => MODULES.find(m => m.k === k)?.ready;
   const tiles = [
-    {go:'/suppliers', t:'الموردين', i:'box', c:'#c2546b', v:money(owed), s:`مستحق لـ ${rows.filter(r => N(r.balance) > 0).length} مورد`},
-    {go:'/checks', t:'الشيكات', i:'check', c:'#b7791f', v:money(cs.sum), s:cs.next ? `أقرب شيك ${fmtDate(cs.next.due_date)}` : `${N(cs.n)} شيك لسه`},
-    {go:'/employees', t:'الموظفين', i:'emp', c:'#2b6cb0', v:emps.length ? money(Math.abs(empOwe)) : '', s:emps.length ? `عليهم للمحل · ${emps.length} موظف` : 'استيراد كشف الموظفين'},
-    {go:'/reports', t:'التقارير', i:'chart', c:'#2f855a', v:'', s:'المشتريات والمدفوعات شهريًا'},
-    ...MODULES.filter(m => !m.ready).map(m => ({go:'/m/' + m.k, t:m.t, i:m.i, c:m.c, s:m.d, soon:true})),
-  ];
-  shell({title:'حسابات المحل', right:refreshBtn, nav:'home', body:`
+    {k:'suppliers', go:'/suppliers', t:'الموردين', i:'users', v:money(owed), s:`${rows.length} مورد · مستحق لـ ${owedN}`},
+    {k:'checks', go:'/checks', t:'الشيكات', i:'check', v:money(cs.sum), s:`${N(cs.n)} شيك مستحق${cs.next ? ' · أقربها ' + fmtDate(cs.next.due_date) : ''}`},
+    {k:'employees', go:'/employees', t:'الموظفين', i:'emp', v:emps ? signMoney(empSum) : '', s:emps ? `${emps.length} موظف مسجل` : 'مش متاح دلوقتي'},
+    {k:'reports', go:'/reports', t:'التقارير', i:'chart', s:'المشتريات والمدفوعات شهريًا'},
+    {k:'loans', t:'القروض', i:'loan', s:'القروض والأقساط والمتبقي'},
+    {k:'cash', t:'الخزينة', i:'safe', s:'الكاش في المحل، الداخل والخارج والرصيد'},
+    {k:'banks', t:'الحسابات البنكية', i:'bank', s:'البنوك والإيداع والسحب والشيكات'},
+    {k:'expenses', t:'المصروفات', i:'expense', s:'إدارة مصروفات المحل ونقلها وتصنيفها'},
+  ].map(m => m.go ? m : {...m, go: ready(m.k) ? '/' + m.k : '/m/' + m.k, soon: !ready(m.k)});
+  shell({title:'حسابات المحل', nav:'home', home:{alerts: checks.length}, body:`
     <div class="dash">
     ${dueAlert(checks)}
-    <div class="more-grid">
-      ${tiles.map(m => `<button class="more-tile" onclick="go('${m.go}')">
-        <span class="mt-ico" style="--c:${m.c}">${I[m.i] || I.folder}</span>
-        <span class="mt-t">${m.t}</span>${m.v ? `<span class="mt-v">${m.v}</span>` : ''}<span class="mt-d">${m.s}</span>
-        ${m.soon ? '<span class="soon">قريبًا</span>' : ''}</button>`).join('')}
-    </div>
+    <div class="tiles3d">${tiles.map(tile3d).join('')}</div>
     <div class="qa">
       <button onclick="go('/invoice')">${I.receipt}<span>فاتورة</span></button>
       <button onclick="go('/payment')">${I.cash}<span>دفعة</span></button>
@@ -52,6 +72,8 @@ function viewMore(){
         <span class="mt-t">الإعدادات</span><span class="mt-d">الأعضاء، الألوان، التنبيهات، التصدير والنسخة الاحتياطية</span></button>
       <button class="more-tile" onclick="go('/log')"><span class="mt-ico" style="--c:#b7791f">${I.hist}</span>
         <span class="mt-t">سجل التعديلات</span><span class="mt-d">مين عمل إيه وإمتى</span></button>
+      <button class="more-tile" onclick="go('/m/other')"><span class="mt-ico" style="--c:#4a5568">${I.folder}</span>
+        <span class="mt-t">حسابات أخرى</span><span class="mt-d">شريك، عميل بالأجل، أمانات</span><span class="soon">قريبًا</span></button>
     </div>`});
 }
 function viewModule(k){

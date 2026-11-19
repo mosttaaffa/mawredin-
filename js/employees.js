@@ -33,12 +33,12 @@ const empApi = {
 /* =================== قائمة الموظفين =================== */
 let empFilter = 'all';
 async function viewEmployees(){
-  if(!$('#emplist')) shell({title:'الموظفين', back:true, nav:'home', right:refreshBtn, body:skeleton('home')});
+  if(!$('#emplist')) shell({title:'الموظفين', nav:'employees', right:refreshBtn, body:skeleton('home')});
   const rows = await empApi.balances();
   const owe = rows.filter(r => n0(r.balance) < 0), due = rows.filter(r => n0(r.balance) > 0);
   const sumOwe = owe.reduce((a,r) => a + n0(r.balance), 0), sumDue = due.reduce((a,r) => a + n0(r.balance), 0);
   const list = rows.filter(r => empFilter === 'all' || (empFilter === 'due' ? n0(r.balance) > 0 : empFilter === 'owe' ? n0(r.balance) < 0 : n0(r.balance) === 0));
-  shell({title:'الموظفين', back:true, nav:'home', right:refreshBtn, body:`
+  shell({title:'الموظفين', nav:'employees', right:refreshBtn, body:`
     <div class="card hero">
       <div class="lbl">أرصدة الموظفين (${rows.length} موظف)</div>
       <div class="row">
@@ -71,7 +71,7 @@ window.filterEmp = v => { v = v.trim().toLowerCase(); document.querySelectorAll(
 /* =================== ملف الموظف =================== */
 let empTab = {};
 async function viewEmployee(id){
-  if(!$('.emp-prof')) shell({title:'...', back:true, nav:'home', body:skeleton('sup')});
+  if(!$('.emp-prof')) shell({title:'...', back:true, nav:'employees', body:skeleton('sup')});
   const [e, sets, txs] = await Promise.all([empApi.one(id), empApi.settlements(id), empApi.txs(id)]);
   window._emp = {e, sets, txs};
   const last = sets[0], t = empTab[id] || 'sum';
@@ -102,7 +102,7 @@ async function viewEmployee(id){
   } else {
     body = `<div class="card list">${txs.length ? txs.map(txRow).join('') : '<div class="empty">مفيش حركات</div>'}</div>`;
   }
-  shell({title:esc(e.name), back:true, nav:'home', right:`<button class="iconbtn" onclick="go('/emp-edit/${id}')" aria-label="تعديل">${I.edit}</button>`, body:`
+  shell({title:esc(e.name), back:true, nav:'employees', right:`<button class="iconbtn" onclick="go('/emp-edit/${id}')" aria-label="تعديل">${I.edit}</button>`, body:`
     <div class="emp-prof">
     <div class="card hero" style="padding:14px">
       <div class="lbl">${e.emp_no ? 'رقم ' + esc(e.emp_no) + ' · ' : ''}${esc(e.branch || '')}</div>

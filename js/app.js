@@ -79,8 +79,8 @@ async function viewSettings(){
     </div>
     <div class="card"><div class="section-t">ألوان التطبيق</div>
       <div class="themes">
-        ${[['rose','زيتي ووردي',['#6b7f5e','#d88c9a','#f6d6dc']],['mint','نعناعي',['#0f8a66','#26b386','#d5f3e5']],['olive','زيتوني ودهبي',['#6a7955','#c9a15b','#f7f2ea']]].map(([k,l,c]) =>
-          `<button class="${(document.documentElement.dataset.theme||'rose')===k?'on':''}" onclick="setTheme('${k}')"><span class="sw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span>${l}</button>`).join('')}
+        ${[['navy','كحلي ودهبي',['#0b1530','#d4a64a','#f8efdc']],['rose','زيتي ووردي',['#6b7f5e','#d88c9a','#f6d6dc']],['mint','نعناعي',['#0f8a66','#26b386','#d5f3e5']],['olive','زيتوني ودهبي',['#6a7955','#c9a15b','#f7f2ea']]].map(([k,l,c]) =>
+          `<button class="${(document.documentElement.dataset.theme||'navy')===k?'on':''}" onclick="setTheme('${k}')"><span class="sw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span>${l}</button>`).join('')}
       </div></div>
     <div class="card">
       <button class="btn danger block" onclick="logout()">${I.logout}خروج</button>
@@ -132,7 +132,7 @@ function viewSetup(){
 }
 function viewLogin(mode='in', firstTime=false){
   $('#app').innerHTML = `${petals()}<div class="center-page">${logoImg()}
-    <h2>حسابات الموردين</h2><p class="sub2" style="margin:-2px 0 6px;font-weight:700;color:var(--brand)">ورد · زهرة</p><p class="sub2">${firstTime ? 'أول تشغيل: اكتب إيميلك واختار كلمة سر (6 حروف أو أكتر) — الحساب ده هيبقى صاحب التطبيق' : mode==='in'?'سجّل دخول':'حساب جديد'}</p>
+    <h2>حسابات المحل</h2><p class="sub2" style="margin:-2px 0 6px;font-weight:700;color:var(--brand)">ورد · زهرة</p><p class="sub2">${firstTime ? 'أول تشغيل: اكتب إيميلك واختار كلمة سر (6 حروف أو أكتر) — الحساب ده هيبقى صاحب التطبيق' : mode==='in'?'سجّل دخول':'حساب جديد'}</p>
     <form id="lf">
       <div class="field"><label>الإيميل</label><input id="le" type="email" inputmode="email" dir="ltr" autocomplete="username" required></div>
       <div class="field"><label>كلمة السر</label><input id="lp" type="password" dir="ltr" autocomplete="${mode==='in'?'current-password':'new-password'}" required></div>
