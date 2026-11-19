@@ -145,7 +145,7 @@ function viewLogin(mode='in', firstTime=false){
     try{
       if(mode==='in'){ const { error } = await sb.auth.signInWithPassword({email, password}); if(error) throw error; }
       else{
-        const { data, error } = await sb.auth.signUp({email, password}); if(error) throw error;
+        const { data, error } = await sb.auth.signUp({email, password, options:{emailRedirectTo: location.origin + location.pathname}}); if(error) throw error;
         if(!data.session){ busy(false); toast('اتعمل الحساب — افتح الإيميل وأكّده وبعدين ادخل'); return viewLogin('in'); }
       }
       await afterLogin();
