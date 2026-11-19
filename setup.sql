@@ -626,3 +626,8 @@ create policy members_upd on public.members for update to authenticated
   using ((select public.is_member())) with check ((select public.is_member()));
 revoke update on public.members from authenticated, anon;
 grant update (display_name) on public.members to authenticated;
+
+-- =====================================================
+-- الفاتورة ممكن تكون أكتر من صفحة (الإصدار 6): الصفحة الأولى في image_path والباقي هنا
+-- =====================================================
+alter table public.invoices add column if not exists extra_images text[] not null default '{}';

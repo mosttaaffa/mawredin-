@@ -178,12 +178,24 @@ function openModal(html){
   document.body.appendChild(b);
 }
 function closeModal(){ $('#mdl')?.remove(); $('.viewer')?.remove(); }
-window.viewImg = async path => {
-  const u = await signedUrl(path); if(!u) return toast('مش قادر أفتح الصورة', true);
+// عارض الصور: لو الفاتورة أكتر من صفحة بتقلّب بينهم (أسهم أو سحب بالصباع)
+window.viewImg = async (path, list) => {
+  const pages = (list && list.length ? list : [path]);
+  let i = Math.max(0, pages.indexOf(path));
   const v = document.createElement('div'); v.className = 'viewer';
-  v.innerHTML = `<img src="${u}" alt=""><button class="iconbtn" onclick="this.parentNode.remove()">${I.close}</button>`;
-  document.body.appendChild(v);
+  const draw = async () => {
+    const u = await signedUrl(pages[i]);
+    v.innerHTML = `${u ? `<img src="${u}" alt="">` : '<div class="hint" style="color:#fff">الصورة مش متاحة من غير نت</div>'}
+      <button class="iconbtn" onclick="this.parentNode.remove()">${I.close}</button>
+      ${pages.length > 1 ? `<div class="vw-nav"><button class="iconbtn" data-d="-1">${I.back}</button><b>صفحة ${i + 1} من ${pages.length}</b><button class="iconbtn" data-d="1" style="transform:scaleX(-1)">${I.back}</button></div>` : ''}`;
+    v.querySelectorAll('[data-d]').forEach(b => b.onclick = e => { e.stopPropagation(); i = (i + Number(b.dataset.d) + pages.length) % pages.length; draw(); });
+  };
+  let x0 = null;
+  v.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, {passive:true});
+  v.addEventListener('touchend', e => { if(x0 == null || pages.length < 2) return; const dx = e.changedTouches[0].clientX - x0; if(Math.abs(dx) > 50){ i = (i + (dx < 0 ? 1 : -1) + pages.length) % pages.length; draw(); } x0 = null; });
+  document.body.appendChild(v); await draw();
 };
+const invPages = x => [x.image_path, ...(x.extra_images || [])].filter(Boolean);
 // قسم الصورة في التفاصيل: عرض + تغيير + مسح
 const IMG_REQUIRED = () => false;   // مسح أي صورة مسموح (الصورة مطلوبة وقت التسجيل بس)
 function imgSection(table, x){
@@ -240,12 +252,48 @@ window.showInvoice = async id => {
     <div class="kv"><span>التاريخ</span><span>${fmtDate(x.inv_date)}</span></div>
     ${x.notes?`<div class="kv"><span>ملاحظات</span><span>${esc(x.notes)}</span></div>`:''}
     <div class="kv"><span>سجّلها</span><span>${esc(who(x.created_by))}${x.created_at ? ' · ' + fmtDateTime(x.created_at) : ''}</span></div>
-    ${imgSection('invoices', x)}
+    <div class="section-t" style="margin-top:10px">صور الفاتورة (${invPages(x).length} ${invPages(x).length === 1 ? 'صفحة' : 'صفحات'})</div>
+    <div class="pg-grid" id="mimg">${invPages(x).map(() => '<div class="pg"><div class="spin" style="margin:30px auto"></div></div>').join('') || '<div class="hint">مفيش صور</div>'}</div>
+    <div class="img-acts">
+      <button onclick="$('#imgpick').click()">${I.camera}إضافة صفحة</button>
+    </div>
+    <input type="file" id="imgpick" accept="image/*" multiple hidden onchange="addInvPages(${x.id})">
     <div class="actions" style="margin-top:10px">
       <button class="btn ghost" onclick="go('/invoice/${x.id}')">${I.edit}تعديل</button>
       <button class="btn danger" onclick="delInvoice(${x.id})">مسح</button>
     </div>`);
-  if(x.image_path) $('#mimg').innerHTML = await imgBlock(x.image_path);
+  const pages = invPages(x);
+  if(pages.length){
+    const urls = await Promise.all(pages.map(p => signedUrl(p)));
+    $('#mimg').innerHTML = pages.map((p, i) => `<div class="pg">
+      ${urls[i] ? `<img src="${urls[i]}" onclick='viewImg(${JSON.stringify(p)}, ${JSON.stringify(pages)})' alt="">` : '<div class="hint">مش متاحة</div>'}
+      <span class="pg-n">${i + 1}</span>
+      <button class="pg-x" onclick='delInvPage(${x.id}, ${JSON.stringify(p)})' aria-label="مسح الصفحة">${I.close}</button></div>`).join('');
+  }
+};
+window.addInvPages = async id => {
+  const files = [...$('#imgpick').files]; if(!files.length) return;
+  busy(true);
+  try{
+    const x = await q(ldb.from('invoices').select('*').eq('id', id).single());
+    const added = []; for(const f of files) added.push(await uploadImage(f, 'invoices', {max:1800, q:0.8}));
+    const all = [...invPages(x), ...added];
+    await q(ldb.from('invoices').update({image_path: all[0], extra_images: all.slice(1)}).eq('id', id));
+    busy(false); toast(`اتضافت ${added.length} ${added.length === 1 ? 'صفحة' : 'صفحات'} ✓`);
+    await afterImage('invoices', id, x.supplier_id);
+  }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
+};
+window.delInvPage = async (id, path) => {
+  if(!confirm('تمسح الصفحة دي من الفاتورة؟ مش هتقدر ترجّعها.')) return;
+  busy(true);
+  try{
+    const x = await q(ldb.from('invoices').select('*').eq('id', id).single());
+    const all = invPages(x).filter(p => p !== path);
+    await q(ldb.from('invoices').update({image_path: all[0] || null, extra_images: all.slice(1)}).eq('id', id));
+    await removeImage(path); urlCache.delete(path);
+    busy(false); toast('اتمسحت الصفحة');
+    await afterImage('invoices', id, x.supplier_id);
+  }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };
 window.showPayment = async id => {
   const x = window._sup.pays.find(i => i.id === id);
@@ -393,35 +441,53 @@ async function formInvoice(id, presetSup){
       <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x?x.inv_date:today()}"></div>
       <div class="field"><label>رقم الفاتورة</label><input id="no" inputmode="numeric" value="${esc(x?.inv_no||'')}" placeholder="اختياري"></div>
     </div>
-    ${photoField({id:'img', label:'صورة الفاتورة', required:true, existing:x?.image_path})}
+    <div class="field" id="f-img"><label>صور الفاتورة <span class="req">*</span> <small class="muted">(لو الفاتورة كذا ورقة صوّر كل ورقة)</small></label>
+      <div class="pg-grid" id="pages"></div>
+      <input type="file" id="pgpick" accept="image/*" multiple hidden onchange="addFormPages()">
+    </div>
     <div class="ocr-box" id="ocrbox" style="display:none;margin:-6px 0 14px">
-      <button type="button" class="btn ghost block" onclick="readAmountFromPhoto()">${I.scan}اقرأ المبلغ من الصورة</button>
+      <button type="button" class="btn ghost block" onclick="readAmountFromPhoto()">${I.scan}اقرأ المبلغ من آخر صفحة</button>
       <div id="ocrout"></div>
     </div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2" placeholder="اختياري">${esc(x?.notes||'')}</textarea></div>
   `, async () => {
-    const sid = $('#sup').value, amount = readAmount($('#amount').value), file = $('#img').files[0];
+    const sid = $('#sup').value, amount = readAmount($('#amount').value);
     if(!sid) return markErr('sup', 'اختار المورد');
     if(!(amount > 0)) return markErr('amount', 'اكتب قيمة الفاتورة');
-    if(!file && !x) return markErr('img', 'لازم صورة الفاتورة');
-    let image_path = x?.image_path || null;
-    if(window._rmImg.img) image_path = null;
+    if(!x && !formPages.length) return markErr('img', 'لازم صورة الفاتورة (صفحة واحدة على الأقل)');
     const row0 = {date:$('#date').value || today(), no:$('#no').value.trim()};
     if(looksDuplicate(await api.invoices(sid), x, r => Number(r.amount) === amount && String(r.inv_date).slice(0,10) === row0.date && (!row0.no || !r.inv_no || r.inv_no === row0.no))
        && !confirm(`فيه فاتورة متسجلة لنفس المورد بنفس المبلغ (${amount.toLocaleString('en-US')}) ونفس التاريخ.\nتسجلها تاني برضه؟`)) return;
-    if(file) image_path = await uploadImage(file, 'invoices', {max:1800, q:0.8});   // ضغط مع الحفاظ على وضوح الأرقام
-    const row = {supplier_id:+sid, amount, inv_date:row0.date, inv_no:row0.no||null, notes:$('#notes').value.trim()||null, image_path};
-    if(x){ await q(ldb.from('invoices').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
+    const paths = [];
+    for(const p of formPages) paths.push(p.path || await uploadImage(p.file, 'invoices', {max:1800, q:0.8}));   // ضغط مع الحفاظ على وضوح الأرقام
+    const row = {supplier_id:+sid, amount, inv_date:row0.date, inv_no:row0.no||null, notes:$('#notes').value.trim()||null, image_path:paths[0] || null, extra_images:paths.slice(1)};
+    if(x){ await q(ldb.from('invoices').update(row).eq('id', x.id)); invPages(x).filter(p => !paths.includes(p)).forEach(p => removeImage(p)); }
     else await q(ldb.from('invoices').insert(row));
     busy(false); await celebrate(savedMsg('الفاتورة'));
     location.replace('#/s/' + sid);
   });
-  if(x) fillExisting('img', x.image_path, true);
+  formPages = x ? invPages(x).map(path => ({path})) : [];
+  drawFormPages();
   const hint = () => { const sid = $('#sup').value; const b = sid ? supBalance(sid) : null; const a = readAmount($('#amount').value) || 0;
     $('#balhint').innerHTML = sid ? `<span>رصيد المورد دلوقتي</span><b>${money(b)}</b>${!x && a > 0 ? `<span>بعد الفاتورة</span><b class="after">${money(b + a)}</b>` : ''}` : ''; };
   $('#sup').addEventListener('change', hint); $('#amount').addEventListener('input', hint); hint();
-  $('#img').addEventListener('change', () => { if($('#img').files[0]){ $('#ocrbox').style.display = ''; $('#ocrout').innerHTML = ''; } });
 }
+// صفحات الفاتورة في الفورم (صور قديمة path أو جديدة file)
+let formPages = [];
+async function drawFormPages(){
+  const el = $('#pages'); if(!el) return;
+  const urls = await Promise.all(formPages.map(p => p.file ? (p.url ||= URL.createObjectURL(p.file)) : signedUrl(p.path)));
+  el.innerHTML = formPages.map((p, i) => `<div class="pg">${urls[i] ? `<img src="${urls[i]}" alt="">` : '<div class="hint">الصورة الحالية</div>'}
+      <span class="pg-n">${i + 1}</span><button type="button" class="pg-x" onclick="rmFormPage(${i})" aria-label="شيل الصفحة">${I.close}</button></div>`).join('')
+    + `<button type="button" class="pg pg-add" onclick="$('#pgpick').click()">${I.camera}<span>${formPages.length ? 'صفحة كمان' : 'صوّر الفاتورة'}</span></button>`;
+  $('#ocrbox').style.display = formPages.some(p => p.file) ? '' : 'none';
+}
+window.addFormPages = () => {
+  const files = [...$('#pgpick').files]; $('#pgpick').value = '';
+  files.forEach(f => formPages.push({file:f}));
+  $('#f-img').classList.remove('err'); $('#ocrout').innerHTML = ''; drawFormPages();
+};
+window.rmFormPage = i => { formPages.splice(i, 1); drawFormPages(); };
 
 /* =================== قراءة المبلغ من صورة الفاتورة =================== */
 let ocrWorker = null;
@@ -456,7 +522,7 @@ function amountCandidates(text){
   return [...uniq.values()].sort((a,b) => (b.key - a.key) || (a.ref - b.ref) || (b.v - a.v)).slice(0, 5).map(f => f.v);
 }
 window.readAmountFromPhoto = async () => {
-  const file = $('#img').files[0]; if(!file) return toast('اختار صورة الفاتورة الأول', true);
+  const file = [...formPages].reverse().find(p => p.file)?.file; if(!file) return toast('صوّر الفاتورة الأول', true);
   const out = $('#ocrout');
   out.innerHTML = `<div class="hint" id="ocrmsg">بقرا الصورة... أول مرة بياخد شوية عشان بيحمّل ملفات القراءة</div><div class="ocr-prog"><i id="ocrbar"></i></div>`;
   try{
