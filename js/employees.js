@@ -31,16 +31,20 @@ const empApi = {
 };
 
 /* =================== قائمة الموظفين =================== */
-let empFilter = 'all';
+let empFilter = 'all', empAct = 'on';
 async function viewEmployees(){
   if(!$('#emplist')) shell({title:'الموظفين', nav:'employees', right:refreshBtn, body:skeleton('home')});
-  const rows = await empApi.balances();
+  const all = await empApi.balances();
+  const isOn = r => r.active !== false;
+  const nOn = all.filter(isOn).length, nOff = all.length - nOn;
+  if(!nOff) empAct = 'on';
+  const rows = all.filter(r => empAct === 'all' || (empAct === 'on' ? isOn(r) : !isOn(r)));
   const owe = rows.filter(r => n0(r.balance) < 0), due = rows.filter(r => n0(r.balance) > 0);
   const sumOwe = owe.reduce((a,r) => a + n0(r.balance), 0), sumDue = due.reduce((a,r) => a + n0(r.balance), 0);
   const list = rows.filter(r => empFilter === 'all' || (empFilter === 'due' ? n0(r.balance) > 0 : empFilter === 'owe' ? n0(r.balance) < 0 : n0(r.balance) === 0));
   shell({title:'الموظفين', nav:'employees', right:refreshBtn, body:`
     <div class="card hero">
-      <div class="lbl">أرصدة الموظفين (${rows.length} موظف)</div>
+      <div class="lbl">أرصدة الموظفين (${rows.length} موظف${empAct === 'off' ? ' تركوا العمل' : empAct === 'all' ? ' - الكل' : ''})</div>
       <div class="row">
         <div class="mini"><span>ليهم (على المحل)</span><b>${money(sumDue)}</b><span>${due.length} موظف</span></div>
         <div class="mini"><span>عليهم (للمحل)</span><b>${money(Math.abs(sumOwe))}</b><span>${owe.length} موظف</span></div>
@@ -50,6 +54,7 @@ async function viewEmployees(){
       <button class="btn primary" onclick="go('/emp-import')">${I.scan}استيراد كشف</button>
       <button class="btn ghost" onclick="go('/emp-edit')">${I.plus}موظف جديد</button>
     </div>
+    ${nOff ? `<div class="tabs" style="margin-bottom:10px">${[['on', `بيشتغلوا (${nOn})`], ['off', `تركوا العمل (${nOff})`], ['all', `الكل (${all.length})`]].map(([k, l]) => `<button class="${empAct === k ? 'on' : ''}" onclick="empAct='${k}';viewEmployees()">${l}</button>`).join('')}</div>` : ''}
     <input class="search" id="esrch" placeholder="ابحث بالاسم أو الرقم..." oninput="filterEmp(this.value)">
     <div class="chip-row">
       ${[['all','الكل'],['owe','عليه رصيد'],['due','ليه رصيد'],['zero','خالص']].map(([k,l]) => `<button class="chip ${empFilter===k?'on':''}" onclick="empFilter='${k}';viewEmployees()">${l}</button>`).join('')}
@@ -58,7 +63,7 @@ async function viewEmployees(){
       ${list.length ? list.map(r => `
         <div class="item" data-n="${esc((r.name + ' ' + (r.emp_no||'')).toLowerCase())}" onclick="go('/emp/${r.id}')">
           <div class="avatar emp-av">${esc(r.emp_no || r.name.trim()[0])}</div>
-          <div class="grow"><div class="t">${esc(r.name)}</div>
+          <div class="grow"><div class="t">${esc(r.name)}${isOn(r) ? '' : ' <span class="tag left">ترك العمل</span>'}</div>
             <div class="s">${r.base_salary ? 'أساسي ' + money(r.base_salary) : ''}${r.last_to ? ' · آخر تسوية ' + fmtDate(r.last_to) : ''}</div></div>
           <div class="amt ${n0(r.balance) < 0 ? 'debt' : n0(r.balance) > 0 ? 'ok' : ''}">${signMoney(r.balance)}</div>
         </div>`).join('') : `<div class="empty">${I.emp}<div>${rows.length ? 'مفيش موظفين في الفلتر ده' : 'لسه مفيش موظفين'}</div>
@@ -111,7 +116,7 @@ async function viewEmployee(id){
   shell({title:esc(e.name), back:true, nav:'employees', right:`<button class="iconbtn" onclick="go('/emp-edit/${id}')" aria-label="تعديل">${I.edit}</button>`, body:`
     <div class="emp-prof">
     <div class="card hero" style="padding:14px">
-      <div class="lbl">${e.emp_no ? 'رقم ' + esc(e.emp_no) + ' · ' : ''}${esc(e.branch || '')}</div>
+      <div class="lbl">${e.emp_no ? 'رقم ' + esc(e.emp_no) + ' · ' : ''}${esc(e.branch || '')}${e.active === false ? ' · <span class="tag left">ترك العمل</span>' : ''}</div>
       <div class="big">${signMoney(e.balance)}</div>
       <div class="lbl">${n0(e.balance) < 0 ? 'على الموظف للمحل' : n0(e.balance) > 0 ? 'للموظف على المحل' : 'الحساب خالص'}${n0(e.tx_delta) ? ` · منها حركات بعد آخر تسوية ${signMoney(e.tx_delta)}` : ''}</div>
     </div>
@@ -119,6 +124,7 @@ async function viewEmployee(id){
       <button class="btn primary" onclick="go('/emp-tx?e=${id}')">${I.plus}حركة جديدة</button>
       <button class="btn ghost" onclick="go('/emp-statement/${id}')">${I.doc}كشف حساب</button>
     </div>
+    <button class="btn ${e.active === false ? 'green' : 'ghost'} block emp-act" onclick="setEmpActive(${id}, ${e.active === false})">${e.active === false ? 'رجّعه للعمل' : 'ترك العمل'}</button>
     <div class="tabs">
       <button class="${t==='sum'?'on':''}" onclick="empTab[${id}]='sum';viewEmployee(${id})">الملخص</button>
       <button class="${t==='sets'?'on':''}" onclick="empTab[${id}]='sets';viewEmployee(${id})">التسويات (${sets.length})</button>
@@ -209,6 +215,13 @@ window.delEmpTx = async (id, eid) => {
 };
 
 /* =================== بيانات موظف =================== */
+window.segPick = b => b.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+window.setEmpActive = async (id, on) => {
+  const e = (await empApi.balances()).find(r => r.id === id);
+  if(!on && n0(e?.balance) && !confirm(`الموظف ده عليه/ليه رصيد ${n0(e.balance) < 0 ? 'للمحل' : 'على المحل'} ${Math.abs(n0(e.balance)).toLocaleString('en-US')} ج.\nهيتنقل لـ«تركوا العمل» والرصيد هيفضل زي ما هو. تكمل؟`)) return;
+  await q(ldb.from('employees').update({active:on}).eq('id', id));
+  toast(on ? 'رجع للعمل ✓' : 'اتسجل إنه ترك العمل ✓'); viewEmployee(id);
+};
 async function formEmployee(id){
   const x = id ? await q(ldb.from('employees').select('*').eq('id', id).single()) : null;
   formShell(x ? 'تعديل بيانات الموظف' : 'موظف جديد', `
@@ -221,10 +234,13 @@ async function formEmployee(id){
       <div class="field"><label>الفرع</label><select id="branch"><option value="">—</option>${['زهرة','ورد','زهرة وورد'].map(b => `<option ${x?.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
       <div class="field"><label>التليفون</label><input id="phone" type="tel" value="${esc(x?.phone || '')}"></div>
     </div>
+    <div class="field"><label>حالة الموظف</label><div class="seg" id="eact" style="grid-template-columns:1fr 1fr">
+      <button type="button" data-v="1" class="${x?.active === false ? '' : 'on'}" onclick="segPick(this)">بيشتغل</button>
+      <button type="button" data-v="0" class="${x?.active === false ? 'on' : ''}" onclick="segPick(this)">ترك العمل</button></div></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>`,
   async () => {
     const name = $('#name').value.trim(); if(!name) return markErr('name', 'اكتب الاسم');
-    const row = {name, emp_no:$('#no').value.trim() || null, base_salary: $('#base').value.trim() ? readAmount($('#base').value) : null, branch:$('#branch').value || null, phone:$('#phone').value.trim() || null, notes:$('#notes').value.trim() || null};
+    const row = {name, emp_no:$('#no').value.trim() || null, base_salary: $('#base').value.trim() ? readAmount($('#base').value) : null, branch:$('#branch').value || null, phone:$('#phone').value.trim() || null, notes:$('#notes').value.trim() || null, active: $('#eact .on').dataset.v === '1'};
     if(x){ await q(ldb.from('employees').update(row).eq('id', x.id)); busy(false); toast('اتحفظ ✓'); location.replace('#/emp/' + x.id); }
     else { const r = await q(ldb.from('employees').insert(row).select().single()); busy(false); toast('اتضاف الموظف ✓'); location.replace('#/emp/' + r.id); }
   });

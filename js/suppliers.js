@@ -42,8 +42,7 @@ async function viewSuppliers(){
   const chip = (v, l, cur, fn) => `<button class="chip ${cur === v ? 'on' : ''}" onclick="${fn}='${v}';viewSuppliers()">${l}</button>`;
   const body = `
     <div class="card hero sup-hero">
-      <div class="lbl">إجمالي المستحق للموردين</div>
-      <div class="big">${money(owed)}</div>
+      <div class="hero-line"><div class="lbl">إجمالي المستحق للموردين</div><div class="big">${money(owed)}</div></div>
       ${credit ? `<div class="lbl" style="margin-top:-2px">وليك عند موردين ${money(Math.abs(credit))}</div>` : ''}
       <div class="sum6">
         <div><span>إجمالي الفواتير</span><b>${money(tInv)}</b></div>
