@@ -19,7 +19,7 @@ function supCard(r){
       ${Number(r.pending_checks) ? `<div><span>شيكات لسه</span><b class="c-chk">${money(r.pending_checks)}</b></div>` : ''}
     </div>
     <div class="sc-acts">
-      <button class="btn ghost" onclick="event.stopPropagation();go('/statement/${r.id}')">${I.doc}كشف الحساب</button>
+      <button class="btn ghost" onclick="event.stopPropagation();go('/stmt/${r.id}')">${I.doc}كشف الحساب</button>
       <button class="btn ghost" onclick="event.stopPropagation();go('/invoice?s=${r.id}')">${I.receipt}فاتورة</button>
       <button class="btn ghost" onclick="event.stopPropagation();go('/payment?s=${r.id}')">${I.cash}دفعة</button>
     </div>
@@ -149,7 +149,10 @@ async function viewSupplier(id){
       </div>
       <div class="actions sm" style="margin-bottom:12px">
         <button class="btn ghost" onclick="go('/adjust?s=${id}')">${I.ret}مرتجع / خصم</button>
-        <button class="btn ghost" onclick="go('/statement/${id}')">${I.wa}كشف حساب</button>
+        <button class="btn ghost" onclick="go('/statement/${id}')">${I.wa}كشف سريع واتساب</button>
+      </div>
+      <div class="actions" style="margin-bottom:12px">
+        <button class="btn primary" style="background:linear-gradient(160deg,#1f3d66,#10243D);color:#FFD780;border:1px solid rgba(217,164,65,.5)" onclick="go('/stmt/${id}')">${I.doc}إصدار كشف حساب PDF</button>
       </div>
       <div class="tabs">
         <button class="${t==='ledger'?'on':''}" onclick="setTab(${id},'ledger')">كشف حساب</button>

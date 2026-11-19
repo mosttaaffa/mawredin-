@@ -351,6 +351,7 @@ async function route(){
     if(parts[0] === 'suppliers') return await viewSuppliers();
     if(parts[0] === 'more') return viewMore();
     if(parts[0] === 'install') return viewInstall();
+    if(parts[0] === 'stmt' && parts[1]) return await viewStatementIssue(+parts[1]);
     if(parts[0] === 'employees') return await viewEmployees();
     if(parts[0] === 'emp' && parts[1]) return await viewEmployee(+parts[1]);
     if(parts[0] === 'emp-edit') return await formEmployee(parts[1] ? +parts[1] : null);

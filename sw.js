@@ -1,12 +1,13 @@
 // التطبيق نفسه (الملفات) متخزن على الجهاز: بيفتح على طول حتى من غير نت.
 // بنعرض النسخة المتخزنة فورًا من غير نت؛ ولما يترفع إصدار جديد، الملف ده بيتغير
 // فالمتصفح بينزّل النسخة الجديدة كلها مرة واحدة والتطبيق بيعيد فتح نفسه عليها.
-const CACHE = 'mawredin-v31';
-const SHELL = ['./', './index.html', './css/app.css', './js/core.js', './js/store.js', './js/suppliers.js', './js/reports.js', './js/home.js', './js/employees.js', './js/app.js',
+const CACHE = 'mawredin-v33';
+const SHELL = ['./', './index.html', './css/app.css', './js/core.js', './js/store.js', './js/suppliers.js', './js/reports.js', './js/statement.js', './js/home.js', './js/employees.js', './js/app.js',
   './config.js', './vendor/supabase.js', './manifest.json', './icons/icon-192.png', './icons/apple-touch-icon.png', './icons/ward.png', './icons/zahra.png',
   './icons/3d/suppliers.webp', './icons/3d/checks.webp', './icons/3d/employees.webp', './icons/3d/reports.webp', './icons/3d/loans.webp', './icons/3d/cash.webp', './icons/3d/banks.webp', './icons/3d/expenses.webp',
   './vendor/fonts/cairo-arabic-400-normal.woff2', './vendor/fonts/cairo-arabic-600-normal.woff2', './vendor/fonts/cairo-arabic-700-normal.woff2', './vendor/fonts/cairo-arabic-800-normal.woff2',
-  './vendor/fonts/cairo-latin-400-normal.woff2', './vendor/fonts/cairo-latin-600-normal.woff2', './vendor/fonts/cairo-latin-700-normal.woff2', './vendor/fonts/cairo-latin-800-normal.woff2'];
+  './vendor/fonts/cairo-latin-400-normal.woff2', './vendor/fonts/cairo-latin-600-normal.woff2', './vendor/fonts/cairo-latin-700-normal.woff2', './vendor/fonts/cairo-latin-800-normal.woff2',
+  './vendor/pdf/pdfkit.standalone.js', './vendor/pdf/cairo-regular.ttf', './vendor/pdf/cairo-bold.ttf', './vendor/pdf/pdf.min.js', './vendor/pdf/pdf.worker.min.js'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(u => new Request(u, {cache:'reload'})))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
