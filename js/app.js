@@ -46,7 +46,7 @@ window.showCheck = async id => {
     ${imgSection('payments', c)}
     ${checkButtons(c, 'viewChecks()')}
     <button class="btn ghost block" style="margin-top:10px" onclick="go('/s/${c.supplier_id}')">افتح حساب المورد</button>`);
-  if(c.image_path) $('#mimg').innerHTML = await imgBlock(c.image_path);
+  fillGallery('payments', c);
 };
 
 /* =================== الإعدادات =================== */

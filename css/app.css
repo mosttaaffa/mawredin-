@@ -959,3 +959,6 @@ header.top:not(.home-h) .sync-pill.s-ok{padding:6px}
 .st-page{width:100%;max-width:none;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.5);border-radius:2px}
 .st-bar{flex:none;display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:8px;padding:10px 10px calc(10px + var(--safe-b));background:#0b1626;border-top:1px solid rgba(255,255,255,.08)}
 .st-bar .btn{padding:10px 4px;font-size:13px}
+.st-bar{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.st-bar .btn{padding:9px 2px;font-size:12px;flex-direction:column;gap:2px}
+.st-bar .btn svg{width:17px;height:17px}

@@ -139,7 +139,7 @@ async function loadPdfJs(){
 async function collectImages(st, onProg){
   const list = [];
   st.rows.forEach(e => {
-    const paths = e.k === 'inv' ? [e.x.image_path, ...(e.x.extra_images || [])].filter(Boolean) : [e.x.image_path].filter(Boolean);
+    const paths = rowPages(e.x);
     paths.forEach((p, i) => list.push({e, path:p, page:i + 1, pages:paths.length}));
   });
   const missing = [];
@@ -349,8 +349,13 @@ async function viewStatementIssue(sid){
     <button class="btn primary block st-btn" onclick="stPreview()">${I.doc}معاينة كشف الحساب</button>
     <div class="actions" style="margin-top:10px">
       <button class="btn ghost" onclick="stDownload()">${I.save}تحميل PDF</button>
-      <button class="btn green" onclick="stShare()">${I.share}مشاركة PDF</button>
+      <button class="btn ghost" onclick="stShare()">${I.share}مشاركة PDF</button>
     </div>
+    <div class="actions" style="margin-top:10px">
+      <button class="btn green" onclick="stWhatsApp('sup')">${I.wa}واتساب للمورد</button>
+      <button class="btn green" onclick="stWhatsApp('me')">${I.wa}واتساب لنفسي</button>
+    </div>
+    <div class="hint" style="margin-top:6px;text-align:center">${s.phone ? 'رقم المورد: <span class="num">' + esc(s.phone) + '</span>' : 'المورد مالوش رقم — ضيفه من تعديل بيانات المورد'} · <a class="link" onclick="localStorage.removeItem('mawredin_my_wa');toast('هيسألك عن رقمك تاني')">تغيير رقمي</a></div>
     <div class="hint" style="margin-top:10px;text-align:center">الكشف مش بيسجل أي حركة — بيقرا البيانات بس.</div>`});
   const sync1 = () => {
     const mode = $('#st-mode .on').dataset.v;
@@ -421,8 +426,9 @@ window.stPreview = async () => {
       <details><summary>المراجعة المحاسبية: ${r.st.audit.every(a => a.ok) ? '✓ كل الحسابات مطابقة' : '⚠ فيه اختلاف'}</summary>
       ${r.st.audit.map(a => `<div class="${a.ok ? 'ok' : 'bad'}">${a.ok ? '✓' : '✗'} ${esc(a.t)}${a.d ? ` <small>${esc(a.d)}</small>` : ''}</div>`).join('')}</details></div>
     <div class="st-pages" id="st-pages"><div class="spin" style="margin:40px auto"></div></div>
-    <div class="st-bar"><button class="btn ghost" onclick="this.closest('.st-view').remove()">${I.edit}تعديل الاختيارات</button>
-      <button class="btn ghost" onclick="stDownload()">${I.save}تحميل</button><button class="btn green" onclick="stShare()">${I.share}مشاركة</button></div>`;
+    <div class="st-bar"><button class="btn ghost" onclick="this.closest('.st-view').remove()">${I.edit}تعديل</button>
+      <button class="btn ghost" onclick="stDownload()">${I.save}تحميل</button><button class="btn ghost" onclick="stShare()">${I.share}مشاركة</button>
+      <button class="btn green" onclick="stWhatsApp('sup')">${I.wa}للمورد</button><button class="btn green" onclick="stWhatsApp('me')">${I.wa}لنفسي</button></div>`;
   document.body.appendChild(v);
   try{
     const pdfjs = await loadPdfJs();
@@ -440,19 +446,52 @@ window.stPreview = async () => {
 };
 let stScale = 1;
 window.stZoom = d => { stScale = d === 0 ? stScale : Math.max(.6, Math.min(3, stScale + d * .25)); document.querySelectorAll('.st-page').forEach(c => c.style.width = (stScale * 100) + '%'); };
-window.stDownload = async () => {
-  const r = await stGenerate(); if(!r) return;
+window.stDownload = async () => { const r = await stGenerate(); if(!r) return; stSave(r); toast('اتحمّل الملف ✓'); };
+// المشاركة لازم تحصل بعد ضغطة مباشرة؛ لو تجهيز الملف طوّل والموبايل رفض، بنطلب ضغطة تانية
+async function shareFile(r, text, fallbackNum){
+  const file = new File([r.blob], r.name, {type:'application/pdf'});
+  const canFiles = navigator.canShare && navigator.canShare({files:[file]});
+  if(canFiles){
+    try{ await navigator.share({files:[file], text, title:`كشف حساب ${r.st.s.name}`}); return true; }
+    catch(e){
+      if(e.name === 'AbortError') return false;
+      if(e.name === 'NotAllowedError'){
+        openModal(`<h3>الكشف جاهز</h3><div class="hint" style="margin-bottom:12px">${esc(r.name)}</div>
+          <button class="btn green block" id="shareNow">${I.share}ابعته دلوقتي</button>`);
+        $('#shareNow').onclick = async () => { closeModal(); try{ await navigator.share({files:[file], text, title:`كشف حساب ${r.st.s.name}`}); }catch(_){} };
+        return true;
+      }
+    }
+  }
+  // الموبايل مش بيدعم مشاركة الملفات: ننزّل الملف ونفتح واتساب بالرسالة، وتضيف الملف من الملفات
+  stSave(r);
+  if(fallbackNum !== undefined){ window.open(`https://wa.me/${fallbackNum || ''}?text=${encodeURIComponent(text + '\n(الملف اتحمّل على الموبايل — ضيفه من المرفقات)')}`, '_blank'); }
+  else toast('الموبايل ده مش بيدعم المشاركة المباشرة — نزّلت الملف وتقدر تبعته من الملفات', true);
+  return false;
+}
+function stSave(r){
   const a = document.createElement('a'); a.href = URL.createObjectURL(r.blob); a.download = r.name; document.body.appendChild(a); a.click();
   setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-  toast('اتحمّل الملف ✓');
+}
+const stMsg = r => {
+  const c = r.st.T.closing, dir = c > 0 ? 'مستحق للمورد' : c < 0 ? 'رصيد لصالح المحل' : 'الحساب مسدد';
+  const period = r.st.opt.mode === 'full' ? `من بداية التعامل حتى ${dmy(r.st.today)}` : `من ${dmy(r.st.from)} إلى ${dmy(r.st.to)}`;
+  return `كشف حساب ${r.st.s.name}\nالفترة: ${period}\nالرصيد الختامي: ${fmt2(Math.abs(c))} ج.م (${dir})\nحسابات المحل - ورد · زهرة`;
 };
-window.stShare = async () => {
-  const r = await stGenerate(); if(!r) return;
-  const file = new File([r.blob], r.name, {type:'application/pdf'});
-  if(navigator.canShare && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:`كشف حساب ${r.st.s.name}`}); return; }
-    catch(e){ if(e.name === 'AbortError') return; }
+window.stShare = async () => { const r = await stGenerate(); if(r) shareFile(r, stMsg(r)); };
+// واتساب: للمورد أو لنفسك
+const MY_WA = 'mawredin_my_wa';
+window.stWhatsApp = async who_ => {
+  const s = supplierBalances().find(x => String(x.id) === String(window._stSid));
+  let num;
+  if(who_ === 'me'){
+    num = localStorage.getItem(MY_WA) || '';
+    if(!num){ const v = prompt('رقم الواتساب بتاعك (مرة واحدة بس، بيتحفظ على الموبايل ده):', ''); if(!v) return; num = waNum(v); localStorage.setItem(MY_WA, num); }
+  } else {
+    num = s?.phone ? waNum(s.phone) : '';
+    if(!num) toast('المورد مالوش رقم متسجل — هتختار الشات بنفسك', false);
   }
-  toast('الموبايل ده مش بيدعم المشاركة المباشرة — هنزّل الملف وتقدر تبعته من الملفات', true);
-  stDownload();
+  const r = await stGenerate(); if(!r) return;
+  toast(who_ === 'me' ? 'اختار واتساب وبعدين «أنت» أو الشات بتاعك' : `اختار واتساب وبعدين شات ${r.st.s.name}`);
+  await shareFile(r, stMsg(r), num);
 };

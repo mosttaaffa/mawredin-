@@ -198,17 +198,50 @@ window.viewImg = async (path, list) => {
   v.addEventListener('touchend', e => { if(x0 == null || pages.length < 2) return; const dx = e.changedTouches[0].clientX - x0; if(Math.abs(dx) > 50){ i = (i + (dx < 0 ? 1 : -1) + pages.length) % pages.length; draw(); } x0 = null; });
   document.body.appendChild(v); await draw();
 };
-const invPages = x => [x.image_path, ...(x.extra_images || [])].filter(Boolean);
-// قسم الصورة في التفاصيل: عرض + تغيير + مسح
-const IMG_REQUIRED = () => false;   // مسح أي صورة مسموح (الصورة مطلوبة وقت التسجيل بس)
+// كل الصور بتاعة الحركة: الأولى في image_path والباقي في extra_images
+const rowPages = x => [x.image_path, ...(x.extra_images || [])].filter(Boolean);
+const invPages = rowPages;
+// معرض صور الحركة في التفاصيل (عرض + إضافة صور + مسح صورة) — للفواتير والدفعات والشيكات والمرتجعات
 function imgSection(table, x){
-  return `<div id="mimg">${x.image_path ? '<div class="spin" style="margin:16px auto"></div>' : '<div class="hint" style="margin:10px 0">مفيش صورة</div>'}</div>
-    <div class="img-acts">
-      <button onclick="$('#imgpick').click()">${I.camera}${x.image_path ? 'تغيير الصورة' : 'إضافة صورة'}</button>
-      ${x.image_path ? `<button class="del" onclick="delImage('${table}',${x.id})">${I.close}مسح الصورة</button>` : ''}
-    </div>
-    <input type="file" id="imgpick" accept="image/*" hidden onchange="changeImage('${table}',${x.id})">`;
+  const pages = rowPages(x);
+  return `<div class="section-t" style="margin-top:10px">${table === 'invoices' ? 'صور الفاتورة' : 'الصور'} (${pages.length})</div>
+    <div class="pg-grid" id="mimg" data-t="${table}" data-id="${x.id}">${pages.map(() => '<div class="pg"><div class="spin" style="margin:30px auto"></div></div>').join('') || '<div class="hint">مفيش صور</div>'}</div>
+    <div class="img-acts"><button onclick="$('#imgpick').click()">${I.camera}إضافة صور</button></div>
+    <input type="file" id="imgpick" accept="image/*" multiple hidden onchange="addRowPages('${table}',${x.id})">`;
 }
+async function fillGallery(table, x){
+  const pages = rowPages(x), el = $('#mimg'); if(!el || !pages.length) return;
+  const urls = await Promise.all(pages.map(p => signedUrl(p)));
+  el.innerHTML = pages.map((p, i) => `<div class="pg">
+    ${urls[i] ? `<img src="${urls[i]}" onclick='viewImg(${JSON.stringify(p)}, ${JSON.stringify(pages)})' alt="">` : '<div class="hint">مش متاحة</div>'}
+    <span class="pg-n">${i + 1}</span>
+    <button class="pg-x" onclick='delRowPage("${table}", ${x.id}, ${JSON.stringify(p)})' aria-label="مسح الصورة">${I.close}</button></div>`).join('');
+}
+const imgFolder = (table, row) => table === 'invoices' ? 'invoices' : row.method === 'check' ? 'checks' : row.method === 'transfer' ? 'transfers' : 'returns';
+window.addRowPages = async (table, id) => {
+  const files = [...$('#imgpick').files]; if(!files.length) return;
+  busy(true);
+  try{
+    const x = await q(ldb.from(table).select('*').eq('id', id).single());
+    const added = []; for(const f of files) added.push(await uploadImage(f, imgFolder(table, x), {max:1800, q:0.8}));
+    const all = [...rowPages(x), ...added];
+    await q(ldb.from(table).update({image_path: all[0], extra_images: all.slice(1)}).eq('id', id));
+    busy(false); toast(`اتضافت ${added.length} ${added.length === 1 ? 'صورة' : 'صور'} ✓`);
+    await afterImage(table, id, x.supplier_id);
+  }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
+};
+window.delRowPage = async (table, id, path) => {
+  if(!confirm('تمسح الصورة دي؟ مش هتقدر ترجّعها.')) return;
+  busy(true);
+  try{
+    const x = await q(ldb.from(table).select('*').eq('id', id).single());
+    const all = rowPages(x).filter(p => p !== path);
+    await q(ldb.from(table).update({image_path: all[0] || null, extra_images: all.slice(1)}).eq('id', id));
+    await removeImage(path); urlCache.delete(path);
+    busy(false); toast('اتمسحت الصورة');
+    await afterImage(table, id, x.supplier_id);
+  }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
+};
 async function afterImage(table, id, sid){
   closeModal();
   if(location.hash.startsWith('#/checks')){ await viewChecks(); return showCheck(id); }
@@ -255,48 +288,12 @@ window.showInvoice = async id => {
     <div class="kv"><span>التاريخ</span><span>${fmtDate(x.inv_date)}</span></div>
     ${x.notes?`<div class="kv"><span>ملاحظات</span><span>${esc(x.notes)}</span></div>`:''}
     <div class="kv"><span>سجّلها</span><span>${esc(who(x.created_by))}${x.created_at ? ' · ' + fmtDateTime(x.created_at) : ''}</span></div>
-    <div class="section-t" style="margin-top:10px">صور الفاتورة (${invPages(x).length} ${invPages(x).length === 1 ? 'صفحة' : 'صفحات'})</div>
-    <div class="pg-grid" id="mimg">${invPages(x).map(() => '<div class="pg"><div class="spin" style="margin:30px auto"></div></div>').join('') || '<div class="hint">مفيش صور</div>'}</div>
-    <div class="img-acts">
-      <button onclick="$('#imgpick').click()">${I.camera}إضافة صفحة</button>
-    </div>
-    <input type="file" id="imgpick" accept="image/*" multiple hidden onchange="addInvPages(${x.id})">
+    ${imgSection('invoices', x)}
     <div class="actions" style="margin-top:10px">
       <button class="btn ghost" onclick="go('/invoice/${x.id}')">${I.edit}تعديل</button>
       <button class="btn danger" onclick="delInvoice(${x.id})">مسح</button>
     </div>`);
-  const pages = invPages(x);
-  if(pages.length){
-    const urls = await Promise.all(pages.map(p => signedUrl(p)));
-    $('#mimg').innerHTML = pages.map((p, i) => `<div class="pg">
-      ${urls[i] ? `<img src="${urls[i]}" onclick='viewImg(${JSON.stringify(p)}, ${JSON.stringify(pages)})' alt="">` : '<div class="hint">مش متاحة</div>'}
-      <span class="pg-n">${i + 1}</span>
-      <button class="pg-x" onclick='delInvPage(${x.id}, ${JSON.stringify(p)})' aria-label="مسح الصفحة">${I.close}</button></div>`).join('');
-  }
-};
-window.addInvPages = async id => {
-  const files = [...$('#imgpick').files]; if(!files.length) return;
-  busy(true);
-  try{
-    const x = await q(ldb.from('invoices').select('*').eq('id', id).single());
-    const added = []; for(const f of files) added.push(await uploadImage(f, 'invoices', {max:1800, q:0.8}));
-    const all = [...invPages(x), ...added];
-    await q(ldb.from('invoices').update({image_path: all[0], extra_images: all.slice(1)}).eq('id', id));
-    busy(false); toast(`اتضافت ${added.length} ${added.length === 1 ? 'صفحة' : 'صفحات'} ✓`);
-    await afterImage('invoices', id, x.supplier_id);
-  }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
-};
-window.delInvPage = async (id, path) => {
-  if(!confirm('تمسح الصفحة دي من الفاتورة؟ مش هتقدر ترجّعها.')) return;
-  busy(true);
-  try{
-    const x = await q(ldb.from('invoices').select('*').eq('id', id).single());
-    const all = invPages(x).filter(p => p !== path);
-    await q(ldb.from('invoices').update({image_path: all[0] || null, extra_images: all.slice(1)}).eq('id', id));
-    await removeImage(path); urlCache.delete(path);
-    busy(false); toast('اتمسحت الصفحة');
-    await afterImage('invoices', id, x.supplier_id);
-  }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
+  fillGallery('invoices', x);
 };
 window.showPayment = async id => {
   const x = window._sup.pays.find(i => i.id === id);
@@ -319,7 +316,7 @@ window.showPayment = async id => {
       <button class="btn ghost" onclick="go('/${IS_ADJ(x.method)?'adjust':'payment'}/${x.id}')">${I.edit}تعديل</button>
       <button class="btn danger" onclick="delPayment(${x.id})">مسح</button>
     </div>`);
-  if(x.image_path) $('#mimg').innerHTML = await imgBlock(x.image_path);
+  fillGallery('payments', x);
 };
 function checkButtons(x, after){
   const b = (st, label, cls) => x.check_status===st ? '' : `<button class="btn ${cls}" onclick="setCheck(${x.id},'${st}',()=>${after})">${label}</button>`;
@@ -444,10 +441,7 @@ async function formInvoice(id, presetSup){
       <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x?x.inv_date:today()}"></div>
       <div class="field"><label>رقم الفاتورة</label><input id="no" inputmode="numeric" value="${esc(x?.inv_no||'')}" placeholder="اختياري"></div>
     </div>
-    <div class="field" id="f-img"><label>صور الفاتورة <span class="req">*</span> <small class="muted">(لو الفاتورة كذا ورقة صوّر كل ورقة)</small></label>
-      <div class="pg-grid" id="pages"></div>
-      <input type="file" id="pgpick" accept="image/*" multiple hidden onchange="addFormPages()">
-    </div>
+    ${pagesField('inv', 'صور الفاتورة', true, '(لو الفاتورة كذا ورقة صوّر كل ورقة)')}
     <div class="ocr-box" id="ocrbox" style="display:none;margin:-6px 0 14px">
       <button type="button" class="btn ghost block" onclick="readAmountFromPhoto()">${I.scan}اقرأ المبلغ من آخر صفحة</button>
       <div id="ocrout"></div>
@@ -457,40 +451,49 @@ async function formInvoice(id, presetSup){
     const sid = $('#sup').value, amount = readAmount($('#amount').value);
     if(!sid) return markErr('sup', 'اختار المورد');
     if(!(amount > 0)) return markErr('amount', 'اكتب قيمة الفاتورة');
-    if(!x && !formPages.length) return markErr('img', 'لازم صورة الفاتورة (صفحة واحدة على الأقل)');
+    if(!x && !(PG.inv || []).length) return markErr('inv', 'لازم صورة الفاتورة (صفحة واحدة على الأقل)');
     const row0 = {date:$('#date').value || today(), no:$('#no').value.trim()};
     if(looksDuplicate(await api.invoices(sid), x, r => Number(r.amount) === amount && String(r.inv_date).slice(0,10) === row0.date && (!row0.no || !r.inv_no || r.inv_no === row0.no))
        && !confirm(`فيه فاتورة متسجلة لنفس المورد بنفس المبلغ (${amount.toLocaleString('en-US')}) ونفس التاريخ.\nتسجلها تاني برضه؟`)) return;
-    const paths = [];
-    for(const p of formPages) paths.push(p.path || await uploadImage(p.file, 'invoices', {max:1800, q:0.8}));   // ضغط مع الحفاظ على وضوح الأرقام
+    const paths = await pgSave('inv', 'invoices');
     const row = {supplier_id:+sid, amount, inv_date:row0.date, inv_no:row0.no||null, notes:$('#notes').value.trim()||null, image_path:paths[0] || null, extra_images:paths.slice(1)};
     if(x){ await q(ldb.from('invoices').update(row).eq('id', x.id)); invPages(x).filter(p => !paths.includes(p)).forEach(p => removeImage(p)); }
     else await q(ldb.from('invoices').insert(row));
     busy(false); await celebrate(savedMsg('الفاتورة'));
     location.replace('#/s/' + sid);
   });
-  formPages = x ? invPages(x).map(path => ({path})) : [];
-  drawFormPages();
+  pgInit('inv', x ? rowPages(x) : []);
   const hint = () => { const sid = $('#sup').value; const b = sid ? supBalance(sid) : null; const a = readAmount($('#amount').value) || 0;
     $('#balhint').innerHTML = sid ? `<span>رصيد المورد دلوقتي</span><b>${money(b)}</b>${!x && a > 0 ? `<span>بعد الفاتورة</span><b class="after">${money(b + a)}</b>` : ''}` : ''; };
   $('#sup').addEventListener('change', hint); $('#amount').addEventListener('input', hint); hint();
 }
-// صفحات الفاتورة في الفورم (صور قديمة path أو جديدة file)
-let formPages = [];
-async function drawFormPages(){
-  const el = $('#pages'); if(!el) return;
-  const urls = await Promise.all(formPages.map(p => p.file ? (p.url ||= URL.createObjectURL(p.file)) : signedUrl(p.path)));
-  el.innerHTML = formPages.map((p, i) => `<div class="pg">${urls[i] ? `<img src="${urls[i]}" alt="">` : '<div class="hint">الصورة الحالية</div>'}
-      <span class="pg-n">${i + 1}</span><button type="button" class="pg-x" onclick="rmFormPage(${i})" aria-label="شيل الصفحة">${I.close}</button></div>`).join('')
-    + `<button type="button" class="pg pg-add" onclick="$('#pgpick').click()">${I.camera}<span>${formPages.length ? 'صفحة كمان' : 'صوّر الفاتورة'}</span></button>`;
-  $('#ocrbox').style.display = formPages.some(p => p.file) ? '' : 'none';
+// حقل صور متعددة في أي فورم (صور قديمة path أو جديدة file)
+const PG = {};
+function pagesField(key, label, required, hint){
+  return `<div class="field" id="f-${key}"><label>${label} ${required ? '<span class="req">*</span>' : ''} <small class="muted">${hint || '(تقدر تضيف أكتر من صورة)'}</small></label>
+    <div class="pg-grid" id="pg-${key}"></div>
+    <input type="file" id="pgin-${key}" accept="image/*" multiple hidden onchange="pgAdd('${key}')"></div>`;
 }
-window.addFormPages = () => {
-  const files = [...$('#pgpick').files]; $('#pgpick').value = '';
-  files.forEach(f => formPages.push({file:f}));
-  $('#f-img').classList.remove('err'); $('#ocrout').innerHTML = ''; drawFormPages();
+async function pgDraw(key){
+  const el = $('#pg-' + key); if(!el) return; const list = PG[key] || (PG[key] = []);
+  const urls = await Promise.all(list.map(p => p.file ? (p.url ||= URL.createObjectURL(p.file)) : signedUrl(p.path)));
+  el.innerHTML = list.map((p, i) => `<div class="pg">${urls[i] ? `<img src="${urls[i]}" alt="">` : '<div class="hint">الصورة الحالية</div>'}
+      <span class="pg-n">${i + 1}</span><button type="button" class="pg-x" onclick="pgRm('${key}',${i})" aria-label="شيل الصورة">${I.close}</button></div>`).join('')
+    + `<button type="button" class="pg pg-add" onclick="$('#pgin-${key}').click()">${I.camera}<span>${list.length ? 'صورة كمان' : 'صوّر أو اختار'}</span></button>`;
+  if(key === 'inv' && $('#ocrbox')) $('#ocrbox').style.display = list.some(p => p.file) ? '' : 'none';
+}
+window.pgAdd = key => {
+  const inp = $('#pgin-' + key), files = [...inp.files]; inp.value = '';
+  (PG[key] = PG[key] || []).push(...files.map(f => ({file:f})));
+  $('#f-' + key)?.classList.remove('err'); if(key === 'inv' && $('#ocrout')) $('#ocrout').innerHTML = ''; pgDraw(key);
 };
-window.rmFormPage = i => { formPages.splice(i, 1); drawFormPages(); };
+window.pgRm = (key, i) => { PG[key].splice(i, 1); pgDraw(key); };
+const pgInit = (key, paths) => { PG[key] = (paths || []).map(path => ({path})); pgDraw(key); };
+async function pgSave(key, folder){
+  const out = [];
+  for(const p of (PG[key] || [])) out.push(p.path || await uploadImage(p.file, folder, {max:1800, q:0.8}));   // ضغط مع الحفاظ على وضوح الأرقام
+  return out;
+}
 
 /* =================== قراءة المبلغ من صورة الفاتورة =================== */
 let ocrWorker = null;
@@ -525,7 +528,7 @@ function amountCandidates(text){
   return [...uniq.values()].sort((a,b) => (b.key - a.key) || (a.ref - b.ref) || (b.v - a.v)).slice(0, 5).map(f => f.v);
 }
 window.readAmountFromPhoto = async () => {
-  const file = [...formPages].reverse().find(p => p.file)?.file; if(!file) return toast('صوّر الفاتورة الأول', true);
+  const file = [...(PG.inv || [])].reverse().find(p => p.file)?.file; if(!file) return toast('صوّر الفاتورة الأول', true);
   const out = $('#ocrout');
   out.innerHTML = `<div class="hint" id="ocrmsg">بقرا الصورة... أول مرة بياخد شوية عشان بيحمّل ملفات القراءة</div><div class="ocr-prog"><i id="ocrbar"></i></div>`;
   try{
@@ -563,10 +566,10 @@ async function formPayment(id, presetSup){
         <div class="field"><label>البنك</label><input id="bank" value="${esc(x?.bank||'')}"></div>
       </div>
       <div class="field" id="f-due"><label>تاريخ الاستحقاق <span class="req">*</span></label><input id="due" type="date" value="${x?.due_date||''}"></div>
-      ${photoField({id:'chkimg', label:'صورة الشيك', required:false, existing:x?.method==='check'?x.image_path:null, hint:'اختياري'})}
+      ${pagesField('chk', 'صور الشيك', false, '(اختياري — وش وضهر مثلًا)')}
     </div>
     <div id="m-transfer" class="sub transfer" style="display:none">
-      ${photoField({id:'trimg', label:'سكرين شوت التحويل', required:true, existing:x?.method==='transfer'?x.image_path:null})}
+      ${pagesField('tr', 'سكرين شوت التحويل', true)}
     </div>
     <div class="field"><label>تاريخ الدفع</label><input id="date" type="date" value="${x?x.pay_date:today()}"></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2" placeholder="اختياري">${esc(x?.notes||'')}</textarea></div>
@@ -575,25 +578,21 @@ async function formPayment(id, presetSup){
     if(!sid) return markErr('sup', 'اختار المورد');
     if(!(amount > 0)) return markErr('amount', 'اكتب المبلغ');
     if(!method) return markErr('method', 'اختار نوع الدفعة: كاش ولا شيك ولا تحويل');
-    const keepOld = x && x.method === method ? x.image_path : null;
-    let file = null;
-    if(method==='transfer'){ file = $('#trimg').files[0]; if(!file && !keepOld && !(x && x.method === 'transfer')) return markErr('trimg', 'لازم سكرين شوت التحويل'); }
-    if(method==='check'){ file = $('#chkimg').files[0]; if(!$('#due').value) return markErr('due', 'اكتب تاريخ استحقاق الشيك'); }
+    if(method==='transfer' && !(PG.tr || []).length && !(x && x.method === 'transfer')) return markErr('tr', 'لازم سكرين شوت التحويل');
+    if(method==='check' && !$('#due').value) return markErr('due', 'اكتب تاريخ استحقاق الشيك');
     const pdate = $('#date').value || today();
     if(looksDuplicate(await api.payments(sid), x, r => Number(r.amount) === amount && String(r.pay_date).slice(0,10) === pdate && r.method === method)
        && !confirm(`فيه دفعة ${METHOD[method]} متسجلة لنفس المورد بنفس المبلغ (${amount.toLocaleString('en-US')}) ونفس التاريخ.\nتسجلها تاني برضه؟`)) return;
-    let image_path = method==='cash' ? null : keepOld;
-    if(window._rmImg[method === 'check' ? 'chkimg' : 'trimg'] && !file) image_path = null;
-    if(file) image_path = await uploadImage(file, method==='check' ? 'checks' : 'transfers');
+    const paths = method === 'cash' ? [] : await pgSave(method === 'check' ? 'chk' : 'tr', method === 'check' ? 'checks' : 'transfers');
     const row = {
-      supplier_id:+sid, amount, method, pay_date:$('#date').value || today(), notes:$('#notes').value.trim()||null, image_path,
+      supplier_id:+sid, amount, method, pay_date:$('#date').value || today(), notes:$('#notes').value.trim()||null, image_path:paths[0] || null, extra_images:paths.slice(1),
       invoice_id: $('#invsel').value ? +$('#invsel').value : null,
       check_no: method==='check' ? ($('#chk_no').value.trim()||null) : null,
       bank: method==='check' ? ($('#bank').value.trim()||null) : null,
       due_date: method==='check' ? $('#due').value : null,
       check_status: method==='check' ? (x?.check_status || 'pending') : null,
     };
-    if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
+    if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); rowPages(x).filter(p => !paths.includes(p)).forEach(p => removeImage(p)); }
     else await q(ldb.from('payments').insert(row));
     busy(false); await celebrate(savedMsg('الدفعة'), true);
     location.replace('#/s/' + sid);
@@ -607,12 +606,12 @@ async function formPayment(id, presetSup){
   };
   document.querySelectorAll('.seg button').forEach(b => b.onclick = () => setM(b.dataset.m));
   if(method) setM(method);
-  if(x?.image_path) fillExisting(x.method==='check' ? 'chkimg' : 'trimg', x.image_path, true);
+  pgInit('chk', x?.method === 'check' ? rowPages(x) : []); pgInit('tr', x?.method === 'transfer' ? rowPages(x) : []);
   fillInvoices($('#sup').value, x?.invoice_id, x?.id);
   $('#sup').addEventListener('change', () => fillInvoices($('#sup').value));
   // الرصيد قبل وبعد الدفعة (بنفس قاعدة الحساب: الشيك المرتد مش بيتحسب)
   const calc = () => {
-    const sid = $('#sup').value, el = $('#paycalc'); if(!sid){ el.innerHTML = ''; return; }
+    const sid = $('#sup').value, el = $('#paycalc'); if(!el) return; if(!sid){ el.innerHTML = ''; return; }
     let before = supBalance(sid);
     if(x && String(x.supplier_id) === String(sid) && x.check_status !== 'bounced') before += Number(x.amount);   // التعديل: نشيل الدفعة القديمة الأول
     const a = readAmount($('#amount').value) || 0, after = before - a;
@@ -635,21 +634,20 @@ async function formAdjust(id, presetSup){
       </div></div>
     <div class="field" id="f-amount"><label>القيمة <span class="req">*</span></label>
       <input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x?x.amount:''}"></div>
+    <div class="paycalc" id="paycalc"></div>
     ${invoiceField()}
     <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x?x.pay_date:today()}"></div>
-    ${photoField({id:'adjimg', label:'صورة إذن المرتجع / الإيصال', required:false, existing:x?.image_path, hint:'اختياري'})}
+    ${pagesField('adj', 'صور إذن المرتجع / الإيصال', false, '(اختياري)')}
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2" placeholder="مثلاً: 5 قطع عيب">${esc(x?.notes||'')}</textarea></div>
   `, async () => {
-    const sid = $('#sup').value, amount = readAmount($('#amount').value), file = $('#adjimg').files[0];
+    const sid = $('#sup').value, amount = readAmount($('#amount').value);
     if(!sid) return markErr('sup', 'اختار المورد');
     if(!method) return markErr('method', 'اختار: مرتجع ولا خصم');
     if(!(amount > 0)) return markErr('amount', 'اكتب القيمة');
-    let image_path = x?.image_path || null;
-    if(window._rmImg.adjimg) image_path = null;
-    if(file) image_path = await uploadImage(file, 'returns');
-    const row = {supplier_id:+sid, amount, method, pay_date:$('#date').value || today(), notes:$('#notes').value.trim()||null, image_path,
+    const paths = await pgSave('adj', 'returns');
+    const row = {supplier_id:+sid, amount, method, pay_date:$('#date').value || today(), notes:$('#notes').value.trim()||null, image_path:paths[0] || null, extra_images:paths.slice(1),
       invoice_id: $('#invsel').value ? +$('#invsel').value : null, check_no:null, bank:null, due_date:null, check_status:null};
-    if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); if(x.image_path && x.image_path !== image_path) removeImage(x.image_path); }
+    if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); rowPages(x).filter(p => !paths.includes(p)).forEach(p => removeImage(p)); }
     else await q(ldb.from('payments').insert(row));
     busy(false); await celebrate(method === 'return' ? 'اتسجل المرتجع' : 'اتسجل الخصم');
     location.replace('#/s/' + sid);
@@ -657,12 +655,12 @@ async function formAdjust(id, presetSup){
   const setM = m => { method = m; document.querySelectorAll('#f-method .seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('#f-method').classList.remove('err'); };
   document.querySelectorAll('#f-method .seg button').forEach(b => b.onclick = () => setM(b.dataset.m));
   if(method) setM(method);
-  if(x?.image_path) fillExisting('adjimg', x.image_path, true);
+  pgInit('adj', x ? rowPages(x) : []);
   fillInvoices($('#sup').value, x?.invoice_id, x?.id);
   $('#sup').addEventListener('change', () => fillInvoices($('#sup').value));
   // الرصيد قبل وبعد الدفعة (بنفس قاعدة الحساب: الشيك المرتد مش بيتحسب)
   const calc = () => {
-    const sid = $('#sup').value, el = $('#paycalc'); if(!sid){ el.innerHTML = ''; return; }
+    const sid = $('#sup').value, el = $('#paycalc'); if(!el) return; if(!sid){ el.innerHTML = ''; return; }
     let before = supBalance(sid);
     if(x && String(x.supplier_id) === String(sid) && x.check_status !== 'bounced') before += Number(x.amount);   // التعديل: نشيل الدفعة القديمة الأول
     const a = readAmount($('#amount').value) || 0, after = before - a;

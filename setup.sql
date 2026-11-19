@@ -631,3 +631,5 @@ grant update (display_name) on public.members to authenticated;
 -- الفاتورة ممكن تكون أكتر من صفحة (الإصدار 6): الصفحة الأولى في image_path والباقي هنا
 -- =====================================================
 alter table public.invoices add column if not exists extra_images text[] not null default '{}';
+-- الدفعات والشيكات والمرتجعات كمان ممكن يبقى ليها أكتر من صورة
+alter table public.payments add column if not exists extra_images text[] not null default '{}';
