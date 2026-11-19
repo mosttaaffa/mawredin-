@@ -410,3 +410,27 @@ const quickFabs = sid => `<div class="fabs">
   <button class="fab inv" onclick="go('/invoice${sid?'?s='+sid:''}')">${I.receipt}فاتورة</button>
   <button class="fab pay" onclick="go('/payment${sid?'?s='+sid:''}')">${I.cash}دفعة</button>
 </div>`;
+
+/* ---------- عرض التاريخ يوم-شهر-سنة في كل خانات التاريخ ----------
+   الخانة نفسها فاضلة date عادي (عشان منتقي التاريخ بتاع الموبايل يفتح والقيمة تتحفظ yyyy-mm-dd زي ما هي)،
+   وفوقها نص بيعرض التاريخ بصيغة يوم-شهر-سنة */
+(() => {
+  const VD = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  const fmtD = v => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+  const enhance = el => {
+    if(el._dmy) return; el._dmy = true;
+    const wrap = document.createElement('span'); wrap.className = 'dmy-wrap';
+    el.parentNode.insertBefore(wrap, el); wrap.appendChild(el);
+    const t = document.createElement('span'); t.className = 'dmy-text'; wrap.appendChild(t);
+    const upd = () => { const f = fmtD(VD.get.call(el)); t.textContent = f || 'يوم-شهر-سنة'; t.classList.toggle('ph', !f); };
+    Object.defineProperty(el, 'value', {configurable:true, get(){ return VD.get.call(this); }, set(v){ VD.set.call(this, v); upd(); }});
+    el.addEventListener('input', upd); el.addEventListener('change', upd);
+    el.addEventListener('click', () => { try{ el.showPicker && el.showPicker(); }catch(e){} });
+    upd();
+  };
+  const scan = root => root.querySelectorAll && root.querySelectorAll('input[type=date]').forEach(enhance);
+  new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType !== 1) return; if(n.matches('input[type=date]')) enhance(n); else scan(n); })))
+    .observe(document.documentElement, {childList:true, subtree:true});
+  document.addEventListener('DOMContentLoaded', () => scan(document));
+  scan(document);
+})();
