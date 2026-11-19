@@ -48,14 +48,10 @@ const MODULES = [
 function viewMore(){
   shell({title:'المزيد', nav:'more', body:`
     <div class="more-grid">
-      ${MODULES.map(m => `<button class="more-tile" onclick="go('${m.ready ? '/' + m.k : '/m/' + m.k}')">
-        <span class="mt-ico" style="--c:${m.c}">${I[m.i]}</span>
-        <span class="mt-t">${m.t}</span><span class="mt-d">${m.d}</span>
-        ${m.ready ? '' : '<span class="soon">قريبًا</span>'}</button>`).join('')}
-    </div>
-    <div class="card list more-list">
-      <div class="item" onclick="go('/settings')"><div class="ico" style="background:var(--brand-soft);color:var(--brand)">${I.gear}</div><div class="grow"><div class="t">الإعدادات</div><div class="s">الأعضاء، الألوان، التنبيهات، التصدير</div></div>${I.chev.replace('<svg','<svg class="chev"')}</div>
-      <div class="item" onclick="go('/log')"><div class="ico" style="background:var(--amber-soft);color:var(--amber)">${I.hist}</div><div class="grow"><div class="t">سجل التعديلات</div><div class="s">مين عمل إيه وإمتى</div></div>${I.chev.replace('<svg','<svg class="chev"')}</div>
+      <button class="more-tile" onclick="go('/settings')"><span class="mt-ico" style="--c:#4a5568">${I.gear}</span>
+        <span class="mt-t">الإعدادات</span><span class="mt-d">الأعضاء، الألوان، التنبيهات، التصدير والنسخة الاحتياطية</span></button>
+      <button class="more-tile" onclick="go('/log')"><span class="mt-ico" style="--c:#b7791f">${I.hist}</span>
+        <span class="mt-t">سجل التعديلات</span><span class="mt-d">مين عمل إيه وإمتى</span></button>
     </div>`});
 }
 function viewModule(k){
