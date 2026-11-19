@@ -377,7 +377,7 @@ function shell({title, back, right='', body, nav=null, fabs='', home=null}){
       ${back ? `<button class="iconbtn" onclick="history.length>1?history.back():go('/')" aria-label="رجوع">${I.back}</button>` : headLogos}
       <h1>${title}</h1>${right}
     </header>`}
-    <main class="${same ? 'calm' : 'enter'}">${body}</main>
+    <main class="${same ? 'calm' : 'enter'}"${['suppliers','employees','checks','reports'].includes(nav) ? ` data-art="${nav}"` : ''}>${body}</main>
     ${fabs}
     ${nav ? `<nav class="bottom">
       <a href="#/" class="${nav==='home'?'on':''}" aria-label="الرئيسية">${I.home}<span>الرئيسية</span></a>

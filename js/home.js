@@ -98,7 +98,7 @@ function viewModule(k){
   if(m.ready) return go('/' + m.k);
   shell({title:m.t, back:true, nav:'more', body:`
     <div class="card mod-hero">
-      <span class="mt-ico big" style="--c:${m.c}">${I[m.i]}</span>
+      ${{loans:1,cash:1,banks:1,expenses:1}[m.k] ? `<img class="art" src="icons/3d/${m.k}.webp" alt="">` : `<span class="mt-ico big" style="--c:${m.c}">${I[m.i]}</span>`}
       <h2>${m.t}</h2><p>${m.d}</p>
       <span class="soon">القسم ده تحت التجهيز</span>
     </div>

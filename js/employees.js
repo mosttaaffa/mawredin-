@@ -54,10 +54,10 @@ async function viewEmployees(){
     <div class="chip-row">
       ${[['all','الكل'],['owe','عليه رصيد'],['due','ليه رصيد'],['zero','خالص']].map(([k,l]) => `<button class="chip ${empFilter===k?'on':''}" onclick="empFilter='${k}';viewEmployees()">${l}</button>`).join('')}
     </div>
-    <div class="card list" id="emplist">
+    <div class="card list emp-list" id="emplist">
       ${list.length ? list.map(r => `
         <div class="item" data-n="${esc((r.name + ' ' + (r.emp_no||'')).toLowerCase())}" onclick="go('/emp/${r.id}')">
-          <div class="avatar" style="background:#e8f0fa;color:#2b6cb0">${esc(r.emp_no || r.name.trim()[0])}</div>
+          <div class="avatar emp-av">${esc(r.emp_no || r.name.trim()[0])}</div>
           <div class="grow"><div class="t">${esc(r.name)}</div>
             <div class="s">${r.base_salary ? 'أساسي ' + money(r.base_salary) : ''}${r.last_to ? ' · آخر تسوية ' + fmtDate(r.last_to) : ''}</div></div>
           <div class="amt ${n0(r.balance) < 0 ? 'debt' : n0(r.balance) > 0 ? 'ok' : ''}">${signMoney(r.balance)}</div>
@@ -79,17 +79,23 @@ async function viewEmployee(id){
   const after = txs.filter(x => !last || x.tx_date > last.period_to);
   let body;
   if(t === 'sum'){
+    const plus = n0(last?.earned_salary) + n0(last?.comm_total), minus = n0(last?.adv_ded_total) + n0(last?.late_ded);
+    const mx = Math.max(plus, minus, Math.abs(n0(last?.prev_balance)), 1);
+    const bar = (l, v, c) => `<div class="fbar"><span>${l}</span><i style="--w:${Math.round(Math.abs(v) / mx * 100)}%;--c:${c}"></i><b>${signMoney(v)}</b></div>`;
+    const sec = (title, rows, open='') => `<details class="card gsec" ${open}><summary>${title}${I.chev}</summary><div class="egrid">${rows}</div></details>`;
     body = last ? `
       <div class="card">
         <div class="sec-h"><span>آخر تسوية</span><small class="muted">${fmtDate(last.period_from)} — ${fmtDate(last.period_to)}</small></div>
-        <div class="egrid">
-          ${kv('المرتب الأساسي', money(last.base_salary))}${kv('أيام العمل', last.work_days ?? '—')}
-          ${kv('المرتب المستحق', money(last.earned_salary))}${kv('العمولات', money(last.comm_total))}
-          ${kv('السلف', money(n0(last.adv_zahra) + n0(last.adv_ward)))}${kv('الخصومات', money(n0(last.ded_general) + n0(last.ded_clothes) + n0(last.late_ded)))}
-          ${kv('حساب قديم', signMoney(last.prev_balance))}${kv('الصافي', signMoney(last.net_balance), 'hl')}
-        </div>
-        <button class="btn ghost block" style="margin-top:10px" onclick="showSettlement(${last.id})">التفاصيل كاملة</button>
+        ${bar('المستحق له (مرتب + عمولات)', plus, '#10B981')}
+        ${bar('عليه (سلف وخصومات)', -minus, '#EF4444')}
+        ${n0(last.prev_balance) ? bar('حساب قديم', n0(last.prev_balance), '#60A5FA') : ''}
+        <div class="ek hl" style="margin-top:8px"><span>الإجمالي الصافي</span><b>${signMoney(last.net_balance)}</b></div>
       </div>
+      ${sec('المرتب', kv('المرتب الأساسي', money(last.base_salary)) + kv('أيام العمل', last.work_days ?? '—') + kv('المرتب المستحق', money(last.earned_salary)), 'open')}
+      ${sec('العمولات', kv('عمولات زهرة', money(last.comm_zahra)) + kv('عمولات ورد', money(last.comm_ward)) + kv('إجمالي العمولات', money(last.comm_total), 'hl'))}
+      ${sec('السلف والخصومات', kv('سلف زهرة', money(last.adv_zahra)) + kv('سلف ورد', money(last.adv_ward)) + kv('خصومات', money(last.ded_general)) + kv('ملابس', money(last.ded_clothes)) + kv('خصم تأخير وغياب', money(last.late_ded)) + kv('إجمالي السلف والخصومات', money(last.adv_ded_total), 'hl'))}
+      ${sec('الأرصدة', kv('حساب قديم', signMoney(last.prev_balance)) + kv('الإجمالي الصافي', signMoney(last.net_balance), 'hl'))}
+      <button class="btn ghost block" style="margin-bottom:12px" onclick="showSettlement(${last.id})">التسوية كاملة مع أرقام الكشف الأصلية</button>
       ${after.length ? `<div class="card"><div class="sec-h"><span>حركات بعد التسوية</span></div><div class="list">${after.map(txRow).join('')}</div></div>` : ''}`
       : `<div class="card empty">${I.emp}<div>مفيش تسويات لسه للموظف ده</div></div>`;
   } else if(t === 'sets'){
@@ -132,7 +138,7 @@ window.showSettlement = id => {
   const s = window._emp.sets.find(x => x.id === id); const orig = s.original || {}; const unc = new Set(s.uncertain || []);
   openModal(`<h3>تسوية ${fmtDate(s.period_from)} — ${fmtDate(s.period_to)}</h3>
     ${EMP_FIELDS.map(([k,l]) => {
-      const changed = k in orig && String(orig[k] ?? '') !== String(s[k] ?? '') && !(orig[k] == null && s[k] == null) && Number(orig[k]) !== Number(s[k]);
+      const changed = k in orig && orig[k] !== '-' && String(orig[k] ?? '') !== String(s[k] ?? '') && !(orig[k] == null && s[k] == null) && Number(orig[k]) !== Number(s[k]);
       return `<div class="kv ${unc.has(k) ? 'unc' : ''}"><span>${l}${unc.has(k) ? ' ⚠' : ''}</span><span>${k === 'work_days' ? (s[k] ?? '—') : signMoney(s[k])}${changed ? `<small class="muted"> (في الكشف: ${orig[k] ?? '—'})</small>` : ''}</span></div>`; }).join('')}
     <div class="hint" style="margin-top:8px">تسوية تاريخية مستوردة من كشف — مش بتتسجل كحركات جديدة على الخزينة.${s.notes ? '<br>' + esc(s.notes) : ''}</div>
     <div class="actions" style="margin-top:10px"><button class="btn ghost" onclick="go('/emp-set/${s.id}')">${I.edit}تعديل</button>
