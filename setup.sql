@@ -242,6 +242,13 @@ begin
   end loop;
 end $$;
 
+-- مشاريع Supabase الجديدة مش بتدي صلاحيات تلقائي على الجداول، فبندّيها صراحة
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.suppliers, public.invoices, public.payments to authenticated;
+grant select, insert, delete on public.members to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+revoke truncate, trigger, references on all tables in schema public from authenticated, anon;
+revoke all on all tables in schema public from anon;
 revoke all on public.supplier_balances from anon;
 grant select on public.supplier_balances to authenticated;
 revoke insert, update, delete on public.activity_log from authenticated, anon;
