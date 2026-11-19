@@ -1,7 +1,7 @@
 /* الموردين: الرئيسية، صفحة المورد، الفواتير والدفعات والمرتجعات، قراءة المبلغ من الصورة */
-/* =================== الرئيسية: الموردين =================== */
-async function viewHome(){
-  if(!$('#suplist')) shell({title:'حسابات الموردين', right:refreshBtn, nav:'home', body:skeleton('home')});
+/* =================== تبويب الموردين =================== */
+async function viewSuppliers(){
+  if(!$('#suplist')) shell({title:'الموردين', right:refreshBtn, nav:'suppliers', body:skeleton('home')});
   const [rows, cs] = await Promise.all([api.balances(), api.checkSummary()]);
   const checks = soonToChecks(cs);
   const total = rows.reduce((a,r)=>a+Number(r.balance),0);
@@ -9,7 +9,6 @@ async function viewHome(){
   const next = cs.next ? {due_date: cs.next.due_date, suppliers:{name: cs.next.name}} : null;
   notifyChecks(checks);
   const body = `
-    ${dueAlert(checks)}
     <div class="card hero">
       <div class="lbl">إجمالي المستحق للموردين</div>
       <div class="big">${money(total)}</div>
@@ -32,7 +31,7 @@ async function viewHome(){
         </div>`).join('') :
         `<div class="empty">${I.box}<div>لسه مفيش موردين</div><button class="btn primary" style="margin-top:12px" onclick="go('/supplier')">${I.plus}أضف أول مورد</button></div>`}
     </div>`;
-  shell({title:'حسابات الموردين', right:refreshBtn, nav:'home', body, fabs: rows.length ? quickFabs() : ''});
+  shell({title:'الموردين', right:refreshBtn, nav:'suppliers', body, fabs: rows.length ? quickFabs() : ''});
 }
 window.filterSup = v => { v = v.trim().toLowerCase(); document.querySelectorAll('#suplist .item').forEach(el => el.style.display = el.dataset.n.includes(v) ? '' : 'none'); };
 
@@ -534,6 +533,6 @@ async function formSupplier(id){
 window.delSupplier = async id => {
   if(!confirm('متأكد تمسح المورد؟')) return;
   busy(true);
-  try{ await q(sb.from('suppliers').delete().eq('id', id)); toast('اتمسح'); location.replace('#/'); }
+  try{ await q(sb.from('suppliers').delete().eq('id', id)); toast('اتمسح'); location.replace('#/suppliers'); }
   catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
 };

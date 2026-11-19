@@ -53,7 +53,7 @@ window.showCheck = async id => {
 async function viewSettings(){
   const members = await api.members();
   if(IS_LOCAL){ try{ lanUrls = (await (await fetch('/local-info')).json()).urls || []; }catch(e){} }
-  shell({title:'الإعدادات', nav:'settings', body:`
+  shell({title:'الإعدادات', back:true, nav:'more', body:`
     <div class="card"><div class="section-t">حسابك</div>
       <div class="kv" style="border:0"><span>داخل باسم</span><span class="num">${esc(me.email)}</span></div></div>
     <div class="card"><div class="section-t">مين يقدر يستخدم التطبيق</div>

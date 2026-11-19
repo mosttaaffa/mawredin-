@@ -1,6 +1,15 @@
 /* الأساس: أيقونات، أدوات، إفكتات، الاتصال بقاعدة البيانات، التوجيه، هيكل الصفحة */
 /* =================== أيقونات =================== */
 const I = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>',
+  grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>',
+  emp:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>',
+  loan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  safe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M12 9v-1M15 12h1M7 20v1M17 20v1"/></svg>',
+  bank:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/></svg>',
+  expense:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h3"/></svg>',
+  folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+  chev:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
   ret:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></svg>',
   disc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5L5 19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>',
   chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="13" width="3" height="5" rx="1"/></svg>',
@@ -321,6 +330,9 @@ async function route(){
     if(parts[0] === 's' && parts[1]) return await viewSupplier(+parts[1]);
     if(parts[0] === 'checks') return await viewChecks();
     if(parts[0] === 'settings') return await viewSettings();
+    if(parts[0] === 'suppliers') return await viewSuppliers();
+    if(parts[0] === 'more') return viewMore();
+    if(parts[0] === 'm' && parts[1]) return viewModule(parts[1]);
     if(parts[0] === 'invoice') return await formInvoice(parts[1] ? +parts[1] : null, params.get('s'));
     if(parts[0] === 'payment') return await formPayment(parts[1] ? +parts[1] : null, params.get('s'));
     if(parts[0] === 'supplier') return await formSupplier(parts[1] ? +parts[1] : null);
@@ -328,7 +340,7 @@ async function route(){
     if(parts[0] === 'statement' && parts[1]) return await viewStatement(+parts[1], params.get('from'), params.get('to'));
     if(parts[0] === 'reports') return await viewReports();
     if(parts[0] === 'log') return await viewLog();
-    return await viewHome();
+    return await viewDashboard();
   }catch(e){ console.error(e); toast(errMsg(e), true); }
 }
 
@@ -347,10 +359,11 @@ function shell({title, back, right='', body, nav=null, fabs=''}){
     <main class="${same ? 'calm' : 'enter'}">${body}</main>
     ${fabs}
     ${nav ? `<nav class="bottom">
-      <a href="#/" class="${nav==='home'?'on':''}">${I.users}الموردين</a>
-      <a href="#/checks" class="${nav==='checks'?'on':''}">${I.check}الشيكات</a>
-      <a href="#/reports" class="${nav==='reports'?'on':''}">${I.chart}التقارير</a>
-      <a href="#/settings" class="${nav==='settings'?'on':''}">${I.gear}الإعدادات</a>
+      <a href="#/" class="${nav==='home'?'on':''}" aria-label="الرئيسية">${I.home}<span>الرئيسية</span></a>
+      <a href="#/suppliers" class="${nav==='suppliers'?'on':''}" aria-label="الموردين">${I.users}<span>الموردين</span></a>
+      <a href="#/checks" class="${nav==='checks'?'on':''}" aria-label="الشيكات">${I.check}<span>الشيكات</span></a>
+      <a href="#/reports" class="${nav==='reports'?'on':''}" aria-label="التقارير">${I.chart}<span>التقارير</span></a>
+      <a href="#/more" class="${nav==='more'?'on':''}" aria-label="المزيد">${I.grid}<span>المزيد</span></a>
     </nav>` : ''}`;
   window.scrollTo(0,0);
   stagger(app); if(!same) countUp(app);
