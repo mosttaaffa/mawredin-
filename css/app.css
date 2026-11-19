@@ -1265,3 +1265,29 @@ header.page-h .badge{position:absolute;top:-3px;inset-inline-end:-3px;min-width:
 [data-theme="greige"] .modal{max-height:min(90vh,90dvh)}
 html,body{overflow-x:clip !important}
 [data-theme="greige"] .scard{contain-intrinsic-size:auto 430px}
+/* ===== الموردين — نسخة مضغوطة: الملخص في صف واحد، وأرقام المورد في صف واحد، وأزراره في صف واحد ===== */
+.ss-grid{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:6px}
+.sup-sum{padding:10px 10px 12px}
+.ss-h{margin-bottom:8px}.ss-h b{font-size:14.5px}.ss-h svg{width:19px;height:19px}
+.ss-t{padding:8px 3px;border-radius:13px;gap:1px}
+.ss-t i svg{width:20px;height:20px}
+.ss-t>span{font-size:10.5px;line-height:1.3}
+.ss-t b{font-size:clamp(12px,3.6vw,16px) !important}
+.ss-more{margin-top:8px;font-size:11.5px}
+[data-theme="greige"] .scard{padding:10px;border-radius:18px;margin-bottom:10px}
+[data-theme="greige"] .scard .sc-av{width:40px;height:40px}
+[data-theme="greige"] .scard .sc-av svg{width:22px;height:22px}
+[data-theme="greige"] .scard .sc-name .t{font-size:15.5px}
+.scard .sc-name .s{font-size:11.5px}
+.sc-st{padding:3px 8px;font-size:11px}.sc-st svg{width:13px;height:13px}
+[data-theme="greige"] .scard .sc-grid{grid-template-columns:repeat(4,minmax(0,1fr)) !important;gap:5px;margin:8px 0}
+[data-theme="greige"] .scard .sc-grid>div{padding:6px 2px;border-radius:11px}
+[data-theme="greige"] .scard .sc-grid>div>span{font-size:10px;line-height:1.3}
+[data-theme="greige"] .scard .sc-grid b{font-size:clamp(11.5px,3.4vw,15px) !important}
+[data-theme="greige"] .scard .sc-grid small{font-size:9px;line-height:1.2}
+[data-theme="greige"] .scard .g-last svg{display:none}
+[data-theme="greige"] .scard .g-last b{font-size:clamp(11px,3.1vw,13.5px) !important}
+[data-theme="greige"] .scard .sc-acts{grid-template-columns:repeat(5,minmax(0,1fr)) !important;gap:5px}
+[data-theme="greige"] .scard .sc-acts .btn{flex-direction:column;gap:2px;min-height:50px;padding:5px 1px;font-size:10.5px;border-radius:11px;white-space:nowrap;line-height:1.2}
+[data-theme="greige"] .scard .sc-acts .btn svg{width:18px;height:18px;margin:0}
+[data-theme="greige"] .scard .sc-acts .btn.gold{grid-column:auto !important}

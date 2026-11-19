@@ -30,10 +30,10 @@ function supCard(r){
     </div>
     <div class="sc-acts">
       <button class="btn gold" onclick="go('/s/${r.id}')">${I.folder}فتح الحساب</button>
-      <button class="btn ghost" onclick="go('/invoice?s=${r.id}')">${I.invadd}إضافة فاتورة</button>
-      <button class="btn ghost" onclick="go('/payment?s=${r.id}')">${I.coins2}تسجيل دفعة</button>
+      <button class="btn ghost" onclick="go('/invoice?s=${r.id}')">${I.invadd}فاتورة</button>
+      <button class="btn ghost" onclick="go('/payment?s=${r.id}')">${I.coins2}دفعة</button>
       <button class="btn soft" onclick="go('/stmt/${r.id}')">${I.doc}كشف حساب</button>
-      <button class="btn ghost more" onclick="supMore(${r.id})">${I.dots}إجراءات</button>
+      <button class="btn ghost more" onclick="supMore(${r.id})">${I.dots}المزيد</button>
     </div>
   </div>`;
 }
