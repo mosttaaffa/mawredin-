@@ -11,42 +11,47 @@ function supState(r){
   if(bal < 0) return {k:'cred', t:'رصيد لصالح المحل', i:'okc'};
   return {k:'paid', t:'مسدد / متزن', i:'okc'};
 }
-// بطاقة المورد (نفس توزيع التصميم المرجعي) — كل الأرقام من البيانات الفعلية
+// بطاقة المورد المضغوطة (صف واحد): الأيقونة والاسم والكود والتليفون | الفواتير | المدفوع | الرصيد | المزيد
 function supCard(r){
   const bal = Number(r.balance), st = supState(r);
   const digits = String(r.phone || '').replace(/[‪-‮‎‏]/g, '');
-  return `<div class="scard st-${st.k}" data-n="${esc((r.name + ' ' + supCode(r.id) + ' ' + digits.replace(/\D/g, '')).toLowerCase())}">
-    <div class="sc-top" onclick="go('/s/${r.id}')">
-      <div class="sc-av">${I.hanger}</div>
-      <div class="sc-name"><div class="t">${esc(r.name)}${r.pend_ops ? `<span class="tag pend-sync" title="عمليات على الجهاز لسه متزامنتش">${I.refresh}${r.pend_ops}</span>` : ''}</div>
-        <div class="s">${digits ? `<span class="num" dir="ltr">${esc(digits)}</span>${I.phone}<i class="sep">|</i>` : ''}<span class="num">${supCode(r.id)}</span></div></div>
-      <span class="sc-st st-${st.k}">${I[st.i]}${st.t}</span>
-    </div>
-    <div class="sc-grid">
-      <div class="g-bal ${st.k}"><span>الرصيد الحالي</span><b>${money(Math.abs(bal))}</b>${bal < 0 ? '<small>لصالح المحل</small>' : ''}</div>
-      <div><span>إجمالي الفواتير</span><b>${money(r.total_invoices)}</b></div>
-      <div class="g-pay"><span>إجمالي المدفوع</span><b>${money(r.total_paid)}</b>${Number(r.total_adjust) ? `<small>+ مرتجعات وخصومات ${money(r.total_adjust)}</small>` : ''}</div>
-      <div class="g-last">${I.cal}<span>آخر حركة</span><b>${r.last_activity ? fmtDate(r.last_activity) : '—'}</b></div>
-    </div>
-    <div class="sc-acts">
-      <button class="btn gold" onclick="go('/s/${r.id}')">${I.folder}فتح الحساب</button>
-      <button class="btn ghost" onclick="go('/invoice?s=${r.id}')">${I.invadd}فاتورة</button>
-      <button class="btn ghost" onclick="go('/payment?s=${r.id}')">${I.coins2}دفعة</button>
-      <button class="btn soft" onclick="go('/stmt/${r.id}')">${I.doc}كشف حساب</button>
-      <button class="btn ghost more" onclick="supMore(${r.id})">${I.dots}المزيد</button>
-    </div>
+  const n = v => `<span class="num">${Math.abs(Number(v || 0)).toLocaleString('en-US', {maximumFractionDigits:2})}</span><i class="cur"> ج</i>`;
+  return `<div class="srow" data-n="${esc((r.name + ' ' + supCode(r.id) + ' ' + digits.replace(/\D/g, '')).toLowerCase())}" onclick="go('/s/${r.id}')">
+    <span class="sr-go">${I.chevL ? `<i style="display:inline-flex;transform:scaleX(-1)">${I.chevL}</i>` : '›'}</span>
+    <span class="sr-ic">${I.store}</span>
+    <span class="sr-name"><b>${esc(r.name)}${r.pend_ops ? `<i class="tag pend-sync" title="عمليات على الجهاز لسه متزامنتش">${I.refresh}${r.pend_ops}</i>` : ''}</b>
+      <small><span class="num">${supCode(r.id)}</span>${digits ? `<span class="ph">${I.phone}<span class="num" dir="ltr">${esc(digits)}</span></span>` : ''}</small></span>
+    <span class="sr-v"><small>الفواتير</small><b>${n(r.total_invoices)}</b></span>
+    <span class="sr-v"><small>المدفوع</small><b class="pay">${n(r.total_paid)}</b></span>
+    <span class="sr-v"><small>${bal < 0 ? 'لصالح المحل' : 'الرصيد'}</small><b class="${bal > 0 ? 'due' : bal < 0 ? 'cred' : ''}">${n(bal)}</b></span>
+    <button class="sr-more" onclick="event.stopPropagation();supMore(${r.id})" aria-label="المزيد">${I.dots}</button>
   </div>`;
 }
 window.supMore = id => {
   const r = supplierBalances().find(x => x.id === id); if(!r) return;
-  const ph = String(r.phone || '').replace(/[^\d+]/g, '');
+  const ph = String(r.phone || '').replace(/[^\d+]/g, ''), moves = Number(r.inv_n || 0) + Number(r.pay_n || 0) + Number(r.adj_n || 0);
   openModal(`<h3>${esc(r.name)}</h3><div class="hint" style="margin-bottom:10px">${supCode(r.id)}</div>
     <div class="menu-list">
+      <button onclick="closeModal();go('/s/${id}')">${I.folder}فتح الحساب</button>
+      <button onclick="closeModal();go('/invoice?s=${id}')">${I.invadd}إضافة فاتورة</button>
+      <button onclick="closeModal();go('/payment?s=${id}')">${I.coins2}إضافة دفعة</button>
+      <button onclick="closeModal();go('/stmt/${id}')">${I.doc}كشف حساب</button>
       <button onclick="closeModal();go('/supplier/${id}')">${I.edit}تعديل بيانات المورد</button>
       <button onclick="closeModal();go('/adjust?s=${id}')">${I.ret}مرتجع أو خصم</button>
-      <button onclick="closeModal();go('/statement/${id}')">${I.wa}كشف سريع واتساب</button>
-      ${ph ? `<a href="tel:${esc(ph)}">${I.phone}اتصال</a><a href="https://wa.me/${esc(waNum(r.phone))}" target="_blank" rel="noopener">${I.wa}محادثة واتساب</a>` : `<button onclick="closeModal();go('/supplier/${id}')">${I.phone}إضافة رقم تليفون</button>`}
+      ${ph ? `<a href="tel:${esc(ph)}">${I.phone}اتصال</a><a href="https://wa.me/${esc(waNum(r.phone))}" target="_blank" rel="noopener">${I.wa}محادثة واتساب</a>` : ''}
+      <button class="danger" onclick="closeModal();supDelete(${id})">${I.trash}حذف المورد${moves ? ' <small>(عليه حركات)</small>' : ''}</button>
     </div>`);
+};
+// حذف المورد: مسموح بس لو مالوش أي حركة (عشان مفيش أي حساب يضيع)
+window.supDelete = id => {
+  const r = supplierBalances().find(x => x.id === id); if(!r) return toast('المورد ده مش موجود — حدّث الصفحة', true);
+  const moves = Number(r.inv_n || 0) + Number(r.pay_n || 0) + Number(r.adj_n || 0);
+  if(moves) return openModal(`<h3>مينفعش حذف المورد ده</h3><div class="hint" style="line-height:1.8">«${esc(r.name)}» عليه ${moves} حركة (فواتير/دفعات/مرتجعات). حذفه كان هيضيّع حسابه.<br>لو عايز تشيله فعلًا، امسح حركاته الأول من حسابه.</div>
+    <button class="btn ghost block" style="margin-top:12px" onclick="closeModal()">تمام</button>`);
+  openModal(`<h3>حذف المورد؟</h3><div class="kv"><span>المورد</span><b>${esc(r.name)}</b></div><div class="kv"><span>الكود</span><span>${supCode(r.id)}</span></div>
+    <div class="hint" style="margin:8px 0 12px">مالوش أي حركات. الحذف بيتسجل في سجل التعديلات.</div>
+    <div class="actions"><button class="btn danger" id="sd-ok">تأكيد الحذف</button><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`);
+  $('#sd-ok').onclick = async () => { busy(true); try{ await q(ldb.from('suppliers').delete().eq('id', id)); closeModal(); toast('اتحذف المورد'); viewSuppliers(); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); } };
 };
 window.supHelp = () => openModal(`<h3>شاشة الموردين</h3>
   <div class="hint" style="line-height:1.9">
@@ -55,53 +60,58 @@ window.supHelp = () => openModal(`<h3>شاشة الموردين</h3>
     <div><span class="sc-st st-cred">${I.okc}رصيد لصالح المحل</span> المدفوع أكتر من الفواتير.</div>
     <div><span class="sc-st st-none">${I.pause}لا توجد حركات</span> مورد متسجل ومفيش عليه أي فاتورة أو دفعة.</div>
     <div style="margin-top:8px">البحث بيدور في الاسم والكود (SUP-001) ورقم التليفون.</div></div>`);
-const SUP_SORT = {bal:'أكبر رصيد', recent:'أحدث حركة', name:'الاسم'}, SUP_F = {all:'الكل', due:'له مستحقات', paid:'مسدد', none:'لا توجد حركات', cred:'لصالح المحل'};
-window.supSortMenu = () => openModal(`<h3>الترتيب</h3><div class="menu-list">${Object.entries(SUP_SORT).map(([k, l]) => `<button class="${supSort === k ? 'on' : ''}" onclick="supSort='${k}';closeModal();viewSuppliers()">${I.sort}${l}${supSort === k ? ' ✓' : ''}</button>`).join('')}</div>`);
-window.supFilterMenu = () => openModal(`<h3>تصفية</h3><div class="menu-list">${Object.entries(SUP_F).map(([k, l]) => `<button class="${supFilter === k ? 'on' : ''}" onclick="supFilter='${k}';closeModal();viewSuppliers()">${I.filter}${l}${supFilter === k ? ' ✓' : ''}</button>`).join('')}</div>`);
+const SUP_SORT = {high:'الأعلى مديونية', low:'الأقل مديونية', name:'الاسم', recent:'آخر حركة', added:'تاريخ الإضافة'};
+const SUP_F = {all:'الكل', due:'لهم مستحقات', zero:'بدون رصيد', cred:'لصالح المحل'};
+let supView = (() => { try{ return localStorage.getItem('mawredin_sup_view') || 'list'; }catch(e){ return 'list'; } })();
+if(!SUP_SORT[supSort]) supSort = 'high';
+if(!SUP_F[supFilter]) supFilter = 'all';
+const supKind = r => { const c = Math.round(Number(r.balance) * 100); return c > 0 ? 'due' : c < 0 ? 'cred' : 'zero'; };
+window.supSortMenu = () => openModal(`<h3>ترتيب الموردين</h3><div class="menu-list">${Object.entries(SUP_SORT).map(([k, l]) => `<button class="${supSort === k ? 'on' : ''}" onclick="supSort='${k}';closeModal();viewSuppliers()">${I.sort}${l}${supSort === k ? ' ✓' : ''}</button>`).join('')}</div>`);
+window.supFilterMenu = () => {
+  const rows = supplierBalances(), c = k => rows.filter(r => k === 'all' || supKind(r) === k).length;
+  openModal(`<h3>تصفية وترتيب</h3><div class="section-t">عرض</div><div class="menu-list">${Object.entries(SUP_F).filter(([k]) => k !== 'cred' || c('cred')).map(([k, l]) => `<button class="${supFilter === k ? 'on' : ''}" onclick="supFilter='${k}';closeModal();viewSuppliers()">${I.filter}${l} (${c(k)})${supFilter === k ? ' ✓' : ''}</button>`).join('')}</div>
+    <div class="section-t" style="margin-top:12px">الترتيب</div><div class="menu-list">${Object.entries(SUP_SORT).map(([k, l]) => `<button class="${supSort === k ? 'on' : ''}" onclick="supSort='${k}';closeModal();viewSuppliers()">${I.sort}${l}${supSort === k ? ' ✓' : ''}</button>`).join('')}</div>`);
+};
+window.setSupView = v => { supView = v; try{ localStorage.setItem('mawredin_sup_view', v); }catch(e){} viewSuppliers(); };
 async function viewSuppliers(){
   if(!$('#suplist')) shell({title:'الموردين', nav:'suppliers', page:{sub:'إدارة حسابات موردي الملابس والإكسسوارات', icon:'handshake'}, body:skeleton('home')});
   const [rows, cs] = await Promise.all([api.balances(), api.checkSummary()]);
   const checks = soonToChecks(cs); notifyChecks(checks);
-  const N = v => Number(v || 0), cents = v => Math.round(N(v) * 100);
-  const owed = rows.reduce((a, r) => a + Math.max(0, cents(r.balance)), 0) / 100;
-  const credit = rows.reduce((a, r) => a + Math.min(0, cents(r.balance)), 0) / 100;
-  const tInv = rows.reduce((a, r) => a + cents(r.total_invoices), 0) / 100;
-  const tPaid = rows.reduce((a, r) => a + cents(r.total_paid), 0) / 100;
-  const tAdj = rows.reduce((a, r) => a + cents(r.total_adjust), 0) / 100;
-  const next = cs.next;
-  const stOf = new Map(rows.map(r => [r.id, supState(r).k]));
-  let list = rows.filter(r => supFilter === 'all' || stOf.get(r.id) === supFilter);
-  list.sort(supSort === 'recent' ? (a, b) => String(b.last_activity || '').localeCompare(String(a.last_activity || '')) || b.id - a.id
-          : supSort === 'name' ? (a, b) => a.name.localeCompare(b.name, 'ar') : (a, b) => N(b.balance) - N(a.balance) || a.id - b.id);
-  const cnt = k => rows.filter(r => stOf.get(r.id) === k).length;
-  const chip = (k, ic) => `<button class="chip ${supFilter === k ? 'on' : ''}" onclick="supFilter='${k}';viewSuppliers()">${I[ic]}${SUP_F[k]}${k !== 'all' ? ` <i class="n">${cnt(k)}</i>` : ''}</button>`;
+  const C2 = v => Math.round(Number(v || 0) * 100);
+  // الإجماليات من نفس عرض الأرصدة (مفيش استعلام لكل مورد)
+  const owed = rows.reduce((a, r) => a + Math.max(0, C2(r.balance)), 0) / 100;
+  const tInv = rows.reduce((a, r) => a + C2(r.total_invoices), 0) / 100;
+  const tPaid = rows.reduce((a, r) => a + C2(r.total_paid), 0) / 100;
+  const cnt = k => rows.filter(r => k === 'all' || supKind(r) === k).length;
+  const created = id => String(store.eff?.suppliers?.get(id)?.created_at || '');
+  let list = rows.filter(r => supFilter === 'all' || supKind(r) === supFilter);
+  const N = v => Number(v || 0);
+  list.sort({high:(a, b) => N(b.balance) - N(a.balance) || a.id - b.id, low:(a, b) => N(a.balance) - N(b.balance) || a.id - b.id,
+    name:(a, b) => a.name.localeCompare(b.name, 'ar'), recent:(a, b) => String(b.last_activity || '').localeCompare(String(a.last_activity || '')) || b.id - a.id,
+    added:(a, b) => created(b.id).localeCompare(created(a.id)) || b.id - a.id}[supSort]);
+  const m = v => `<span class="num">${Number(v).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
+  const chip = (k, ic) => `<button class="sp-chip ${supFilter === k ? 'on' : ''}" onclick="supFilter='${k}';viewSuppliers()">${I[ic]}${SUP_F[k]} (${cnt(k)})</button>`;
   const dueSoon = checks.filter(c => daysUntil(c.due_date) <= 3).length;
   const body = `
-    <div class="card sup-sum">
-      <div class="ss-h">${I.stats}<b>ملخص حسابات الموردين</b></div>
-      <div class="ss-grid">
-        <div class="ss-t"><i>${I.users}</i><span>عدد الموردين</span><b>${rows.length}</b></div>
-        <div class="ss-t"><i>${I.doc}</i><span>إجمالي الفواتير</span><b>${money(tInv)}</b></div>
-        <div class="ss-t"><i>${I.wallet}</i><span>إجمالي المدفوع</span><b>${money(tPaid)}</b></div>
-        <div class="ss-t hl"><i>${I.coins2}</i><span>إجمالي المستحق</span><b>${money(owed)}</b></div>
-      </div>
-      ${credit || tAdj || N(cs.n) ? `<div class="ss-more">
-        ${credit ? `<span>لصالح المحل عند موردين <b>${money(Math.abs(credit))}</b></span>` : ''}
-        ${tAdj ? `<span>مرتجعات وخصومات <b>${money(tAdj)}</b></span>` : ''}
-        ${N(cs.n) ? `<span class="lnk" onclick="go('/checks')">شيكات لسه (${N(cs.n)}) <b>${money(cs.sum)}</b>${next ? ` · أقرب ${fmtDate(next.due_date)}` : ''}</span>` : ''}
-      </div>` : ''}
+    <div class="sp-sum">
+      <div class="sp-t hl"><i>${I.coins2}</i><span>إجمالي المستحق</span><b>${m(owed)}</b></div>
+      <div class="sp-t"><i>${I.doc}</i><span>إجمالي الفواتير</span><b>${m(tInv)}</b></div>
+      <div class="sp-t"><i>${I.layers}</i><span>إجمالي المدفوع</span><b class="pay">${m(tPaid)}</b></div>
+      <div class="sp-t"><i>${I.users}</i><span>إجمالي الموردين</span><b>${rows.length}</b></div>
     </div>
-    <div class="sup-tools">
-      <label class="search-w">${I.search}<input class="search" id="srch" placeholder="بحث باسم المورد أو الكود أو رقم الهاتف..." value="${esc(supQ)}" oninput="supQ=this.value;filterSup(this.value)"></label>
-      <button class="btn ghost tool" onclick="supSortMenu()">${I.sort}الترتيب</button>
-      <button class="btn ghost tool ${supFilter !== 'all' ? 'on' : ''}" onclick="supFilterMenu()">${I.filter}تصفية</button>
+    ${N(cs.n) ? `<button class="sp-note" onclick="go('/checks')">${I.check}شيكات لسه (${N(cs.n)}) · متبقي ${m(cs.sum)}${cs.next ? ` · أقرب ${fmtDate(cs.next.due_date)}` : ''}</button>` : ''}
+    <div class="sp-search">
+      <label class="search-w">${I.search}<input class="search" id="srch" placeholder="ابحث باسم المورد أو رقم الهاتف أو الكود..." value="${esc(supQ)}" oninput="supQ=this.value;filterSup(this.value)"></label>
+      <button class="sp-fbtn" onclick="supFilterMenu()" aria-label="تصفية">${I.filter}</button>
     </div>
-    <div class="chip-row quick"><span class="qlbl">عرض سريع:</span>
-      ${chip('all', 'grid')}${chip('due', 'warn')}${chip('paid', 'okc')}${cnt('none') ? chip('none', 'pause') : ''}${cnt('cred') ? chip('cred', 'okc') : ''}
+    <div class="sp-chips">${chip('all', 'layers')}${chip('due', 'warn')}${chip('zero', 'okc')}</div>
+    ${supFilter === 'cred' ? `<div class="sp-note">${I.filter}معروض: لصالح المحل (${cnt('cred')}) — <a onclick="supFilter='all';viewSuppliers()">عرض الكل</a></div>` : ''}
+    <div class="sp-bar">
+      <button class="sp-sort" onclick="supSortMenu()">${I.sort}ترتيب: ${SUP_SORT[supSort]}<i>${I.chevL ? `<span style="display:inline-flex;transform:rotate(-90deg)">${I.chevL}</span>` : '▾'}</i></button>
+      <div class="sp-view"><button class="${supView === 'list' ? 'on' : ''}" onclick="setSupView('list')" aria-label="قائمة">${I.list || I.doc}</button><button class="${supView === 'grid' ? 'on' : ''}" onclick="setSupView('grid')" aria-label="شبكة">${I.grid}</button></div>
     </div>
-    <div id="suplist">
-      ${rows.length ? (list.length ? list.map(supCard).join('') : `<div class="card empty">${I.box}<div>مفيش موردين في «${SUP_F[supFilter]}»</div></div>`) :
-        `<div class="card empty">${I.box}<div>لسه مفيش موردين</div></div>`}
+    <div id="suplist" class="sp-list ${supView}">
+      ${rows.length ? (list.length ? list.map(supCard).join('') : `<div class="card empty">${I.box}<div>مفيش موردين في «${SUP_F[supFilter]}»</div></div>`) : `<div class="card empty">${I.box}<div>لسه مفيش موردين</div></div>`}
       <div class="card empty" id="nores" style="display:none">${I.box}<div>مفيش مورد بالاسم أو الكود أو الرقم ده</div></div>
     </div>
     <button class="btn primary block add-sup" onclick="go('/supplier')">${I.plus}إضافة مورد جديد</button>`;
@@ -110,8 +120,8 @@ async function viewSuppliers(){
 }
 window.filterSup = v => {
   v = v.trim().toLowerCase(); const d = v.replace(/\D/g, ''); let n = 0;
-  document.querySelectorAll('#suplist .scard').forEach(el => { const ok = el.dataset.n.includes(v) || (d.length >= 7 && d.length === v.replace(/[\s+\-]/g, '').length && el.dataset.n.includes(d.replace(/^(00)?20|^0/, ''))); el.style.display = ok ? '' : 'none'; n += ok; });
-  const e = $('#nores'); if(e) e.style.display = n || !document.querySelector('#suplist .scard') ? 'none' : '';
+  document.querySelectorAll('#suplist .srow').forEach(el => { const ok = el.dataset.n.includes(v) || (d.length >= 7 && d.length === v.replace(/[\s+\-]/g, '').length && el.dataset.n.includes(d.replace(/^(00)?20|^0/, ''))); el.style.display = ok ? '' : 'none'; n += ok; });
+  const e = $('#nores'); if(e) e.style.display = n || !document.querySelector('#suplist .srow') ? 'none' : '';
 };
 
 /* =================== صفحة المورد =================== */
