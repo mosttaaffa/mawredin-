@@ -125,6 +125,12 @@ try{
   await A.screenshot({path:join(SHOTS, '5 الاستهلاك.png'), fullPage:true});
   await ev(A, () => go('/')); await A.waitForSelector('.db'); await A.waitForTimeout(600);
   await A.screenshot({path:join(SHOTS, '3 بعد المزامنة.png')});
+  // موبايل عليه نسخة قديمة من التطبيق (ناقصه أماكن جداول جديدة) ← لازم يفتح عادي ويكمّل الناقص لوحده
+  const lost = await A.evaluate(() => new Promise(res => { const v = idb.db.version, name = idb.name; idb.db.close();
+    const r = indexedDB.open(name, v + 1); r.onupgradeneeded = () => { for(const t of ['expenses', 'daily_sales']) if(r.result.objectStoreNames.contains(t)) r.result.deleteObjectStore(t); };
+    r.onsuccess = () => { r.result.close(); res(true); }; }));
+  await A.reload(); let up = false; for(let i = 0; i < 30 && !up; i++){ up = await A.evaluate(() => typeof idb !== 'undefined' && !!idb.db && ['expenses', 'daily_sales'].every(t => idb.db.objectStoreNames.contains(t)) && !document.body.innerText.includes('مش قادر')).catch(() => false); if(!up) await A.waitForTimeout(500); }
+  expect(lost && up, 'تحديث على موبايل عليه نسخة قديمة: التطبيق فتح وكمّل الأماكن الناقصة لوحده');
   expect(errs.length === 0, 'مفيش أخطاء JavaScript', errs.slice(0, 3).join(' | '));
 }catch(e){ bad('الاختبار وقف: ' + (e.stack || e)); try{ await A.screenshot({path:join(SHOTS, 'فشل.png')}); console.error('الصفحة:', await A.evaluate(() => location.hash + ' | ' + document.body.innerText.slice(0, 300))); }catch(_){} }
 finally{

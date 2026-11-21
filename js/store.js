@@ -22,21 +22,28 @@ const fromC = c => c / 100;
 /* ---------- IndexedDB ---------- */
 const idb = {
   db: null, name: null,
+  // بيفتح قاعدة الجهاز، ولو فيه جدول جديد في التطبيق (زي المبيعات أو المصروفات) ملوش مكان على الموبايل،
+  // بيعلّي رقم النسخة لوحده ويعمل المكان الناقص — من غير ما البيانات القديمة تتلمس.
   open(name){
-    return new Promise((res, rej) => {
-      const r = indexedDB.open(name, LDB_VERSION);
-      r.onupgradeneeded = () => {
-        const d = r.result;
-        for(const [t, k] of Object.entries(TABLES)) if(!d.objectStoreNames.contains(t)) d.createObjectStore(t, {keyPath:k});
-        if(!d.objectStoreNames.contains('log'))   d.createObjectStore('log',   {keyPath:'id'});
-        if(!d.objectStoreNames.contains('queue')) d.createObjectStore('queue', {keyPath:'op_id'});
-        if(!d.objectStoreNames.contains('blobs')) d.createObjectStore('blobs', {keyPath:'path'});
-        if(!d.objectStoreNames.contains('meta'))  d.createObjectStore('meta',  {keyPath:'k'});
-      };
-      r.onsuccess = () => { idb.db = r.result; idb.name = name; idb.db.onversionchange = () => idb.db.close(); res(r.result); };
+    const NEED = [...Object.keys(TABLES), 'log', 'queue', 'blobs', 'meta'];
+    const KEYS = {...TABLES, log:'id', queue:'op_id', blobs:'path', meta:'k'};
+    const attempt = ver => new Promise((res, rej) => {
+      const r = ver ? indexedDB.open(name, ver) : indexedDB.open(name);
+      r.onupgradeneeded = () => { const d = r.result; for(const t of NEED) if(!d.objectStoreNames.contains(t)) d.createObjectStore(t, {keyPath:KEYS[t]}); };
+      r.onsuccess = () => res(r.result);
       r.onerror = () => rej(r.error || new Error('تعذر الحفظ على الجهاز'));
-      r.onblocked = () => rej(new Error('قاعدة البيانات مفتوحة في تبويب تاني'));
+      r.onblocked = () => rej(new Error('التطبيق مفتوح في تبويب تاني — اقفله وجرّب تاني'));
     });
+    return (async () => {
+      let d = await attempt();                                       // النسخة الموجودة على الجهاز زي ما هي
+      const missing = NEED.filter(t => !d.objectStoreNames.contains(t));
+      if(missing.length || d.version < LDB_VERSION){
+        const v = Math.max(d.version + 1, LDB_VERSION); d.close();
+        d = await attempt(v);                                        // ترقية: بتضيف الناقص بس
+      }
+      idb.db = d; idb.name = name; d.onversionchange = () => d.close();
+      return d;
+    })();
   },
   tx(stores, mode, fn){
     return new Promise((res, rej) => {
