@@ -507,7 +507,7 @@ declare
 begin
   if not public.is_member() then raise exception 'not allowed'; end if;
   if v_op is null then raise exception 'op_id required'; end if;
-  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments','daily_sales') then raise exception 'table not allowed: %', t; end if;
+  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments','daily_sales','expenses') then raise exception 'table not allowed: %', t; end if;
   if t = 'check_payments' and k = 'delete' then raise exception 'دفعة سداد الشيك مبتتمسحش — اعملها إلغاء'; end if;
   if k not in ('insert','update','delete') then raise exception 'kind not allowed: %', k; end if;
 
@@ -903,7 +903,8 @@ begin
      'employee_balance', (select coalesce(sum(balance),0)::text from public.employee_balances),
      'loans', (select coalesce(sum(total_amount),0)::text from public.loans),
      'loan_payments', (select coalesce(sum(amount + penalty),0)::text from public.loan_payments),
-     'daily_sales', (select coalesce(sum(cash + transfer),0)::text from public.daily_sales));
+     'daily_sales', (select coalesce(sum(cash + transfer),0)::text from public.daily_sales),
+     'expenses', (select coalesce(sum(amount),0)::text from public.expenses));
   return json_build_object('counts', c, 'totals', t);
 end $$;
 -- backup_storage_list: قائمة الصور (المكان والحجم والبصمة) عشان ننزّل الجديد بس
@@ -927,3 +928,28 @@ do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') th
   grant insert on public.backup_runs to service_role;
   grant usage, select on all sequences in schema public to service_role;
 end if; end $$;
+
+-- المصروفات (الإصدار 13): المصروفات اليدوية بس (إيجار، كهربا، ...). دفعات الموردين وأقساط القروض وصرف الموظفين
+-- بتتحسب في المصروفات تلقائي من جداولها (مبتتنسخش هنا) — فمفيش تكرار، وأي تعديل في الأصل بيظهر على طول.
+create table if not exists public.expenses (
+  id           bigint generated always as identity primary key,
+  exp_date     date not null default current_date,
+  branch       text not null check (branch in ('ورد','زهرة','مشترك')),
+  category     text not null,
+  amount       numeric(14,2) not null check (amount > 0),
+  notes        text,
+  image_path   text,
+  extra_images text[] not null default '{}',
+  created_by   text not null default public.current_email(),
+  created_at   timestamptz not null default now()
+);
+create index if not exists expenses_date_idx on public.expenses(exp_date, branch);
+alter table public.expenses enable row level security;
+drop policy if exists expenses_all on public.expenses;
+create policy expenses_all on public.expenses for all to authenticated using ((select public.is_member())) with check ((select public.is_member()));
+drop trigger if exists expenses_log on public.expenses;
+create trigger expenses_log after insert or update or delete on public.expenses for each row execute function public.log_activity();
+grant select, insert, update, delete on public.expenses to authenticated;
+revoke all on public.expenses from anon;
+grant usage, select on all sequences in schema public to authenticated;
+do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') then grant select on public.expenses to service_role; end if; end $$;
