@@ -85,10 +85,15 @@ async function storeOpen(email){
   store.idmap = store.meta.idmap || {};
   store.queue = q.sort((a, b) => a.seq - b.seq);
   store.log = logRows.sort((a, b) => b.id - a.id);
+  // حماية تانية: لو أي جدول على الجهاز مقدرناش نقراه لأي سبب، مبنوقفش التطبيق —
+  // بنعتبره فاضي ونجيبه من السيرفر من جديد (العمليات اللي لسه ما اتبعتتش في queue ومبتتلمسش)
+  let broken = [];
   for(const [t, k] of Object.entries(TABLES)){
-    const rows = await idb.all(t);
+    let rows = [];
+    try{ rows = await idb.all(t); }catch(e){ broken.push(t); console.warn('جدول على الجهاز مش مقروء:', t, e); }
     store.base[t] = new Map(rows.map(r => [r[k], r]));
   }
+  if(broken.length){ store.meta.fullAt = 0; try{ await idb.put('meta', {k:'fullAt', v:0}); }catch(e){} }
   rebuild();
   store.ready = true;
   try{ if(navigator.storage?.persist) navigator.storage.persist(); }catch(e){}

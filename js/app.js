@@ -243,7 +243,8 @@ async function afterLogin(){
   me = session ? session.user : {email: cached.email, id: cached.id};
   if(cached && cached.email !== me.email) cached = null;
   try{ await storeOpen(me.email); }
-  catch(e){ $('#app').innerHTML = `<div class="center-page">${logoImg()}<h2>مش قادر أخزن البيانات على الجهاز</h2><p class="sub2">لو المتصفح في وضع التصفح الخاص اقفله وافتح التطبيق عادي، أو فضّي مساحة على الموبايل.</p><button class="btn primary block" onclick="location.reload()">حاول تاني</button></div>`; return; }
+  catch(e1){ console.warn('أول محاولة لفتح البيانات فشلت — بنجرب تاني', e1); await new Promise(r => setTimeout(r, 600)); try{ await storeOpen(me.email); }catch(e2){} }
+  if(!store.ready){ $('#app').innerHTML = `<div class="center-page">${logoImg()}<h2>مش قادر أخزن البيانات على الجهاز</h2><p class="sub2">لو المتصفح في وضع التصفح الخاص اقفله وافتح التطبيق عادي، أو فضّي مساحة على الموبايل.</p><button class="btn primary block" onclick="location.reload()">حاول تاني</button></div>`; return; }
   isOwner = !!cached?.owner;
   const checkMember = async () => {
     const r = await rpcNet('join_app', {}, 8000);
