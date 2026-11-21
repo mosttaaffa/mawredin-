@@ -285,8 +285,10 @@ if('serviceWorker' in navigator){
   const hadCtrl = !!navigator.serviceWorker.controller; let reloaded = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if(hadCtrl && !reloaded){ reloaded = true; location.reload(); } });
   navigator.serviceWorker.register('sw.js', {updateViaCache:'none'}).then(reg => {
-    reg.update();
-    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') reg.update(); });
+    const upd = () => { if(navigator.onLine) reg.update().catch(() => {}); };   // من غير نت: مفيش فحص تحديث (كان بيطلع خطأ في Safari)
+    upd();
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') upd(); });
+    addEventListener('online', upd);
   }).catch(()=>{});
 }
 boot();
