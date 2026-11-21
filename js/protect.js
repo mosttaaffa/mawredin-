@@ -352,7 +352,7 @@ async function viewBackups(){
       <div class="kv" style="border:0"><span>عمليات على الموبايل لسه ما وصلتش</span><b>${ops.length}${ops.length ? ` · ${money(pendingSummary(ops).total)}` : ''}</b></div>
       ${health.state === 'server' || health.state === 'paused' ? `<button class="btn ghost block" style="margin-top:8px" onclick="healthHelp()">إزاي أرجّع السيرفر؟</button>` : ''}</div>
     ${usageCard(usage)}
-    <div class="card"><div class="section-t">النسخ التلقائي اليومي (خارج Supabase، مشفر)</div>
+    <div class="card"><div class="section-t">النسخ التلقائي اليومي (خارج Supabase)</div>
       <div class="note-line bk-${autoState.c}">${autoState.t}</div>
       ${runsErr ? `<div class="hint">مقدرتش أقرا سجل النسخ (${navigator.onLine ? 'السيرفر' : 'مفيش نت'}).</div>` : ''}
       ${lastAutoOk ? `<div class="kv"><span>آخر نسخة ناجحة</span><span>${dt(lastAutoOk.created_at)}</span></div>
@@ -360,7 +360,7 @@ async function viewBackups(){
         <div class="kv"><span>السجلات</span><span>${lastAutoOk.rows_total}</span></div>
         <div class="kv"><span>الصور المحفوظة</span><span>${lastAutoOk.details?.storage_files ?? '—'}</span></div>
         <div class="kv" style="border:0"><span>اختبار الاستعادة</span><b style="color:var(--green)">نجح — الأعداد والأرصدة مطابقة</b></div>` : ''}
-      <div class="hint" style="margin-top:6px">بتتعمل كل يوم 3 الفجر على مستودع GitHub خاص: قاعدة البيانات كاملة + الصور، مشفرة، وبيتجرب استرجاعها على قاعدة منفصلة كل مرة. آخر 30 يوم + آخر 12 شهر. لو فشلت بيوصلك إيميل.</div></div>
+      <div class="hint" style="margin-top:6px">بتتعمل كل يوم 3 الفجر على مستودع GitHub خاص: قاعدة البيانات كاملة + الصور، وبيتجرب استرجاعها على قاعدة منفصلة كل مرة. آخر 30 يوم + آخر 12 شهر. لو فشلت بيوصلك إيميل.</div></div>
     <div class="card"><div class="section-t">نسخة يدوية</div>
       <div class="kv"><span>آخر نسخة يدوية</span><span>${lastMan ? dt(lastMan.created_at) + ' · ' + esc(who(lastMan.created_by)) : backupAge() != null ? 'من ' + backupAge() + ' يوم (الموبايل ده)' : '—'}</span></div>
       <div class="kv" style="border:0"><span>السجلات على الموبايل</span><span>${rows}</span></div>
