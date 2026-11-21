@@ -1675,3 +1675,12 @@ body.dash-fits{overflow:hidden}
 .lb-x{border:0;background:var(--red-soft);color:var(--red);border-radius:8px;height:32px;display:grid;place-items:center;cursor:pointer}.lb-x svg{width:15px;height:15px}
 .ls-h{flex-wrap:nowrap;gap:8px}.ls-h>span:first-child{white-space:nowrap}
 .ls-btns{gap:6px;flex-shrink:0}.ls-btns .link{white-space:nowrap;font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:5px 9px}
+
+/* دفعات كل قسط تحته */
+.ls-r{grid-template-rows:auto auto}
+.ls-pays{grid-column:1/-1;margin:4px 0 2px;padding-inline-start:40px;display:flex;flex-direction:column;gap:4px}
+.ls-pays.solo{padding:0}
+.lsp{display:grid;grid-template-columns:auto 1fr auto auto;gap:6px;align-items:center;background:var(--green-soft);border-radius:10px;padding:6px 8px;font-size:12px;cursor:pointer}
+.lsp-i{color:var(--green);display:flex}.lsp-i svg{width:14px;height:14px}
+.lsp-t{line-height:1.5}.lsp-t small{color:var(--muted);font-size:11px}.lsp-t small.r{color:var(--red);font-weight:700}
+.lsp b{font-size:12.5px;color:var(--green)}
