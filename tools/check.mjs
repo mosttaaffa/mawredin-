@@ -35,7 +35,7 @@ for(const f of walk(DIR)){
   if(statSync(f).size > 6e6 || /\.(png|webp|jpg|woff2?|ttf|traineddata|gz|wasm)$/i.test(f)) continue;
   const t = readFileSync(f, 'utf8');
   // ملفات الشرح (.md) فيها أمثلة زي 'postgres://postgres:pass@localhost' — بنفحص فيها المفاتيح الحقيقية بس
-  const rules = f.endsWith('.md') ? SECRET.filter(r => !/service_role|postgres|BACKUP_PASSPHRASE|SUPABASE_SERVICE_KEY/.test(r.source)) : SECRET;
+  const rules = /\.(md|sql)$/.test(f) ? SECRET.filter(r => !/service_role|postgres|BACKUP_PASSPHRASE|SUPABASE_SERVICE_KEY/.test(r.source)) : SECRET;
   for(const r of rules) if(r.test(t) && !/\/\/ آمن:/.test(t.slice(Math.max(0, t.search(r) - 200), t.search(r)))) hits.push(f.replace(DIR + '/', '') + ' ← ' + r);
 }
 // المفتاح اللي في config.js لازم يكون publishable أو anon (مش service_role)

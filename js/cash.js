@@ -6,7 +6,7 @@ const BRANCHES = ['ورد', 'زهرة'];
 const SC = v => Math.round(Number(v || 0) * 100);
 const smoney = c => `<span class="m"><span class="num">${(c / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج</span>`;
 const CS_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
-const CS_DAYS = ['الأحد','الاتنين','التلات','الأربع','الخميس','الجمعة','السبت'];
+const CS_DAYS = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let cashBranch = localStorage.getItem('mawredin_cash_branch') || 'all';
 let cashMonth = null; // 'YYYY-MM'
 
@@ -24,49 +24,78 @@ function cashSummary(){
   return {today:salesSum(all.filter(s => String(s.sale_date).slice(0, 10) === t)), month:salesSum(all.filter(s => String(s.sale_date).startsWith(mo))), n:all.length};
 }
 
+// تجميع المبيعات حسب الشهر (السنة-الشهر من نص التاريخ نفسه — مفيش تحويل توقيت فمفيش يوم بيتنقل لشهر تاني)
+// كل الحسابات بالقروش (أعداد صحيحة) عشان مفيش كسور غلط
+function salesByMonth(){
+  const months = {};
+  for(const s of salesAll()){
+    const d = String(s.sale_date).slice(0, 10), mk = d.slice(0, 7);
+    const M = months[mk] ||= {key:mk, days:{}, by:Object.fromEntries(BRANCHES.map(b => [b, 0])), total:0};
+    const D = M.days[d] ||= {date:d, rows:{}, total:0};
+    const v = saleTotal(s);
+    // لو اتسجل نفس الفرع مرتين في نفس اليوم (من موبايلين من غير نت) بنجمعهم ومبنخفيش حاجة
+    (D.rows[s.branch] ||= []).push(s); D.total += v; M.by[s.branch] = (M.by[s.branch] || 0) + v; M.total += v;
+  }
+  return months;
+}
+const csMonthName = mk => { const [y, m] = mk.split('-').map(Number); return `${CS_MONTHS[m - 1]} ${y}`; };
+const csDaysWord = n => n === 1 ? 'يوم واحد' : n === 2 ? 'يومين' : n <= 10 ? `${n} أيام` : `${n} يوم`;
+const csNum = c => `<span class="m"><span class="num">${(c / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج</span>`;
+let cashOpen = null;   // الشهور المفتوحة
+
 async function viewCash(){
-  const t = today();
+  const t = today(), months = salesByMonth();
+  const keys = Object.keys(months).sort().reverse();
   cashMonth = cashMonth || t.slice(0, 7);
-  const [Y, M] = cashMonth.split('-').map(Number);
-  const all = salesAll();
-  const inBr = s => cashBranch === 'all' || s.branch === cashBranch;
-  const month = all.filter(s => String(s.sale_date).startsWith(cashMonth) && inBr(s));
-  const sum = salesSum(month), avg = sum.days.size ? Math.round(sum.total / sum.days.size) : 0;
-  const todayRows = all.filter(s => String(s.sale_date).slice(0, 10) === t);
-  const days = {};
-  month.forEach(s => (days[String(s.sale_date).slice(0, 10)] ||= []).push(s));
-  const dayKeys = Object.keys(days).sort().reverse();
-  const chip = (k, label) => `<button class="sp-chip ${cashBranch === k ? 'on' : ''}" onclick="cashBranch='${k}';localStorage.setItem('mawredin_cash_branch','${k}');viewCash()">${label}</button>`;
-  const isNow = cashMonth === t.slice(0, 7);
-  const dname = d => { const x = new Date(d + 'T12:00:00'); return `${CS_DAYS[x.getDay()]} ${fmtDate(d)}`; };
-  shell({title:'الخزينة', nav:'more', page:{sub:'المبيع اليومي — كاش وتحويلات لكل فرع', icon:'safe'}, body:`
-    <div class="cs-today card">
-      <div class="cs-th"><b>النهارده</b><small>${dname(t)}</small></div>
-      <div class="cs-tb">${BRANCHES.map(b => { const r = todayRows.find(s => s.branch === b);
-        return r ? `<button class="cs-tbr done" onclick="go('/sale/${r.id}')"><span class="cs-br">${b}</span><b>${smoney(saleTotal(r))}</b><small>كاش ${smoney(SC(r.cash))} · تحويل ${smoney(SC(r.transfer))}</small></button>`
-          : `<button class="cs-tbr" onclick="go('/sale?b=${encodeURIComponent(b)}')"><span class="cs-br">${b}</span><b class="cs-miss">لسه متسجلش</b><small>${I.plus}سجّل مبيع ${b}</small></button>`; }).join('')}</div>
+  if(!cashOpen) cashOpen = new Set([cashMonth]);
+  const opts = [...new Set([t.slice(0, 7), cashMonth, ...keys])].sort().reverse();
+  const sel = months[cashMonth] || {by:Object.fromEntries(BRANCHES.map(b => [b, 0])), total:0, days:{}};
+  const dname = d => CS_DAYS[new Date(d + 'T12:00:00').getDay()];
+  const cell = (D, b) => { const rs = D.rows[b] || [], sum = rs.reduce((a, r) => a + saleTotal(r), 0);
+    const act = rs.length > 1 ? `cashPick('${D.date}','${b}')` : rs.length ? `go('/sale/${rs[0].id}')` : `go('/sale?b=${encodeURIComponent(b)}&d=${D.date}')`;
+    return `<button class="cm-c ${rs.length > 1 ? 'dup' : ''}" onclick="${act}"><small>${I.store}مبيعات ${b}</small>${rs.length ? `<b>${csNum(sum)}</b>` : '<b class="cm-none">—</b>'}${rs.length > 1 ? `<i class="cm-n">${rs.length}×</i>` : ''}${rs.some(r => r._pending) ? '<i class="cm-p" title="على الجهاز"></i>' : ''}</button>`; };
+  const month = mk => { const M = months[mk], open = cashOpen.has(mk), days = Object.keys(M.days).sort();
+    const foot = `<div class="cm-sum ${open ? 'dark' : ''}"><span class="cm-sl">${I.coins}إجمالي ${csMonthName(mk)}</span>${BRANCHES.map(b => `<span class="cm-sv"><small>فرع ${b}</small><b>${csNum(M.by[b] || 0)}</b></span>`).join('')}</div>`;
+    return `<section class="card cm ${open ? 'open' : ''}">
+      <button class="cm-h" onclick="cashToggle('${mk}')" aria-expanded="${open}"><span class="cm-hi">${I.cal}</span>
+        <span class="cm-ht"><b>${csMonthName(mk)}</b><small>(${csDaysWord(days.length)})</small></span>
+        <span class="cm-htot"><small>إجمالي الشهر</small><b>${csNum(M.total)}</b></span><span class="cm-chev">${I.chevL}</span></button>
+      ${open ? `<div class="cm-days">${days.map(d => { const D = M.days[d];
+        return `<div class="cm-r"><div class="cm-d">${I.cal}<span><b>${dname(d)}</b><small>${fmtDate(d)}</small></span></div>
+          ${BRANCHES.map(b => cell(D, b)).join('')}
+          <div class="cm-t"><small>إجمالي اليوم</small><b>${csNum(D.total)}</b></div>
+          <button class="cm-x" onclick="cashDelDay('${d}')" aria-label="مسح مبيعات اليوم">${I.trash}</button></div>`; }).join('')}</div>` : ''}
+      ${foot}</section>`; };
+  shell({title:'المبيعات', nav:'more', page:{sub:'مبيعات ورد وزهرة كل يوم — كاش وتحويلات', icon:'store'}, body:`
+    <div class="card cs-top">
+      <div class="cs-th2"><b>${I.chart}ملخص المبيعات</b>
+        <label class="cs-pick">${I.cal}<select onchange="cashMonth=this.value;viewCash()">${opts.map(k => `<option value="${k}" ${k === cashMonth ? 'selected' : ''}>${csMonthName(k)}</option>`).join('')}</select><span class="cs-pk-chev">${I.chevL}</span></label></div>
+      <div class="cs-3">${BRANCHES.map(b => `<div class="cs-k"><i>${I.store}</i><span>فرع ${b}</span><b>${csNum(sel.by[b] || 0)}</b></div>`).join('')}
+        <div class="cs-k hl"><i>${I.coins}</i><span>إجمالي المبيعات</span><b>${csNum(sel.total)}</b></div></div>
     </div>
-    <div class="sp-chips">${chip('all', 'الفرعين')}${BRANCHES.map(b => chip(b, b)).join('')}</div>
-    <div class="cs-mon"><button class="iconbtn" onclick="cashMonth='${addMonths(cashMonth + '-01', -1).slice(0, 7)}';viewCash()" aria-label="الشهر اللي فات"><span class="flipx">${I.chevL}</span></button>
-      <b>${CS_MONTHS[M - 1]} ${Y}</b>
-      <button class="iconbtn" ${isNow ? 'disabled' : ''} onclick="cashMonth='${addMonths(cashMonth + '-01', 1).slice(0, 7)}';viewCash()" aria-label="الشهر الجاي">${I.chevL}</button></div>
-    <div class="sp-sum">
-      <div class="sp-t hl"><i>${I.coins2}</i><span>إجمالي المبيع</span><b>${smoney(sum.total)}</b></div>
-      <div class="sp-t"><i>${I.cash}</i><span>كاش</span><b>${smoney(sum.cash)}</b></div>
-      <div class="sp-t"><i>${I.card}</i><span>تحويلات</span><b>${smoney(sum.transfer)}</b></div>
-      <div class="sp-t"><i>${I.cal}</i><span>متوسط اليوم (${sum.days.size} يوم)</span><b>${smoney(avg)}</b></div>
-    </div>
-    ${cashBranch === 'all' && sum.total ? `<div class="cs-split">${BRANCHES.map(b => `<div><span>${b}</span><b>${smoney(sum.by[b] || 0)}</b><i style="width:${sum.total ? Math.round((sum.by[b] || 0) / sum.total * 100) : 0}%"></i></div>`).join('')}</div>` : ''}
-    <button class="btn primary block" style="margin:4px 0 12px" onclick="go('/sale${cashBranch !== 'all' ? '?b=' + encodeURIComponent(cashBranch) : ''}')">${I.plus}تسجيل مبيع يوم</button>
-    <div class="cs-days">${dayKeys.length ? dayKeys.map(d => { const rows = days[d].sort((a, b) => BRANCHES.indexOf(a.branch) - BRANCHES.indexOf(b.branch)), tot = rows.reduce((a, s) => a + saleTotal(s), 0);
-      return `<div class="card cs-day"><div class="cs-dh"><b>${dname(d)}</b>${rows.length > 1 ? `<span>${smoney(tot)}</span>` : ''}</div>
-        ${rows.map(s => `<button class="cs-row" onclick="go('/sale/${s.id}')"><span class="cs-br">${esc(s.branch)}</span>
-          <span class="cs-v"><small>كاش</small>${smoney(SC(s.cash))}</span><span class="cs-v"><small>تحويل</small>${smoney(SC(s.transfer))}</span>
-          <span class="cs-v t"><small>الإجمالي</small>${smoney(saleTotal(s))}</span>${s._pending ? '<span class="tag pend-sync">على الجهاز</span>' : ''}</button>
-          ${s.transfer_note || s.notes ? `<div class="cs-note">${esc([s.transfer_note, s.notes].filter(Boolean).join(' · '))}</div>` : ''}`).join('')}</div>`; }).join('')
-      : `<div class="hint" style="text-align:center;padding:24px 0">مفيش مبيع متسجل في ${CS_MONTHS[M - 1]}${cashBranch !== 'all' ? ' لفرع ' + cashBranch : ''}</div>`}</div>
+    <button class="btn primary block cs-add" onclick="go('/sale')">${I.plus}تسجيل المبيعات</button>
+    ${keys.length ? keys.map(month).join('') : '<div class="hint" style="text-align:center;padding:24px 0">لسه مفيش مبيعات متسجلة — دوس «تسجيل المبيعات»</div>'}
   `});
 }
+// نفس الفرع متسجل أكتر من مرة في نفس اليوم: اختار تعدّل أنهي واحد
+window.cashPick = (d, b) => {
+  const rs = salesAll().filter(s => String(s.sale_date).slice(0, 10) === d && s.branch === b);
+  openModal(`<h3>مبيعات ${b} يوم ${fmtDate(d)} متسجلة ${rs.length} مرات</h3>
+    <div class="hint" style="margin-bottom:8px">غالبًا اتسجلت من موبايلين. الإجمالي بيجمعهم كلهم — لو واحدة مكررة افتحها وامسحها.</div>
+    <div class="menu-list">${rs.map(r => `<button onclick="closeModal();go('/sale/${r.id}')">${I.edit}كاش ${smoney(SC(r.cash))} + تحويل ${smoney(SC(r.transfer))} = <b>${smoney(saleTotal(r))}</b> <small>${esc(who(r.created_by))}</small></button>`).join('')}</div>`);
+};
+window.cashToggle = mk => { cashOpen.has(mk) ? cashOpen.delete(mk) : cashOpen.add(mk); viewCash(); };
+// مسح مبيعات يوم كامل (الفرعين) بعد التأكيد
+window.cashDelDay = d => {
+  const rows = salesAll().filter(s => String(s.sale_date).slice(0, 10) === d);
+  if(!rows.length) return;
+  openModal(`<h3>مسح مبيعات ${CS_DAYS[new Date(d + 'T12:00:00').getDay()]} ${fmtDate(d)}؟</h3>
+    ${rows.map(s => `<div class="kv"><span>فرع ${esc(s.branch)}</span><b>${smoney(saleTotal(s))}</b></div>`).join('')}
+    <div class="kv"><span>الإجمالي</span><b>${smoney(rows.reduce((a, s) => a + saleTotal(s), 0))}</b></div>
+    <div class="hint" style="margin:8px 0 12px">لو عايز تمسح فرع واحد بس: دوس على مبيعاته وامسحه من جوه.</div>
+    <div class="actions"><button class="btn danger" id="cd-ok">تأكيد المسح</button><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`);
+  $('#cd-ok').onclick = async () => { busy(true); try{ for(const s of rows) await q(ldb.from('daily_sales').delete().eq('id', s.id)); closeModal(); toast('اتمسح'); viewCash(); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); } };
+};
 
 /* ---------- فورم المبيع ---------- */
 async function formSale(id){
@@ -98,8 +127,8 @@ async function formSale(id){
     if(dup){ busy(false); return saleDupAsk(dup); }
     const row = {sale_date:d, branch, cash, transfer:tr, transfer_note:$('#tnote').value.trim() || null, notes:$('#notes').value.trim() || null};
     localStorage.setItem('mawredin_last_branch', branch);
-    if(x){ await q(ldb.from('daily_sales').update(row).eq('id', x.id)); busy(false); toast('اتحفظ ✓'); history.back(); }
-    else { await q(ldb.from('daily_sales').insert(row)); busy(false); toast(savedMsg('مبيع ' + branch)); cashMonth = d.slice(0, 7); location.replace('#/cash'); }
+    if(x){ await q(ldb.from('daily_sales').update(row).eq('id', x.id)); busy(false); toast('اتحفظ ✓'); cashOpen?.add(d.slice(0, 7)); history.back(); }
+    else { await q(ldb.from('daily_sales').insert(row)); busy(false); toast(savedMsg('مبيع ' + branch)); cashMonth = d.slice(0, 7); cashOpen?.add(cashMonth); location.replace('#/cash'); }
   });
   const calc = () => { const c = readAmount($('#cash').value) || 0, t2 = readAmount($('#transfer').value) || 0; $('#stot').innerHTML = c || t2 ? smoney(SC(c) + SC(t2)) : '—'; };
   ['cash', 'transfer'].forEach(k => $('#' + k).addEventListener('input', calc));
