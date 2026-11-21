@@ -110,6 +110,7 @@ function busy(on){
   if(!on && busyEl){ busyEl.remove(); busyEl = null; }
 }
 function errMsg(e){
+  if(e == null) return 'حصل خطأ غير متوقع — جرّب تاني';
   const m = (e && (e.message || e.error_description || e.msg)) || String(e);
   if(/Invalid login credentials/i.test(m)) return 'الإيميل أو كلمة السر غلط';
   if(/Email not confirmed/i.test(m)) return 'لازم تأكد الإيميل الأول من الرسالة اللي جاتلك';

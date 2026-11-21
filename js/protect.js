@@ -92,7 +92,7 @@ function vaultForm(ops){
 }
 async function vaultSave(ops, pw){
   const blobs = [];
-  for(const o of ops.filter(o => o.kind === 'upload')){ const b = await idb.get('blobs', o.key); if(b) blobs.push({path:b.path, type:b.blob.type, at:b.at, data:await blobToB64(b.blob)}); }
+  for(const o of ops.filter(o => o.kind === 'upload')){ const b = await idb.get('blobs', o.key); if(b){ const bl = recBlob(b); blobs.push({path:b.path, type:bl.type, at:b.at, data:await blobToB64(bl)}); } }
   const payload = {v:1, email:me.email, saved_at:new Date().toISOString(), ops, blobs, idmap:store.meta.idmap || {}, summary:pendingSummary(ops)};
   const plain = new TextEncoder().encode(JSON.stringify(payload));
   const env = await encryptBytes(plain, pw), sha = await sha256hex(plain);
@@ -123,7 +123,7 @@ async function vaultRestore(email, pw){
     const p = JSON.parse(new TextDecoder().decode(dec));
     if(p.email !== email) throw new Error('الخزنة دي مش لحسابك');
     await storeOpen(email);
-    for(const b of p.blobs) await idb.put('blobs', {path:b.path, at:b.at, blob:new Blob([unb64(b.data)], {type:b.type})});
+    for(const b of p.blobs) await idb.put('blobs', await blobRec(b.path, new Blob([unb64(b.data)], {type:b.type}), b.at));
     const have = new Set(store.queue.map(o => o.op_id));
     const add = p.ops.filter(o => !have.has(o.op_id)).map(o => ({...o, status:o.status === 'sending' ? 'pending' : o.status}));
     if(add.length) await idb.put('queue', add);

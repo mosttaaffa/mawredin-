@@ -34,19 +34,19 @@ const idb = {
         if(!d.objectStoreNames.contains('meta'))  d.createObjectStore('meta',  {keyPath:'k'});
       };
       r.onsuccess = () => { idb.db = r.result; idb.name = name; idb.db.onversionchange = () => idb.db.close(); res(r.result); };
-      r.onerror = () => rej(r.error);
+      r.onerror = () => rej(r.error || new Error('تعذر الحفظ على الجهاز'));
       r.onblocked = () => rej(new Error('قاعدة البيانات مفتوحة في تبويب تاني'));
     });
   },
   tx(stores, mode, fn){
     return new Promise((res, rej) => {
       const t = idb.db.transaction(stores, mode); let out;
-      t.oncomplete = () => res(out); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error || new Error('abort'));
+      t.oncomplete = () => res(out); t.onerror = () => rej(t.error || new Error('تعذر الحفظ على الجهاز')); t.onabort = () => rej(t.error || new Error('abort'));
       out = fn(t);
     });
   },
-  all(store){ return new Promise((res, rej) => { const r = idb.db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
-  get(store, key){ return new Promise((res, rej) => { const r = idb.db.transaction(store).objectStore(store).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); },
+  all(store){ return new Promise((res, rej) => { const r = idb.db.transaction(store).objectStore(store).getAll(); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error || new Error('تعذر الحفظ على الجهاز')); }); },
+  get(store, key){ return new Promise((res, rej) => { const r = idb.db.transaction(store).objectStore(store).get(key); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error || new Error('تعذر الحفظ على الجهاز')); }); },
   put(store, rows){ rows = [].concat(rows); return idb.tx([store], 'readwrite', t => { const s = t.objectStore(store); rows.forEach(r => s.put(r)); }); },
   del(store, keys){ keys = [].concat(keys); return idb.tx([store], 'readwrite', t => { const s = t.objectStore(store); keys.forEach(k => s.delete(k)); }); },
   clear(store){ return idb.tx([store], 'readwrite', t => t.objectStore(store).clear()); },
@@ -315,8 +315,11 @@ async function enqueue(op){
   return op.kind === 'insert' ? store.eff[op.table].get(op.row[TABLES[op.table]]) : op.kind === 'update' ? store.eff[op.table].get(op.key) : null;
 }
 // الصور: بتتحفظ على الجهاز وتترفع لما النت يرجع
+// الصورة بتتحفظ كـ bytes (ArrayBuffer) مش Blob: Safari في بعض الأوضاع (التصفح الخاص وغيره) بيرفض يحفظ Blob في IndexedDB
+const blobRec = async (path, blob, at) => ({path, at, type:blob.type || 'image/jpeg', buf:await blob.arrayBuffer()});
+const recBlob = r => r ? (r.blob instanceof Blob ? r.blob : new Blob([r.buf], {type:r.type || 'image/jpeg'})) : null;   // r.blob = سجلات قديمة
 async function enqueueUpload(path, blob){
-  await idb.put('blobs', {path, blob, at:Date.now()});
+  await idb.put('blobs', await blobRec(path, blob, Date.now()));
   await enqueue({kind:'upload', table:'_files', key:path});
 }
 async function enqueueRemove(path){
@@ -325,7 +328,7 @@ async function enqueueRemove(path){
   await enqueue({kind:'rmfile', table:'_files', key:path});
 }
 async function localBlobUrl(path){
-  try{ const b = await idb.get('blobs', path); return b ? URL.createObjectURL(b.blob) : null; }catch(e){ return null; }
+  try{ const b = await idb.get('blobs', path); return b ? URL.createObjectURL(recBlob(b)) : null; }catch(e){ return null; }
 }
 async function dropOp(op){ store.queue = store.queue.filter(o => o.op_id !== op.op_id); await idb.del('queue', op.op_id); rebuild(); syncUI(); }
 async function saveOp(op){ await idb.put('queue', op); }
@@ -387,7 +390,7 @@ async function pushQueue(){
       if(op.kind === 'upload'){
         const b = await idb.get('blobs', op.key);
         if(b){
-          const { error } = await withTimeout(sb.storage.from('attachments').upload(op.key, b.blob, {contentType:'image/jpeg', upsert:false}), 60000);
+          const { error } = await withTimeout(sb.storage.from('attachments').upload(op.key, recBlob(b), {contentType:'image/jpeg', upsert:false}), 60000);
           if(error && !/exists|Duplicate|409/i.test(error.message + ' ' + (error.statusCode || ''))){ if(isNetErr(error)) throw Object.assign(new Error(error.message), {net:true}); throw new Error(error.message); }
           await idb.del('blobs', op.key);
         }
