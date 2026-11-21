@@ -507,7 +507,7 @@ declare
 begin
   if not public.is_member() then raise exception 'not allowed'; end if;
   if v_op is null then raise exception 'op_id required'; end if;
-  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments') then raise exception 'table not allowed: %', t; end if;
+  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments','daily_sales') then raise exception 'table not allowed: %', t; end if;
   if t = 'check_payments' and k = 'delete' then raise exception 'دفعة سداد الشيك مبتتمسحش — اعملها إلغاء'; end if;
   if k not in ('insert','update','delete') then raise exception 'kind not allowed: %', k; end if;
 
@@ -844,3 +844,26 @@ grant usage, select on all sequences in schema public to authenticated;
 
 -- القروض (الإصدار 9.1): جدول أقساط متعدّل يدويًا (تاريخ وقيمة كل قسط) — لو فاضي بيتحسب من عدد الأقساط وأول ميعاد
 alter table public.loans add column if not exists schedule jsonb;
+
+-- الخزينة (الإصدار 10): المبيع اليومي لكل فرع — كاش + تحويلات
+create table if not exists public.daily_sales (
+  id            bigint generated always as identity primary key,
+  sale_date     date not null default current_date,
+  branch        text not null check (branch in ('ورد','زهرة')),
+  cash          numeric(14,2) not null default 0 check (cash >= 0),
+  transfer      numeric(14,2) not null default 0 check (transfer >= 0),
+  transfer_note text,
+  notes         text,
+  created_by    text not null default public.current_email(),
+  created_at    timestamptz not null default now(),
+  check (cash > 0 or transfer > 0)
+);
+create index if not exists daily_sales_date_idx on public.daily_sales(sale_date, branch);
+alter table public.daily_sales enable row level security;
+drop policy if exists daily_sales_all on public.daily_sales;
+create policy daily_sales_all on public.daily_sales for all to authenticated using ((select public.is_member())) with check ((select public.is_member()));
+drop trigger if exists daily_sales_log on public.daily_sales;
+create trigger daily_sales_log after insert or update or delete on public.daily_sales for each row execute function public.log_activity();
+grant select, insert, update, delete on public.daily_sales to authenticated;
+revoke all on public.daily_sales from anon;
+grant usage, select on all sequences in schema public to authenticated;

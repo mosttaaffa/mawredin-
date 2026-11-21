@@ -1684,3 +1684,30 @@ body.dash-fits{overflow:hidden}
 .lsp-i{color:var(--green);display:flex}.lsp-i svg{width:14px;height:14px}
 .lsp-t{line-height:1.5}.lsp-t small{color:var(--muted);font-size:11px}.lsp-t small.r{color:var(--red);font-weight:700}
 .lsp b{font-size:12.5px;color:var(--green)}
+
+/* =================== الخزينة — المبيع اليومي =================== */
+.flipx{display:flex;transform:scaleX(-1)}
+.cs-today{padding:12px}
+.cs-th{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}.cs-th b{font-size:15px;color:var(--brand)}.cs-th small{color:var(--muted);font-size:12px}
+.cs-tb{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.cs-tbr{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:10px;border-radius:14px;border:1.5px dashed #E9C3CB;background:#fff;font:inherit;text-align:start;cursor:pointer;min-width:0}
+.cs-tbr.done{border:1px solid #CFE8D7;background:var(--green-soft)}
+.cs-tbr b{font-size:15px}.cs-tbr.done b{color:var(--green)}
+.cs-tbr small{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;flex-wrap:wrap}.cs-tbr small svg{width:13px;height:13px}
+.cs-miss{color:var(--brand);font-size:13px!important}
+.cs-br{display:inline-block;font-size:12px;font-weight:900;color:var(--brand);background:#F7E9EC;border-radius:999px;padding:2px 10px}
+.cs-mon{display:flex;align-items:center;justify-content:space-between;margin:2px 0 10px}.cs-mon b{font-size:15px}
+.cs-mon .iconbtn:disabled{opacity:.3}
+.cs-split{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:-2px 0 10px}
+.cs-split div{position:relative;overflow:hidden;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.cs-split span{font-weight:800;color:var(--brand)}.cs-split i{position:absolute;bottom:0;inset-inline-start:0;height:3px;background:var(--brand);border-radius:2px}
+.cs-day{padding:10px 12px}
+.cs-dh{display:flex;justify-content:space-between;align-items:center;padding-bottom:6px;border-bottom:1px solid var(--line);margin-bottom:4px}.cs-dh b{font-size:13.5px}.cs-dh span{font-weight:900;font-size:13.5px}
+.cs-row{display:grid;grid-template-columns:auto 1fr 1fr 1.1fr;gap:6px;align-items:center;width:100%;padding:7px 0;border:0;background:none;font:inherit;text-align:start;cursor:pointer;border-bottom:1px dashed var(--line)}
+.cs-row:last-of-type{border-bottom:0}
+.cs-v{display:flex;flex-direction:column;font-size:12.5px;font-weight:800;min-width:0}.cs-v small{font-size:10.5px;color:var(--muted);font-weight:700}
+.cs-v.t{color:var(--green);font-size:13.5px}
+.cs-row .tag{grid-column:1/-1;justify-self:start}
+.cs-note{font-size:11.5px;color:var(--muted);padding:0 0 6px}
+.cs-live{display:flex;justify-content:space-between;align-items:center;background:var(--green-soft);border-radius:12px;padding:10px 12px;margin:-4px 0 14px}.cs-live b{color:var(--green);font-size:17px}
+@media (max-width:400px){.cs-v .m{font-size:12px}}

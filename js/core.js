@@ -386,6 +386,8 @@ async function route(){
     if(parts[0] === 'more') return viewMore();
     if(parts[0] === 'install') return viewInstall();
     if(parts[0] === 'stmt' && parts[1]) return await viewStatementIssue(+parts[1]);
+    if(parts[0] === 'cash') return await viewCash();
+    if(parts[0] === 'sale') return await formSale(parts[1] ? +parts[1] : null);
     if(parts[0] === 'loans') return await viewLoans();
     if(parts[0] === 'loan') return await viewLoan(+parts[1]);
     if(parts[0] === 'loan-form') return await formLoan(parts[1] ? +parts[1] : null);
