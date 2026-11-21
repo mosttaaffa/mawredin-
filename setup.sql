@@ -883,3 +883,37 @@ begin
 end $$;
 revoke execute on function public.usage_stats() from public, anon;
 grant execute on function public.usage_stats() to authenticated;
+
+-- النسخ الاحتياطي من غير رابط قاعدة البيانات (الإصدار 12): بيستخدم المفتاح السري بس
+-- backup_counts: عدد السجلات في كل جدول + الإجماليات اللي النسخة المسترجعة لازم تطابقها
+create or replace function public.backup_counts() returns json
+language plpgsql security definer set search_path = public, pg_catalog stable as $$
+declare c json; t json;
+begin
+  select json_object_agg(relname, n) into c from (
+    select k.relname, (xpath('/row/n/text()', query_to_xml(format('select count(*) n from public.%I', k.relname), false, true, '')))[1]::text::bigint n
+    from pg_class k join pg_namespace s on s.oid = k.relnamespace
+    where s.nspname = 'public' and k.relkind = 'r' and k.relname <> 'backup_runs' order by 1) x;
+  t := json_build_object(
+     'supplier_balance', (select coalesce(sum(balance),0)::text from public.supplier_balances),
+     'supplier_pending_checks', (select coalesce(sum(pending_checks),0)::text from public.supplier_balances),
+     'invoices', (select coalesce(sum(amount),0)::text from public.invoices),
+     'payments', (select coalesce(sum(amount),0)::text from public.payments),
+     'check_payments', (select coalesce(sum(amount),0)::text from public.check_payments where not voided),
+     'employee_balance', (select coalesce(sum(balance),0)::text from public.employee_balances),
+     'loans', (select coalesce(sum(total_amount),0)::text from public.loans),
+     'loan_payments', (select coalesce(sum(amount + penalty),0)::text from public.loan_payments),
+     'daily_sales', (select coalesce(sum(cash + transfer),0)::text from public.daily_sales));
+  return json_build_object('counts', c, 'totals', t);
+end $$;
+-- backup_storage_list: قائمة الصور (المكان والحجم والبصمة) عشان ننزّل الجديد بس
+create or replace function public.backup_storage_list() returns json
+language plpgsql security definer set search_path = public, pg_catalog stable as $$
+declare r json;
+begin
+  if to_regclass('storage.objects') is null then return '[]'::json; end if;
+  execute $q$select coalesce(json_agg(json_build_object('bucket', bucket_id, 'name', name, 'etag', coalesce(metadata->>'eTag',''), 'size', coalesce(metadata->>'size','0'), 'mime', coalesce(metadata->>'mimetype','')) order by bucket_id, name), '[]'::json) from storage.objects$q$ into r;
+  return r;
+end $$;
+revoke execute on function public.backup_counts(), public.backup_storage_list() from public, anon, authenticated;
+grant execute on function public.backup_counts(), public.backup_storage_list() to service_role;
