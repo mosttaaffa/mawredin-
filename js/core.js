@@ -461,23 +461,65 @@ const quickFabs = sid => `<div class="fabs">
   <button class="fab pay" onclick="go('/payment${sid?'?s='+sid:''}')">${I.cash}دفعة</button>
 </div>`;
 
-/* ---------- عرض التاريخ يوم-شهر-سنة في كل خانات التاريخ ----------
-   الخانة نفسها فاضلة date عادي (عشان منتقي التاريخ بتاع الموبايل يفتح والقيمة تتحفظ yyyy-mm-dd زي ما هي)،
-   وفوقها نص بيعرض التاريخ بصيغة يوم-شهر-سنة */
+/* ---------- كتابة التاريخ يدوي بصيغة يوم-شهر-سنة في كل خانات التاريخ ----------
+   الخانة الأصلية (input type=date) فاضلة زي ما هي ومخفية: قيمتها yyyy-mm-dd وكل الكود بيقرا منها عادي.
+   قدامها خانة نص بتكتب فيها يوم-شهر-سنة (الشَرط بتتحط لوحدها)، وجنبها زرار تقويم بيفتح منتقي الموبايل. */
+const dmyParse = txt => {
+  const t = String(txt || '').trim(); if(!t) return {empty:true};
+  let d, m, y;
+  if(/[^\d]/.test(t)){ const p = t.split(/[^\d]+/).filter(Boolean); [d, m, y] = p; }
+  else { d = t.slice(0, 2); m = t.slice(2, 4); y = t.slice(4); }
+  if(!d || !m) return {bad:true};
+  y = y ? (y.length <= 2 ? 2000 + +y : +y) : +today().slice(0, 4);   // سنة من رقمين = 20xx، ومن غير سنة = السنة دي
+  d = +d; m = +m;
+  if(!(y >= 1990 && y <= 2100) || !(m >= 1 && m <= 12)) return {bad:true};
+  const last = new Date(y, m, 0).getDate(); if(!(d >= 1 && d <= last)) return {bad:true};
+  return {iso:`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`};
+};
 (() => {
   const VD = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
   const fmtD = v => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v || ''); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+  // وإنت بتكتب أرقام بس: 21112026 → 21-11-2026
+  const mask = v => { if(!/^(\d*|\d{2}-\d*|\d{2}-\d{2}-\d*)$/.test(v)) return v; const d = v.replace(/\D/g, '').slice(0, 8); return d.length > 4 ? `${d.slice(0, 2)}-${d.slice(2, 4)}-${d.slice(4)}` : d.length > 2 ? `${d.slice(0, 2)}-${d.slice(2)}` : d; };
   const enhance = el => {
     if(el._dmy) return; el._dmy = true;
     const wrap = document.createElement('span'); wrap.className = 'dmy-wrap';
-    el.parentNode.insertBefore(wrap, el); wrap.appendChild(el);
-    const t = document.createElement('span'); t.className = 'dmy-text'; wrap.appendChild(t);
-    const upd = () => { const f = fmtD(VD.get.call(el)); t.textContent = f || 'يوم-شهر-سنة'; t.classList.toggle('ph', !f); };
-    Object.defineProperty(el, 'value', {configurable:true, get(){ return VD.get.call(this); }, set(v){ VD.set.call(this, v); upd(); }});
-    el.addEventListener('input', upd); el.addEventListener('change', upd);
+    el.parentNode.insertBefore(wrap, el);
+    const tx = document.createElement('input');
+    tx.type = 'text'; tx.className = 'dmy-in'; tx.inputMode = 'numeric'; tx.autocomplete = 'off'; tx.dir = 'ltr'; tx.placeholder = 'يوم-شهر-سنة';
+    if(el.id) tx.setAttribute('aria-label', 'التاريخ يوم-شهر-سنة');
+    const cal = document.createElement('span'); cal.className = 'dmy-cal'; cal.innerHTML = I.cal;
+    wrap.appendChild(tx); wrap.appendChild(cal); cal.appendChild(el);   // خانة التاريخ الأصلية فوق زرار التقويم (شفافة) — لمسها بيفتح منتقي الموبايل
+    const show = () => { tx.value = fmtD(VD.get.call(el)); tx.classList.remove('bad'); };
+    const commit = (fire) => {
+      const r = dmyParse(tx.value);
+      if(r.empty){ if(VD.get.call(el)){ VD.set.call(el, ''); if(fire) emit(); } tx.classList.remove('bad'); return true; }
+      if(r.bad){ tx.classList.add('bad'); return false; }
+      tx.classList.remove('bad');
+      if(VD.get.call(el) !== r.iso){ VD.set.call(el, r.iso); if(fire) emit(); }
+      return true;
+    };
+    const emit = () => { el.dispatchEvent(new Event('input', {bubbles:true})); el.dispatchEvent(new Event('change', {bubbles:true})); };
+    tx.addEventListener('input', () => {
+      const before = tx.value, m = mask(before);
+      if(m !== before){ tx.value = m; }
+      const r = dmyParse(tx.value);
+      if(r.iso && tx.value.replace(/\D/g, '').length >= 8) commit(true); else tx.classList.remove('bad');
+    });
+    tx.addEventListener('blur', () => { if(commit(true)) show(); else toast('التاريخ غلط — اكتبه يوم-شهر-سنة، مثلًا \u206621-11-2026\u2069', true); });
+    tx.addEventListener('keydown', e => { if(e.key === 'Enter'){ if(!commit(true)){ e.preventDefault(); toast('التاريخ غلط — اكتبه يوم-شهر-سنة', true); } else show(); } });
+    tx._dmyCommit = () => commit(true);
+    Object.defineProperty(el, 'value', {configurable:true, get(){ return VD.get.call(this); }, set(v){ VD.set.call(this, v); show(); }});
+    el.addEventListener('input', show); el.addEventListener('change', show);
     el.addEventListener('click', () => { try{ el.showPicker && el.showPicker(); }catch(e){} });
-    upd();
+    if(el.required) tx.required = true;
+    show();
   };
+  // قبل أي حفظ: لو فيه تاريخ مكتوب غلط بنوقف الحفظ بدل ما يتحفظ تاريخ تاني في السكوت
+  document.addEventListener('submit', e => {
+    const bad = [...(e.target.querySelectorAll ? e.target.querySelectorAll('.dmy-in') : [])].filter(t => t._dmyCommit && !t._dmyCommit());
+    if(bad.length){ e.preventDefault(); e.stopImmediatePropagation(); bad[0].focus(); toast('التاريخ غلط — اكتبه يوم-شهر-سنة، مثلًا \u206621-11-2026\u2069', true); }
+  }, true);
   const scan = root => root.querySelectorAll && root.querySelectorAll('input[type=date]').forEach(enhance);
   new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if(n.nodeType !== 1) return; if(n.matches('input[type=date]')) enhance(n); else scan(n); })))
     .observe(document.documentElement, {childList:true, subtree:true});

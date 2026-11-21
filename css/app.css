@@ -1006,12 +1006,6 @@ header.top:not(.home-h) .sync-pill.s-ok{padding:6px}
 .wa-tabs{margin:6px 0 10px}
 .wa-steps>div{font-size:13px;color:var(--muted);margin-bottom:6px}.wa-steps b{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--brand-soft);color:var(--gold-2,#b07f2a);margin-inline-end:4px;font-size:12px}
 .st-pre .sum6{grid-template-columns:repeat(3,minmax(0,1fr))}
-.dmy-wrap{position:relative;display:block;width:100%;min-width:0}
-.dmy-wrap input[type=date]{width:100%;color:transparent!important;-webkit-text-fill-color:transparent}
-.dmy-wrap input[type=date]::-webkit-datetime-edit{color:transparent}
-.dmy-text{position:absolute;inset:0;display:flex;align-items:center;padding:0 14px;pointer-events:none;font-size:16px;font-weight:600;direction:ltr;justify-content:flex-end;font-variant-numeric:tabular-nums}
-.dmy-text.ph{color:var(--muted);font-weight:400}
-.dmy-wrap input[type=date]::-webkit-calendar-picker-indicator{opacity:0;position:absolute;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
 .hero-line{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:nowrap}
 .hero-line .lbl{white-space:nowrap;flex:none;padding-left:0!important}
 .hero-line .big{font-size:26px!important;white-space:nowrap;padding-left:0!important;line-height:1.2}
@@ -1768,3 +1762,12 @@ body.dash-fits{overflow:hidden}
 .cm-n{position:absolute;top:2px;inset-inline-end:3px;font-style:normal;font-size:9px;font-weight:900;color:#8a5a00;background:#FCE9C2;border-radius:6px;padding:0 3px}
 .cm-c small{max-width:100%;overflow:hidden;text-overflow:ellipsis}
 @media (max-width:370px){.cm-d>svg,.cm-c small svg{display:none}.cm-c small,.cm-t small{font-size:9px}.cm-d small{font-size:9.5px}.cm-d{padding:4px 3px}.cm-r{gap:3px}}
+/* التاريخ يدوي يوم-شهر-سنة + زرار تقويم */
+.dmy-wrap{position:relative;display:block;width:100%;min-width:0}
+.dmy-wrap .dmy-in{width:100%;font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.3px;text-align:left;padding-left:46px}
+.dmy-wrap .dmy-in.bad{border-color:var(--red)!important;background:var(--red-soft)}
+.dmy-cal{position:absolute;left:4px;top:50%;transform:translateY(-50%);width:38px;height:38px;display:grid;place-items:center;color:var(--brand);border-radius:10px;overflow:hidden}
+.dmy-cal svg{width:20px;height:20px;pointer-events:none}
+.dmy-cal input[type=date]{position:absolute;inset:0;width:100%!important;height:100%!important;opacity:0;margin:0;padding:0;border:0;cursor:pointer;color:transparent;-webkit-text-fill-color:transparent}
+.dmy-cal input[type=date]::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.dmy-text{display:none}
