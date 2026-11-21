@@ -90,8 +90,8 @@ async function viewLoan(id){
       <div class="ln-foot">${!i.closed ? `<div><span>لو سددت الباقي هتكون دفعت</span><b>${lmoney(i.outlay + i.remaining)}</b></div>` : ''}
         <div><span>تكلفة القرض عليك (الفايدة + الغرامات)</span><b class="due">${lmoney(i.cost)}</b></div></div>
     </div>
-    <div class="card"><div class="section-t ls-h"><span>جدول الأقساط</span><button class="link" onclick="instEdit(${L.id})">${I.plus}قسط جديد</button></div>${i.sched.length ? `<div class="ln-sched">${i.sched.map(s => `
-      <div class="ls-r ${s.st}" onclick="instMenu(${L.id},${s.i - 1})"><span class="ls-n">${s.i}</span><span class="ls-d"><b>${fmtDate(s.due)}</b><small>${LST[s.st]}${s.late ? ` · ${s.late} يوم تأخير` : ''}${s.st === 'partial' ? ` · اتسدد ${lmoney(s.cover)}` : ''}</small></span><span class="ls-a">${lmoney(s.amt)}</span><span class="ls-e">${I.edit}</span></div>`).join('')}</div>` : '<div class="hint">مفيش جدول أقساط — دوس «قسط جديد» أو عدّل القرض وحط عدد الأقساط</div>'}</div>
+    <div class="card"><div class="section-t ls-h"><span>جدول الأقساط</span><span class="ls-btns">${i.sched.length ? `<button class="link" onclick="instBulk(${L.id})">${I.edit}تعديل الجدول</button>` : ''}<button class="link" onclick="instEdit(${L.id})">${I.plus}قسط جديد</button></span></div>${i.sched.length ? `<div class="ln-sched">${i.sched.map(s => `
+      <div class="ls-r ${s.st}" onclick="instMenu(${L.id},${s.i - 1})"><span class="ls-n">${s.i}</span><span class="ls-d"><b>${fmtDate(s.due)}</b><small>${LST[s.st]}${s.late ? ` · ${s.late} يوم تأخير` : ''}${s.st === 'partial' ? ` · اتسدد ${lmoney(s.cover)}` : ''}</small></span><span class="ls-a">${lmoney(s.amt)}</span><button class="ls-eb" onclick="event.stopPropagation();instEdit(${L.id},${s.i - 1})">${I.edit}تعديل</button></div>`).join('')}</div>` : '<div class="hint">مفيش جدول أقساط — دوس «قسط جديد» أو عدّل القرض وحط عدد الأقساط</div>'}</div>
     <div class="card"><div class="section-t">المدفوعات (${i.pays.length}) <small class="hint">— دوس على أي دفعة لتعديلها</small></div>
       ${i.pays.length ? `<div class="list">${i.pays.slice().reverse().map(p => `<div class="item" onclick="go('/loan-pay/${L.id}/${p.id}')">
         <div class="ico pay">${I.coins2}</div>
@@ -256,8 +256,8 @@ window.instEdit = (lid, idx) => {
       if(d !== s.due && $('#ie-move')?.checked){
         const [y1, m1, d1] = s.due.split('-').map(Number), [y2, m2, d2] = d.split('-').map(Number), dm = (y2 - y1) * 12 + (m2 - m1);
         for(let k = idx + 1; k < p2.length; k++){
-          if(d1 === d2) p2[k].due = addMonths(plan[k].due, dm);
-          else { const t = new Date(plan[k].due + 'T12:00:00'); t.setDate(t.getDate() + lDays(s.due, d)); p2[k].due = t.toISOString().slice(0, 10); }
+          // نفس فرق الشهور، ونفس يوم الشهر اللي اخترته
+          const b = addMonths(plan[k].due, dm); p2[k].due = addMonths(b.slice(0, 8) + String(d2).padStart(2, '0'), 0);
         }
       }
     }
@@ -277,4 +277,31 @@ window.instDelete = (lid, idx) => {
     // كل قسط بعده ياخد ميعاد اللي قبله → مفيش شهر فاضي في النص
     if($('#id-shift')?.checked) p2 = p2.map((x, k) => ({due:plan[k].due, amt:x.amt}));
     busy(true); try{ await saveSchedule(lid, p2); closeModal(); toast('اتحذف القسط'); viewLoan(lid); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); } };
+};
+// تعديل الجدول كله مرة واحدة
+window.instBulk = (lid) => {
+  const L = store.eff.loans.get(lid), plan = loanPlan(L), inf = loanInfo(L);
+  const row = (x, k) => `<div class="lb-r"><span class="ls-n">${k + 1}</span><input type="date" class="lb-d" value="${x.due}"><input class="lb-a amount-input" inputmode="decimal" value="${x.amt / 100}"><button class="lb-x" title="حذف">${I.trash}</button></div>`;
+  openModal(`<h3>تعديل جدول الأقساط</h3>
+    <div class="hint" style="margin-bottom:8px">عدّل التاريخ أو القيمة لأي قسط، وبعدين دوس حفظ. إجمالي القرض = مجموع الأقساط.</div>
+    <div class="lb-list" id="lb-list">${plan.map(row).join('')}</div>
+    <button class="btn ghost" id="lb-add" style="width:100%;margin:8px 0">${I.plus}قسط في الآخر</button>
+    <div class="kv"><span>مجموع الأقساط</span><b id="lb-tot"></b></div><div class="kv"><span>اتدفع لحد دلوقتي</span><span>${lmoney(inf.paid)}</span></div>
+    <div class="actions" style="margin-top:12px"><button class="btn primary" id="lb-ok">${I.save}حفظ التعديلات</button><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`);
+  const list = $('#lb-list');
+  const renum = () => { [...list.children].forEach((r, k) => r.querySelector('.ls-n').textContent = k + 1);
+    $('#lb-tot').innerHTML = lmoney([...list.querySelectorAll('.lb-a')].reduce((a, i) => a + LC(readAmount(i.value) || 0), 0)); };
+  list.addEventListener('click', e => { const b = e.target.closest('.lb-x'); if(b){ b.closest('.lb-r').remove(); renum(); } });
+  list.addEventListener('input', renum);
+  $('#lb-add').onclick = () => { const r = [...list.children].pop(), d = r?.querySelector('.lb-d').value, a = r?.querySelector('.lb-a').value;
+    list.insertAdjacentHTML('beforeend', row({due:d ? addMonths(d, 1) : today(), amt:LC(readAmount(a) || 0)}, list.children.length)); renum(); };
+  renum();
+  $('#lb-ok').onclick = async () => {
+    const p2 = []; let bad = false;
+    list.querySelectorAll('.lb-r').forEach(r => { const d = r.querySelector('.lb-d').value, a = readAmount(r.querySelector('.lb-a').value);
+      r.classList.toggle('err', !d || !(a > 0)); if(!d || !(a > 0)) bad = true; else p2.push({due:d, amt:LC(a)}); });
+    if(bad) return toast('في قسط ناقص تاريخه أو قيمته', true);
+    if(!p2.length) return toast('الجدول فاضي', true);
+    busy(true); try{ await saveSchedule(lid, p2); closeModal(); toast('اتعدّل الجدول ✓'); viewLoan(lid); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
+  };
 };

@@ -1663,3 +1663,15 @@ body.dash-fits{overflow:hidden}
 .list .item .ls-e{margin-inline-start:4px}
 .chk-line{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;margin:4px 0}
 .menu-list .danger{color:var(--red)}
+
+/* أزرار تعديل جدول الأقساط */
+.ls-btns{display:flex;gap:10px}
+.ls-eb{display:flex;align-items:center;gap:3px;border:1px solid var(--brand);color:var(--brand);background:#fff;border-radius:999px;padding:4px 9px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.ls-eb svg{width:13px;height:13px}
+.lb-list{max-height:52vh;overflow:auto}
+.lb-r{display:grid;grid-template-columns:30px 1fr 92px 32px;gap:6px;align-items:center;padding:5px 0;border-bottom:1px solid var(--line)}
+.lb-r input{padding:8px 6px;font-size:13px;min-width:0}
+.lb-r.err input{border-color:var(--red)}
+.lb-x{border:0;background:var(--red-soft);color:var(--red);border-radius:8px;height:32px;display:grid;place-items:center;cursor:pointer}.lb-x svg{width:15px;height:15px}
+.ls-h{flex-wrap:nowrap;gap:8px}.ls-h>span:first-child{white-space:nowrap}
+.ls-btns{gap:6px;flex-shrink:0}.ls-btns .link{white-space:nowrap;font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:5px 9px}
