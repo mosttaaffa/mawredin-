@@ -1,0 +1,17 @@
+# Cloudflare Pages (والاستضافات اللي بتدعم نفس الصيغة زي Netlify)
+# الملفات اللي بتقرر الإصدار: مبتتخزنش في الكاش عشان التحديث يوصل على طول
+/sw.js
+  Cache-Control: no-cache
+/index.html
+  Cache-Control: no-cache
+/
+  Cache-Control: no-cache
+/config.js
+  Cache-Control: no-cache
+/manifest.json
+  Cache-Control: no-cache
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY

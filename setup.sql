@@ -867,3 +867,19 @@ create trigger daily_sales_log after insert or update or delete on public.daily_
 grant select, insert, update, delete on public.daily_sales to authenticated;
 revoke all on public.daily_sales from anon;
 grant usage, select on all sequences in schema public to authenticated;
+
+-- مراقبة حدود الخطة المجانية (الإصدار 11): حجم قاعدة البيانات والصور وعدد المستخدمين — للأعضاء بس
+create or replace function public.usage_stats() returns json
+language plpgsql security definer set search_path = public, pg_catalog stable as $$
+declare st bigint := null; nf bigint := null; nu bigint := null;
+begin
+  if not public.is_member() then return null; end if;
+  if to_regclass('storage.objects') is not null then
+    begin execute 'select coalesce(sum((metadata->>''size'')::bigint),0), count(*) from storage.objects' into st, nf;
+    exception when others then execute 'select count(*) from storage.objects' into nf; end;
+  end if;
+  if to_regclass('auth.users') is not null then execute 'select count(*) from auth.users' into nu; end if;
+  return json_build_object('db_bytes', pg_database_size(current_database()), 'storage_bytes', st, 'files', nf, 'users', nu, 'at', now());
+end $$;
+revoke execute on function public.usage_stats() from public, anon;
+grant execute on function public.usage_stats() to authenticated;

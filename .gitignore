@@ -1,3 +1,7 @@
 local-server/node_modules/
 local-server/data/
 .DS_Store
+dist/
+node_modules/
+package-lock.json
+e2e-shots/

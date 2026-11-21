@@ -267,6 +267,8 @@ async function afterLogin(){
   route();
   scheduleSync(400);
   setTimeout(() => healthCheck(), 1500);
+  setTimeout(() => movedCheck(), 2500);
+  setTimeout(() => usageCheck().then(() => { if((location.hash === '' || location.hash === '#/') && usageAlert() && !document.querySelector('.us-alert')) viewDashboard(); }), 4000);
 }
 
 /* =================== التشغيل =================== */

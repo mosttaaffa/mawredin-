@@ -1,0 +1,60 @@
+# النشر على Cloudflare Pages بعد الاختبار
+# - أي push على main: اختبار ← نشر على الرابط الأساسي
+# - أي push على فرع تاني (مثلًا test): اختبار ← نشر على رابط تجريبي منفصل (Preview) من غير ما يأثر على الأساسي
+# الإعداد: Settings ← Secrets and variables ← Actions:
+#   CLOUDFLARE_API_TOKEN  (صلاحية Cloudflare Pages: Edit بس)
+#   CLOUDFLARE_ACCOUNT_ID
+#   (Variable اختياري) CF_PROJECT = اسم مشروع Pages (الافتراضي mawredin)
+name: deploy
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+permissions: { contents: read }
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node tools/check.mjs
+      - run: node tools/build-dist.mjs && node tools/check.mjs dist
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist, retention-days: 30, include-hidden-files: true }
+  iphone:
+    # اختبار على محرك Safari (WebKit) بمقاس iPhone 13: من غير نت، المزامنة، منع التكرار، التعارض — على سيرفر محلي مؤقت (مش Supabase الحقيقي)
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd local-server && npm install --no-audit --no-fund
+      - run: npm i --no-save --no-package-lock playwright@1 && npx playwright install --with-deps webkit
+      - run: E2E_LOG=1 node tools/e2e.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: iphone-screenshots, path: e2e-shots, retention-days: 14 }
+  deploy:
+    needs: [test, iphone]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist }
+      - name: نشر
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::Secrets بتاعة Cloudflare مش متضافة — الاختبار نجح لكن النشر اتخطى"; exit 0; fi
+          P="${{ vars.CF_PROJECT || 'mawredin' }}"
+          npx --yes wrangler@4 pages project list 2>/dev/null | grep -qw "$P" || npx --yes wrangler@4 pages project create "$P" --production-branch=main
+          npx --yes wrangler@4 pages deploy dist --project-name="$P" --branch="${GITHUB_REF_NAME}" --commit-dirty=true

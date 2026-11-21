@@ -332,6 +332,7 @@ window.checkBackup = () => {
 async function viewBackups(){
   shell({title:'النسخ الاحتياطية', back:true, nav:'more', body:skeleton('home')});
   if(navigator.onLine) await healthCheck();
+  const usage = await usageCheck(true);
   let runs = [], runsErr = null;
   try{ const { data, error } = await withTimeout(sb.from('backup_runs').select('*').order('created_at', {ascending:false}).limit(30), 10000); if(error) throw error; runs = data; }catch(e){ runsErr = e; }
   const lastAuto = runs.find(r => r.kind === 'auto'), lastAutoOk = runs.find(r => r.kind === 'auto' && r.ok && r.verified), lastMan = runs.find(r => r.kind === 'manual' && r.ok);
@@ -350,6 +351,7 @@ async function viewBackups(){
       <div class="kv"><span>آخر مزامنة ناجحة</span><span>${dt(sync.lastOk)}</span></div>
       <div class="kv" style="border:0"><span>عمليات على الموبايل لسه ما وصلتش</span><b>${ops.length}${ops.length ? ` · ${money(pendingSummary(ops).total)}` : ''}</b></div>
       ${health.state === 'server' || health.state === 'paused' ? `<button class="btn ghost block" style="margin-top:8px" onclick="healthHelp()">إزاي أرجّع السيرفر؟</button>` : ''}</div>
+    ${usageCard(usage)}
     <div class="card"><div class="section-t">النسخ التلقائي اليومي (خارج Supabase، مشفر)</div>
       <div class="note-line bk-${autoState.c}">${autoState.t}</div>
       ${runsErr ? `<div class="hint">مقدرتش أقرا سجل النسخ (${navigator.onLine ? 'السيرفر' : 'مفيش نت'}).</div>` : ''}
@@ -371,3 +373,67 @@ async function viewBackups(){
     ${runs.length ? `<div class="card"><div class="section-t">آخر النسخ</div><div class="list">${runs.slice(0, 10).map(r => `<div class="item"><div class="grow"><div class="t">${r.kind === 'auto' ? 'تلقائية' : 'يدوية'} · ${r.ok ? (r.verified ? '✓ سليمة' : '⚠ مش متجربة') : '✗ فشلت'}</div><div class="s">${dt(r.created_at)}${r.size_bytes ? ' · ' + (r.size_bytes / 1048576).toFixed(2) + ' ميجا' : ''}${r.error ? ' · ' + esc(r.error) : ''}</div></div></div>`).join('')}</div></div>` : ''}`});
 }
 window.viewBackups = viewBackups;
+
+/* =================== مراقبة حدود الخطة المجانية ===================
+   الحدود دي حسب صفحة أسعار Supabase (اتراجعت نوفمبر 2026) — ممكن تتغير، فبنعرضها كأرقام مش كضمان.
+   السحب الشهري (Egress) مش متاح من جوه قاعدة البيانات — بيتشاف من لوحة Supabase ← Usage. */
+const USAGE_LIMITS = {db_bytes:{t:'حجم قاعدة البيانات', max:500 * 1048576}, storage_bytes:{t:'الصور والمرفقات', max:1024 * 1048576}, users:{t:'المستخدمين', max:50000}};
+const USAGE_KEY = 'mawredin_usage';
+const usageCached = () => { try{ return JSON.parse(localStorage.getItem(USAGE_KEY) || 'null'); }catch(e){ return null; } };
+async function usageCheck(force){
+  const c = usageCached();
+  if(!force && c && Date.now() - c.checked < 6 * 36e5) return c;
+  if(!navigator.onLine) return c;
+  try{
+    const { data, error } = await withTimeout(sb.rpc('usage_stats'), 10000); if(error) throw error;
+    let lastAuto = null;
+    try{ const r = await withTimeout(sb.from('backup_runs').select('created_at,ok,verified').eq('kind', 'auto').order('created_at', {ascending:false}).limit(1), 8000); lastAuto = r.data?.[0] || null; }catch(e){}
+    const v = {...(data || {}), lastAuto, checked:Date.now()};
+    localStorage.setItem(USAGE_KEY, JSON.stringify(v));
+    return v;
+  }catch(e){ return c; }
+}
+function usageLevels(u){
+  if(!u) return [];
+  return Object.entries(USAGE_LIMITS).filter(([k]) => u[k] != null).map(([k, L]) => ({k, t:L.t, v:+u[k], max:L.max, pct:Math.min(100, Math.round(+u[k] / L.max * 1000) / 10)}));
+}
+const fmtBytes = b => b >= 1073741824 ? (b / 1073741824).toFixed(2) + ' جيجا' : (b >= 104857600 ? Math.round(b / 1048576) : (b / 1048576).toFixed(1)) + ' ميجا';
+// تنبيه الرئيسية: حد قرب يخلص، أو النسخ التلقائي وقف بعد ما كان شغال
+function usageAlert(){
+  const u = usageCached(); if(!u) return '';
+  const hot = usageLevels(u).filter(x => x.pct >= 70).sort((a, b) => b.pct - a.pct)[0];
+  if(hot) return `<button class="mini-alert us-alert ${hot.pct >= 90 ? 'bad' : ''}" onclick="go('/backups')">${I.warn}<span>${hot.t} وصل ${hot.pct}% من الحد المجاني</span><b>التفاصيل</b></button>`;
+  const a = u.lastAuto;
+  if(a && (Date.now() - new Date(a.created_at)) > 48 * 36e5) return `<button class="mini-alert us-alert" onclick="go('/backups')">${I.warn}<span>النسخ التلقائي اليومي واقف من ${Math.floor((Date.now() - new Date(a.created_at)) / 864e5)} يوم</span><b>افحص</b></button>`;
+  if(a && !a.ok) return `<button class="mini-alert us-alert bad" onclick="go('/backups')">${I.warn}<span>آخر نسخة تلقائية فشلت</span><b>افحص</b></button>`;
+  return '';
+}
+function usageCard(u){
+  const lv = usageLevels(u);
+  if(!lv.length) return `<div class="card"><div class="section-t">استهلاك الخطة المجانية</div><div class="hint">${navigator.onLine ? 'مقدرتش أقرا الاستهلاك من السيرفر دلوقتي.' : 'محتاج نت عشان أقرا الاستهلاك.'}</div></div>`;
+  return `<div class="card"><div class="section-t">استهلاك الخطة المجانية (Supabase)</div>
+    ${lv.map(x => `<div class="us-r"><div class="us-h"><span>${x.t}</span><b>${x.k === 'users' ? x.v + ' من ' + x.max.toLocaleString('en-US') : fmtBytes(x.v) + ' من ' + fmtBytes(x.max)}</b></div>
+      <div class="us-bar ${x.pct >= 90 ? 'bad' : x.pct >= 70 ? 'warn' : ''}"><i style="width:${Math.max(1, x.pct)}%"></i></div><small>${x.pct}%</small></div>`).join('')}
+    ${u.files != null ? `<div class="kv"><span>عدد الصور</span><span>${u.files}</span></div>` : ''}
+    <div class="kv" style="border:0"><span>آخر قراءة</span><span>${new Date(u.checked).toLocaleString('ar-EG', {day:'numeric', month:'numeric', hour:'numeric', minute:'2-digit'})}</span></div>
+    <div class="hint">التنبيه بيظهر في الرئيسية لما أي حد يوصل 70%. السحب الشهري (5 جيجا) بيتشاف من لوحة Supabase ← Usage. المشروع المجاني بيتوقف لو مفيش استخدام أسبوع — النسخ اليومي بيلمسه كل يوم.</div></div>`;
+}
+
+/* =================== نقل التطبيق لرابط جديد ===================
+   لما التطبيق يتنقل لاستضافة تانية: في config.js على الرابط القديم بنحط  movedTo: 'https://الرابط-الجديد/'
+   التخزين على الموبايل مربوط بالرابط، فالرابط القديم بيخلص مزامنة كل العمليات اللي على الجهاز الأول،
+   وبعدين بس يوجّه للرابط الجديد (اللي بيحمل كل البيانات من السيرفر). مفيش عملية بتضيع. */
+async function movedCheck(){
+  const to = window.MAWREDIN_CONFIG?.movedTo;
+  if(!to || location.href.startsWith(to)) return;
+  if(navigator.onLine && pendingOps().length) { try{ await syncNow(true); }catch(e){} }
+  const left = pendingOps().length;
+  openModal(`<h3>التطبيق اتنقل لرابط جديد</h3>
+    ${left ? `<div class="note-line bk-warn">فيه ${left} عملية على الموبايل ده لسه ما اتبعتتش للسيرفر. خليك هنا ووصّل النت لحد ما تتبعت — بعدها افتح الرابط الجديد.</div>
+      <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="closeModal();syncNow(true).then(movedCheck)">ابعتها دلوقتي</button></div>`
+    : `<div class="note-line bk-ok">كل البيانات اتبعتت للسيرفر ✓ ومفيش حاجة هتضيع.</div>
+      <div class="hint" style="margin:8px 0 12px">افتح الرابط الجديد وسجّل دخول بنفس الإيميل. على الآيفون: من Safari ← مشاركة ← «إضافة إلى الشاشة الرئيسية»، وامسح الأيقونة القديمة.</div>
+      <div class="kv" style="border:0"><span dir="ltr" class="num" style="word-break:break-all">${esc(to)}</span></div>
+      <div class="actions" style="margin-top:12px"><button class="btn primary" onclick="location.href=${esc(JSON.stringify(to))}">افتح الرابط الجديد</button>
+      <button class="btn ghost" onclick="navigator.clipboard?.writeText(${esc(JSON.stringify(to))});toast('اتنسخ')">انسخ الرابط</button></div>`}`);
+}

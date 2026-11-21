@@ -71,6 +71,7 @@ async function viewDashboard(){
       <span class="dh-btn">عرض التفاصيل ${I.chevL}</span>
     </button>
     ${due.length ? `<button class="mini-alert ${due.some(c => daysUntil(c.due_date) <= 0) ? 'over' : ''}" onclick="go('/checks')">${I.bell}<span>شيكات ميعادها قرّب</span><b>${due.length}</b></button>` : ''}
+    ${usageAlert()}
     ${(backupAge() == null || backupAge() >= 7) ? `<button class="mini-alert" onclick="go('/backups')">${I.save}<span>${backupAge() == null ? 'اعمل أول نسخة احتياطية' : `آخر نسخة احتياطية من ${backupAge()} يوم`}</span><b>حفظ</b></button>` : ''}
     <div class="db-h"><span>${I.grid}الأقسام الرئيسية</span><i></i></div>
     <div class="db-grid">
