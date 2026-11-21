@@ -441,7 +441,8 @@ function formShell(title, body, onSave){
   app.innerHTML = `<div class="sheet">
     <header class="top"><button class="iconbtn" onclick="history.back()" aria-label="إلغاء">${I.close}</button><h1>${title}</h1></header>
     <main><form id="frm" autocomplete="off" novalidate>${body}
-      <button class="btn primary block" type="submit" style="padding:15px;font-size:17px">حفظ</button></form></main></div>`;
+      ${/^تعديل/.test(title) ? `<div class="edit-acts"><button class="btn primary" type="submit">${I.save}حفظ التعديلات</button><button class="btn ghost" type="button" onclick="history.back()">إلغاء</button></div>`
+        : `<button class="btn primary block" type="submit" style="padding:15px;font-size:17px">حفظ</button>`}</form></main></div>`;
   let saving = false;
   $('#frm').addEventListener('submit', async e => {
     e.preventDefault(); if(saving) return; saving = true; busy(true);
@@ -487,7 +488,7 @@ async function formInvoice(id, presetSup){
     if(x){ await q(ldb.from('invoices').update(row).eq('id', x.id)); invPages(x).filter(p => !paths.includes(p)).forEach(p => removeImage(p)); }
     else await q(ldb.from('invoices').insert(row));
     busy(false); await celebrate(savedMsg('الفاتورة'));
-    location.replace('#/s/' + sid);
+    if(x && new URLSearchParams(location.hash.split('?')[1] || '').get('from') === 'd') history.back(); else location.replace('#/s/' + sid);
   });
   pgInit('inv', x ? rowPages(x) : []);
   const hint = () => { const sid = $('#sup').value; const b = sid ? supBalance(sid) : null; const a = readAmount($('#amount').value) || 0;
@@ -627,7 +628,7 @@ async function formPayment(id, presetSup){
     if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); rowPages(x).filter(p => !paths.includes(p)).forEach(p => removeImage(p)); }
     else await q(ldb.from('payments').insert(row));
     busy(false); await celebrate(savedMsg('الدفعة'), true);
-    location.replace('#/s/' + sid);
+    if(x && new URLSearchParams(location.hash.split('?')[1] || '').get('from') === 'd') history.back(); else location.replace('#/s/' + sid);
   });
   const setM = m => {
     method = m;
@@ -682,7 +683,7 @@ async function formAdjust(id, presetSup){
     if(x){ await q(ldb.from('payments').update(row).eq('id', x.id)); rowPages(x).filter(p => !paths.includes(p)).forEach(p => removeImage(p)); }
     else await q(ldb.from('payments').insert(row));
     busy(false); await celebrate(method === 'return' ? 'اتسجل المرتجع' : 'اتسجل الخصم');
-    location.replace('#/s/' + sid);
+    if(x && new URLSearchParams(location.hash.split('?')[1] || '').get('from') === 'd') history.back(); else location.replace('#/s/' + sid);
   });
   const setM = m => { method = m; document.querySelectorAll('#f-method .seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m)); $('#f-method').classList.remove('err'); };
   document.querySelectorAll('#f-method .seg button').forEach(b => b.onclick = () => setM(b.dataset.m));
