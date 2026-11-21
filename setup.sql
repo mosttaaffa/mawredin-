@@ -917,3 +917,9 @@ begin
 end $$;
 revoke execute on function public.backup_counts(), public.backup_storage_list() from public, anon, authenticated;
 grant execute on function public.backup_counts(), public.backup_storage_list() to service_role;
+-- المفتاح السري (service_role) للنسخ الاحتياطي: قراءة بس لكل الجداول + تسجيل نتيجة النسخة
+grant usage on schema public to service_role;
+grant select on all tables in schema public to service_role;
+alter default privileges in schema public grant select on tables to service_role;
+grant insert on public.backup_runs to service_role;
+grant usage, select on all sequences in schema public to service_role;
