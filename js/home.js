@@ -58,7 +58,7 @@ async function viewDashboard(){
   const ops = recentOps(3);
   const sign = o => o.sg < 0 ? 'neg' : o.sg > 0 ? 'pos' : '';
   shell({title:'حسابات المحل', nav:'home', home:{alerts:due.length, sub:'لوحة التحكم'}, body:`
-    <div class="db">
+    <div class="db one">
     <button class="db-hero" onclick="go('/suppliers')">
       <span class="dh-t">إجمالي مستحقات الموردين</span>
       <span class="dh-v">${m(supDue / 100)}</span>
@@ -72,9 +72,9 @@ async function viewDashboard(){
     <div class="db-h"><span>${I.grid}الأقسام الرئيسية</span><i></i></div>
     <div class="db-grid">
       ${tile('suppliers', 'الموردين', 'box', "go('/suppliers')")}
-      ${tile('employees', 'الموظفين', 'users', "go('/employees')", emps ? `<small>إجمالي المرتبات</small><em class="neg">${m(salaries)}</em><small class="c">${act.length} موظف</small>` : '<small>مش متاح دلوقتي</small>')}
+      ${tile('employees', 'الموظفين', 'users', "go('/employees')", emps ? `<em class="neg">${m(salaries)}</em><small class="c">المرتبات · ${act.length} موظف</small>` : '<small>مش متاح دلوقتي</small>')}
       ${tile('reports', 'التقارير', 'chart', "go('/reports')")}
-      ${tile('checks', 'الشيكات', 'check', "go('/checks')", `<small>الشيكات المستحقة</small><em>${m(cs.sum)}</em><small class="c">${N(cs.n)} شيك مستحق</small>`)}
+      ${tile('checks', 'الشيكات', 'check', "go('/checks')", `<em>${m(cs.sum)}</em><small class="c">مستحقة · ${N(cs.n)} شيك</small>`)}
       ${tile('banks', 'الحسابات البنكية', 'bank', mod('banks'))}
       ${tile('expenses', 'المصروفات', 'expense', mod('expenses'))}
       ${tile('cash', 'الخزينة', 'safe', mod('cash'))}
@@ -84,7 +84,7 @@ async function viewDashboard(){
       <button onclick="go('/payment')"><span>${I.cash}</span><b>دفعة جديدة</b></button>
       <button onclick="go('/invoice')"><span>${I.invadd}</span><b>فاتورة جديدة</b></button>
     </div>
-    <div class="card db-pos">
+    <div class="card db-pos" onclick="this.querySelector('.db-why').open=!this.querySelector('.db-why').open;fitDash()">
       <div class="db-ph">${I.layers || I.stats}<b>ملخص المركز المالي</b></div>
       <div class="db-p3">
         <div><span class="u">${I.up}أرصدة لنا</span><b class="pos">${m(ours / 100)}</b></div>
@@ -102,7 +102,28 @@ async function viewDashboard(){
       : '<div class="empty" style="padding:14px">لسه مفيش عمليات</div>'}</div>
     </div>
     <button class="db-fab" onclick="quickAdd()" aria-label="إضافة">${I.plus}</button>`});
+  fitDash();
 }
+// الرئيسية كلها في شاشة واحدة: نفس الشكل، بس بتتصغّر على قد المساحة اللي فوق شريط التنقل (من غير ما تقل عن حجم مقروء)
+function fitDash(){
+  const d = document.querySelector('.db'); if(!d) return;
+  const LV = ['', 'l1', 'l2', 'l3'];                // كل مستوى بيشيل حاجة صغيرة (آخر العمليات) لو المساحة مش كفاية
+  const nav = document.querySelector('nav.bottom');
+  const measure = lv => {
+    d.classList.remove('l1', 'l2', 'l3'); if(lv) d.classList.add(lv);
+    d.style.zoom = 1;
+    const top = d.getBoundingClientRect().top + scrollY, navTop = nav ? nav.getBoundingClientRect().top : innerHeight;
+    const avail = navTop - top - 34, need = d.scrollHeight, z = Math.min(1, avail / need);
+    return {lv, z, ok:z >= .8};
+  };
+  const res = LV.map(measure);
+  // الأفضل: أقل حاجة تتشال وفي نفس الوقت الحجم مقروء (85% أو أكتر)، وإلا أي مستوى بيكفي، وإلا آخر مستوى
+  const pick = res.find(r => r.z >= .85) || res.find(r => r.ok) || res[res.length - 1];
+  d.classList.remove('l1', 'l2', 'l3'); if(pick.lv) d.classList.add(pick.lv);
+  d.style.zoom = Math.max(.8, pick.z);
+  document.body.classList.toggle('dash-fits', pick.ok);
+}
+addEventListener('resize', () => fitDash());
 const fmt0 = v => Number(v || 0).toLocaleString('en-US', {maximumFractionDigits:2});
 
 /* =================== المزيد =================== */

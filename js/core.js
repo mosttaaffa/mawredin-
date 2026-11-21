@@ -411,6 +411,7 @@ async function route(){
 let lastShown = null;
 function shell({title, back, right='', body, nav=null, fabs='', home=null, page=null}){
   const app = $('#app');
+  document.body.classList.remove('dash-fits');          // قفل السكرول خاص بالرئيسية بس
   const loading = body.includes('class="skel"');
   if(loading && store.ready && hasLocalData()) return;      // البيانات على الجهاز: مفيش داعي لشاشة تحميل
   const same = !loading && lastShown === location.hash;   // نفس الصفحة (تحديث/تبويب) = من غير إعادة كل الحركات

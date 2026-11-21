@@ -448,6 +448,7 @@ function readAmount(v){ v = String(v||'').replace(/[٠-٩]/g, d => '٠١٢٣٤٥
 
 function formShell(title, body, onSave){
   const app = $('#app');
+  document.body.classList.remove('dash-fits');
   app.innerHTML = `<div class="sheet">
     <header class="top"><button class="iconbtn" onclick="history.back()" aria-label="إلغاء">${I.close}</button><h1>${title}</h1></header>
     <main><form id="frm" autocomplete="off" novalidate>${body}
