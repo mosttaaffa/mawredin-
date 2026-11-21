@@ -434,8 +434,8 @@ function shell({title, back, right='', body, nav=null, fabs='', home=null, page=
         <button class="iconbtn glass" onclick="go('/checks')" aria-label="الإشعارات">${I.bell}${home.alerts ? `<i class="badge">${home.alerts}</i>` : ''}</button>
       </div>
     </header>` : page ? `<header class="top page-h">
-      <div class="ph-app">${I.bag}<span>حسابات المحل</span></div>
-      <div class="ph-t"><h1>${page.icon ? I[page.icon] : ''}<span>${title}</span></h1><small>${page.sub || ''}</small>${syncPill()}</div>
+      <button class="ph-app" onclick="go('/')" aria-label="الرئيسية">${I.bag}<span>حسابات المحل</span></button>
+      <div class="ph-t"><h1>${page.icon ? I[page.icon] : ''}<span>${title}</span>${syncPill()}</h1>${page.sub ? `<small>${page.sub}</small>` : ''}</div>
       <div class="ph-btns">
         ${page.help ? `<button class="iconbtn" onclick="${page.help}" aria-label="مساعدة">${I.help}</button>` : ''}
         <button class="iconbtn" onclick="go('/checks')" aria-label="الإشعارات">${I.bell}${page.alerts ? `<i class="badge">${page.alerts}</i>` : ''}</button>

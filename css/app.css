@@ -1794,3 +1794,15 @@ body.dash-fits{overflow:hidden}
 @media (max-width:370px){.ex-r{grid-template-columns:minmax(0,1fr) repeat(4,minmax(0,1fr))}.ex-sum .cm-sv b{font-size:11.5px}}
 .ex-it em,.ex-it em .m{white-space:nowrap}
 .ex-r .cm-d>svg{display:none}.ex-r .cm-d{padding:4px 6px}
+/* رأس الأقسام: صف واحد مضغوط */
+header.page-h{align-items:center!important;padding:calc(6px + var(--safe-t)) 12px 6px !important;gap:6px}
+header.page-h .ph-app{border:0;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--muted);padding:0;cursor:pointer}
+header.page-h .ph-t h1{font-size:19px;gap:6px;line-height:1.2}
+header.page-h .ph-t h1 svg{width:22px;height:22px}
+header.page-h .ph-t h1 .sync-pill{margin:0 2px 0 0;transform:scale(.85)}
+header.page-h .ph-t small{display:none}
+header.page-h .iconbtn{width:36px;height:36px}
+@media (min-width:600px){header.page-h .ph-t small{display:block}}
+@media (max-width:400px){header.page-h .ph-t h1{font-size:18px}header.page-h .ph-app{width:36px;justify-content:center}}
+.cs-th2>b{white-space:nowrap}.cs-pick select{max-width:none}
+@media (max-width:370px){.cs-th2>b{font-size:13.5px}.cs-th2>b svg{display:none}.cs-pick{padding:6px 8px;gap:4px}}
