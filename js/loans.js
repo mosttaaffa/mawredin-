@@ -241,7 +241,8 @@ window.instEdit = (lid, idx) => {
   openModal(`<h3>${s ? `تعديل القسط ${idx + 1}` : 'قسط جديد'}</h3>
     <div class="field"><label>ميعاد القسط</label><input id="ie-d" type="date" value="${s ? s.due : (plan.length ? addMonths(plan[plan.length - 1].due, 1) : today())}"></div>
     <div class="field" id="f-ie-a"><label>قيمة القسط</label><input id="ie-a" class="amount-input" inputmode="decimal" value="${s ? s.amt / 100 : (plan.length ? plan[plan.length - 1].amt / 100 : '')}"></div>
-    ${s && after ? `<label class="chk-line"><input type="checkbox" id="ie-all" style="width:auto"> نفس القيمة لكل الأقساط اللي بعده (${after} قسط)</label>` : ''}
+    ${s && after ? `<label class="chk-line"><input type="checkbox" id="ie-all" style="width:auto"> نفس القيمة لكل الأقساط اللي بعده (${after} قسط)</label>
+    <label class="chk-line"><input type="checkbox" id="ie-move" style="width:auto" checked> لو غيرت التاريخ، حرّك الأقساط اللي بعده بنفس الفرق</label>` : ''}
     <div class="hint" style="margin:8px 0 12px">إجمالي القرض هيتعدل لوحده = مجموع الأقساط. المدفوعات المسجلة مش هتتغير.</div>
     <div class="actions"><button class="btn primary" id="ie-ok">${I.save}حفظ</button><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`);
   $('#ie-ok').onclick = async () => {
@@ -249,16 +250,31 @@ window.instEdit = (lid, idx) => {
     if(!(a > 0)) return markErr('ie-a', 'اكتب القيمة');
     if(!d) return toast('اختار الميعاد', true);
     const p2 = plan.map(x => ({...x}));
-    if(s){ p2[idx] = {due:d, amt:LC(a)}; if($('#ie-all')?.checked) for(let k = idx + 1; k < p2.length; k++) p2[k].amt = LC(a); }
+    if(s){
+      p2[idx] = {due:d, amt:LC(a)};
+      if($('#ie-all')?.checked) for(let k = idx + 1; k < p2.length; k++) p2[k].amt = LC(a);
+      if(d !== s.due && $('#ie-move')?.checked){
+        const [y1, m1, d1] = s.due.split('-').map(Number), [y2, m2, d2] = d.split('-').map(Number), dm = (y2 - y1) * 12 + (m2 - m1);
+        for(let k = idx + 1; k < p2.length; k++){
+          if(d1 === d2) p2[k].due = addMonths(plan[k].due, dm);
+          else { const t = new Date(plan[k].due + 'T12:00:00'); t.setDate(t.getDate() + lDays(s.due, d)); p2[k].due = t.toISOString().slice(0, 10); }
+        }
+      }
+    }
     else p2.push({due:d, amt:LC(a)});
     busy(true);
     try{ await saveSchedule(lid, p2); closeModal(); toast('اتعدّل الجدول ✓'); viewLoan(lid); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
   };
 };
 window.instDelete = (lid, idx) => {
-  const L = store.eff.loans.get(lid), plan = loanPlan(L), s = plan[idx];
+  const L = store.eff.loans.get(lid), plan = loanPlan(L), s = plan[idx], after = plan.length - idx - 1;
   openModal(`<h3>حذف القسط ${idx + 1}؟</h3><div class="kv"><span>الميعاد</span><span>${fmtDate(s.due)}</span></div><div class="kv"><span>القيمة</span><b>${lmoney(s.amt)}</b></div>
-    <div class="hint" style="margin:8px 0 12px">إجمالي القرض هيقل بقيمة القسط ده.</div>
+    ${after ? `<label class="chk-line"><input type="checkbox" id="id-shift" style="width:auto" checked> قدّم الأقساط اللي بعده (${after} قسط) عشان الشهور تفضل ورا بعض من غير فراغ</label>` : ''}
+    <div class="hint" style="margin:8px 0 12px">إجمالي القرض هيقل بقيمة القسط ده.${after ? ' لو قدّمت الأقساط، القسط الأخير بس هو اللي بيختفي من آخر الجدول.' : ''}</div>
     <div class="actions"><button class="btn danger" id="id-ok">تأكيد الحذف</button><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`);
-  $('#id-ok').onclick = async () => { busy(true); try{ await saveSchedule(lid, plan.filter((_, k) => k !== idx)); closeModal(); toast('اتحذف القسط'); viewLoan(lid); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); } };
+  $('#id-ok').onclick = async () => {
+    let p2 = plan.filter((_, k) => k !== idx);
+    // كل قسط بعده ياخد ميعاد اللي قبله → مفيش شهر فاضي في النص
+    if($('#id-shift')?.checked) p2 = p2.map((x, k) => ({due:plan[k].due, amt:x.amt}));
+    busy(true); try{ await saveSchedule(lid, p2); closeModal(); toast('اتحذف القسط'); viewLoan(lid); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); } };
 };
