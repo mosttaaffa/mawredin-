@@ -47,7 +47,8 @@ async function viewDashboard(){
   const supDue = rows.reduce((a, r) => a + Math.max(0, C2(r.balance)), 0), supCred = rows.reduce((a, r) => a + Math.max(0, -C2(r.balance)), 0);
   const empDue = E.reduce((a, r) => a + Math.max(0, C2(r.balance)), 0), empOwe = E.reduce((a, r) => a + Math.max(0, -C2(r.balance)), 0);
   const chkRemC = C2(cs.sum);
-  const ours = supCred + empOwe, theirs = supDue + empDue + chkRemC, net = ours - theirs;
+  const LS = loansSummary();
+  const ours = supCred + empOwe, theirs = supDue + empDue + chkRemC + LS.remaining, net = ours - theirs;
   const salaries = act.reduce((a, r) => a + C2(r.base_salary), 0) / 100;
   const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3 && chkRem(c) > 0);
   const ready = k => MODULES.find(m => m.k === k)?.ready;
@@ -78,7 +79,7 @@ async function viewDashboard(){
       ${tile('banks', 'الحسابات البنكية', 'bank', mod('banks'))}
       ${tile('expenses', 'المصروفات', 'expense', mod('expenses'))}
       ${tile('cash', 'الخزينة', 'safe', mod('cash'))}
-      ${tile('loans', 'القروض والسلف', 'loan', mod('loans'))}
+      ${tile('loans', 'القروض والسلف', 'loan', "go('/loans')", LS.n ? `<em class="neg">${m(LS.remaining / 100)}</em><small class="c">${LS.late ? `${LS.late} قسط متأخر` : `${LS.n} قرض جاري`}</small>` : '')}
     </div>
     <div class="db-qa">
       <button onclick="go('/payment')"><span>${I.cash}</span><b>دفعة جديدة</b></button>
@@ -93,7 +94,7 @@ async function viewDashboard(){
       </div>
       <details class="db-why"><summary>الأرقام دي جاية منين؟</summary>
         <div>لنا: موردين رصيدهم لصالح المحل ${fmt0(supCred / 100)} + سلف وخصومات على موظفين ${fmt0(empOwe / 100)}</div>
-        <div>علينا: مستحقات الموردين ${fmt0(supDue / 100)} + المتبقي من الشيكات ${fmt0(chkRemC / 100)} + مستحق للموظفين ${fmt0(empDue / 100)}</div></details>
+        <div>علينا: مستحقات الموردين ${fmt0(supDue / 100)} + المتبقي من الشيكات ${fmt0(chkRemC / 100)} + مستحق للموظفين ${fmt0(empDue / 100)}${LS.remaining ? ` + المتبقي من القروض ${fmt0(LS.remaining / 100)}` : ''}</div></details>
     </div>
     <div class="db-rh"><span>${I.doc}آخر العمليات</span><button class="link" onclick="go('/log')">عرض السجل ${I.chevL}</button></div>
     <div class="card db-ops">${ops.length ? ops.map(o => `<button class="db-op" onclick="go('${o.go}')">
@@ -129,7 +130,7 @@ const fmt0 = v => Number(v || 0).toLocaleString('en-US', {maximumFractionDigits:
 /* =================== المزيد =================== */
 const MODULES = [
   {k:'employees', t:'الموظفين',          i:'emp',     c:'#2b6cb0', ready:true, d:'المرتبات والسلف والخصومات ورصيد كل موظف'},
-  {k:'loans',     t:'القروض',            i:'loan',    c:'#b7791f', d:'القروض اللي عليك أو ليك، والأقساط والمتبقي'},
+  {k:'loans',     t:'القروض',            i:'loan',    c:'#b7791f', ready:true, d:'القروض اللي عليك أو ليك، والأقساط والمتبقي'},
   {k:'cash',      t:'الخزينة',           i:'safe',    c:'#2f855a', d:'الكاش اللي في المحل: الداخل والخارج والرصيد'},
   {k:'banks',     t:'الحسابات البنكية',  i:'bank',    c:'#6b46c1', d:'البنوك، الإيداع والسحب، والشيكات اللي بتتصرف منها'},
   {k:'expenses',  t:'المصروفات',         i:'expense', c:'#c2546b', d:'إيجار وكهربا ونقل وغيره، بالتصنيف والصورة'},

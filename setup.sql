@@ -507,7 +507,7 @@ declare
 begin
   if not public.is_member() then raise exception 'not allowed'; end if;
   if v_op is null then raise exception 'op_id required'; end if;
-  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments') then raise exception 'table not allowed: %', t; end if;
+  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments') then raise exception 'table not allowed: %', t; end if;
   if t = 'check_payments' and k = 'delete' then raise exception 'دفعة سداد الشيك مبتتمسحش — اعملها إلغاء'; end if;
   if k not in ('insert','update','delete') then raise exception 'kind not allowed: %', k; end if;
 
@@ -786,3 +786,58 @@ create policy backup_runs_manual on public.backup_runs for insert to authenticat
 revoke all on public.backup_runs from anon;
 revoke update, delete on public.backup_runs from authenticated;
 grant select, insert on public.backup_runs to authenticated;
+
+-- =====================================================
+-- القروض (الإصدار 9): قروض البنوك والأقساط والغرامات
+--   total_amount  = إجمالي مبلغ القرض (اللي هيتسدد على الأقساط)
+--   net_received  = المبلغ اللي استلمته فعلًا بعد خصم الفايدة
+--   interest_rate = نسبة الفايدة (%)
+--   loan_payments.amount  = المسدد من القسط نفسه، penalty = غرامة التأخير (منفصلة)
+-- =====================================================
+create table if not exists public.loans (
+  id                 bigint generated always as identity primary key,
+  bank               text not null,
+  total_amount       numeric(14,2) not null check (total_amount > 0),
+  net_received       numeric(14,2) not null check (net_received >= 0),
+  interest_rate      numeric(7,3),
+  start_date         date not null default current_date,
+  installments_count int check (installments_count is null or installments_count > 0),
+  installment_amount numeric(14,2) check (installment_amount is null or installment_amount > 0),
+  first_due_date     date,
+  account_no         text,
+  notes              text,
+  status             text not null default 'active' check (status in ('active','closed')),
+  image_path         text,
+  extra_images       text[] not null default '{}',
+  created_by         text not null default public.current_email(),
+  created_at         timestamptz not null default now()
+);
+create table if not exists public.loan_payments (
+  id           bigint generated always as identity primary key,
+  loan_id      bigint not null references public.loans(id) on delete restrict,
+  pay_date     date not null default current_date,
+  due_date     date,
+  amount       numeric(14,2) not null default 0 check (amount >= 0),
+  penalty      numeric(14,2) not null default 0 check (penalty >= 0),
+  method       text,
+  notes        text,
+  image_path   text,
+  extra_images text[] not null default '{}',
+  created_by   text not null default public.current_email(),
+  created_at   timestamptz not null default now(),
+  check (amount > 0 or penalty > 0)
+);
+create index if not exists loan_payments_loan_idx on public.loan_payments(loan_id, pay_date);
+alter table public.loans enable row level security;
+alter table public.loan_payments enable row level security;
+drop policy if exists loans_all on public.loans;
+create policy loans_all on public.loans for all to authenticated using ((select public.is_member())) with check ((select public.is_member()));
+drop policy if exists loan_payments_all on public.loan_payments;
+create policy loan_payments_all on public.loan_payments for all to authenticated using ((select public.is_member())) with check ((select public.is_member()));
+drop trigger if exists loans_log on public.loans;
+create trigger loans_log after insert or update or delete on public.loans for each row execute function public.log_activity();
+drop trigger if exists loan_payments_log on public.loan_payments;
+create trigger loan_payments_log after insert or update or delete on public.loan_payments for each row execute function public.log_activity();
+grant select, insert, update, delete on public.loans, public.loan_payments to authenticated;
+revoke all on public.loans, public.loan_payments from anon;
+grant usage, select on all sequences in schema public to authenticated;

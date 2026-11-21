@@ -274,6 +274,8 @@ async function viewLog(){
         : (r.action === 'update' && !o.voided && n.voided) ? `ألغى دفعة سداد ${f(row.amount)} من الشيك${cn}${n.void_reason ? ' — السبب: ' + n.void_reason : ''}${sup}`
         : `عدّل دفعة سداد على الشيك${cn}${sup}`;
     }
+    else if(r.entity === 'loans') t = `${{insert:'سجّل', update:'عدّل', delete:'مسح'}[r.action]} قرض ${row.bank || ''} (${f(row.total_amount)})`;
+    else if(r.entity === 'loan_payments'){ const Lq = store.eff.loans?.get(row.loan_id); t = `${{insert:'سجّل', update:'عدّل', delete:'مسح'}[r.action]} قسط ${f(row.amount)}${Number(row.penalty) ? ' + غرامة ' + f(row.penalty) : ''} لقرض ${Lq?.bank || ''}`; }
     else if(r.entity === 'employees') t = `${{insert:'أضاف', update:'عدّل بيانات', delete:'مسح'}[r.action]} الموظف ${row.name}`;
     else if(r.entity === 'emp_settlements') t = `${verb} تسوية موظف (${row.period_from} — ${row.period_to}) صافي ${f(row.net_balance ?? 0)}`;
     else if(r.entity === 'emp_transactions') t = `${verb} حركة موظف (${({salary:'مرتب',commission:'عمولة',advance:'سلفة',deduction:'خصم',payment:'صرف',adjustment:'تسوية'})[row.kind] || ''}) بـ ${f(row.amount)}`;
