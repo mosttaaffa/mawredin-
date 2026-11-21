@@ -96,8 +96,8 @@ async function viewSettings(){
     </div>
     <div class="card"><div class="section-t">ألوان التطبيق</div>
       <div class="themes">
-        ${[['greige','جريج ووردي (الأساسي)',['#F2EEE9','#B77991','#A68B67']],['navy','كحلي ودهبي',['#0b1530','#d4a64a','#f8efdc']],['rose','زيتي ووردي',['#6b7f5e','#d88c9a','#f6d6dc']],['mint','نعناعي',['#0f8a66','#26b386','#d5f3e5']],['olive','زيتوني ودهبي',['#6a7955','#c9a15b','#f7f2ea']]].map(([k,l,c]) =>
-          `<button class="${(document.documentElement.dataset.theme||'greige')===k?'on':''}" onclick="setTheme('${k}')"><span class="sw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span>${l}</button>`).join('')}
+        ${[['bordeaux','أبيض وعنابي (الأساسي)',['#FFFFFF','#9B1B30','#D11A2A']],['greige','جريج ووردي',['#F2EEE9','#B77991','#A68B67']],['navy','كحلي ودهبي',['#0b1530','#d4a64a','#f8efdc']],['rose','زيتي ووردي',['#6b7f5e','#d88c9a','#f6d6dc']],['mint','نعناعي',['#0f8a66','#26b386','#d5f3e5']],['olive','زيتوني ودهبي',['#6a7955','#c9a15b','#f7f2ea']]].map(([k,l,c]) =>
+          `<button class="${(document.documentElement.dataset.theme||'bordeaux')===k?'on':''}" onclick="setTheme('${k}')"><span class="sw">${c.map(x=>`<i style="background:${x}"></i>`).join('')}</span>${l}</button>`).join('')}
       </div></div>
     <div class="card">
       <button class="btn danger block" onclick="logout()">${I.logout}خروج</button>

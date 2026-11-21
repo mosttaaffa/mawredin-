@@ -1,6 +1,8 @@
 /* الأساس: أيقونات، أدوات، إفكتات، الاتصال بقاعدة البيانات، التوجيه، هيكل الصفحة */
 /* =================== أيقونات =================== */
 const I = {
+  chevL:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m14.5 6-6 6 6 6"/></svg>',
+  layers:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12.5 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>',
   hanger:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7.5a2 2 0 1 1 2-2"/><path d="M12 7.5v1.2L3.6 15a1.2 1.2 0 0 0 .7 2.2h15.4a1.2 1.2 0 0 0 .7-2.2L12 8.7"/></svg>',
   cal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M8 3v4M16 3v4M3.5 10h17M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01"/></svg>',
   filter:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-6 7.5V19l-4 1.5v-8z"/></svg>',
@@ -409,7 +411,7 @@ function shell({title, back, right='', body, nav=null, fabs='', home=null, page=
   app.innerHTML = `
     ${home ? `<header class="top home-h">
       <div class="hh-logo"><img src="icons/ward.png" alt="ورد"><img src="icons/zahra.png" alt="زهرة"></div>
-      <div class="hh-t"><h1><span>${title}</span><i class="hh-store">${I.store}</i></h1><small><em></em>إدارة مالية شاملة للمحل<em></em></small>${syncPill()}</div>
+      <div class="hh-t"><h1><span>${title}</span><i class="hh-store">${I.store}</i></h1><small><em></em>${home.sub || 'إدارة مالية شاملة للمحل'}<em></em></small>${syncPill()}</div>
       <div class="hh-btns">
         <button class="iconbtn glass" onclick="go('/settings')" aria-label="الإعدادات">${I.gear}</button>
         <button class="iconbtn glass" onclick="go('/checks')" aria-label="الإشعارات">${I.bell}${home.alerts ? `<i class="badge">${home.alerts}</i>` : ''}</button>
@@ -429,9 +431,8 @@ function shell({title, back, right='', body, nav=null, fabs='', home=null, page=
     ${fabs}
     ${nav ? `<nav class="bottom">
       <a href="#/" class="${nav==='home'?'on':''}" aria-label="الرئيسية">${I.home}<span>الرئيسية</span></a>
-      <a href="#/suppliers" class="${nav==='suppliers'?'on':''}" aria-label="الموردين">${I.truck}<span>الموردين</span></a>
+      <a href="#/suppliers" class="${nav==='suppliers'?'on':''}" aria-label="الموردين">${I.box}<span>الموردين</span></a>
       <a href="#/employees" class="${nav==='employees'?'on':''}" aria-label="الموظفين">${I.users}<span>الموظفين</span></a>
-      <a href="#/checks" class="${nav==='checks'?'on':''}" aria-label="الشيكات">${I.check}<span>الشيكات</span></a>
       <a href="#/reports" class="${nav==='reports'?'on':''}" aria-label="التقارير">${I.chart}<span>التقارير</span></a>
       <a href="#/more" class="${nav==='more'?'on':''}" aria-label="المزيد">${I.grid}<span>المزيد</span></a>
     </nav>` : ''}`;

@@ -171,7 +171,7 @@ let repMonth = today().slice(0,7);
 const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const monthName = ym => `${AR_MONTHS[+ym.slice(5,7)-1]} ${ym.slice(0,4)}`;
 const addMonth = (ym, n) => { const d = new Date(+ym.slice(0,4), +ym.slice(5,7)-1+n, 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
-const CH = document.documentElement.dataset.theme === 'greige' ? {buy:'#A68B67', pay:'#247A45'} : {buy:'#3a6f2c', pay:'#ea8fa6'};   // ألوان اتراجعت لعمى الألوان
+const CH = document.documentElement.dataset.theme === 'bordeaux' ? {buy:'#9B1B30', pay:'#178A3C'} : document.documentElement.dataset.theme === 'greige' ? {buy:'#A68B67', pay:'#247A45'} : {buy:'#3a6f2c', pay:'#ea8fa6'};   // ألوان اتراجعت لعمى الألوان
 async function viewReports(){
   if(!$('.month-bar')) shell({title:'التقارير', right:refreshBtn, nav:'reports', body:skeleton('home')});
   const ym = repMonth;
