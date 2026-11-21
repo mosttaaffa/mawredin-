@@ -1563,3 +1563,14 @@ html,body{overflow-x:clip !important}
 .sr-name small{flex-wrap:nowrap;white-space:nowrap;overflow:hidden}
 .sr-name small .ph{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .sp-list.grid .sr-name small{flex-wrap:wrap;white-space:normal}
+/* اسم المورد يظهر كامل (لحد سطرين) بدل ما يتقص */
+.srow{grid-template-columns:auto minmax(0,1.45fr) repeat(3,minmax(0,.95fr)) auto !important;align-items:center}
+.srow .sr-go{display:none !important}
+.sr-name b{white-space:normal !important;overflow:visible;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.25;overflow-wrap:anywhere;font-size:14px}
+.sr-name b .tag{display:inline-flex;vertical-align:middle}
+.sr-name small{display:flex;flex-direction:column;gap:0;white-space:nowrap}
+.sr-name small .ph{max-width:100%}
+@media (max-width:400px){.sr-name b{font-size:13px}.sr-v b{font-size:clamp(10.5px,3vw,13px)}.sr-v small{font-size:10px}}
+.srow{grid-template-columns:auto minmax(96px,1.6fr) repeat(3,minmax(0,1fr)) auto !important;gap:0 4px}
+@media (max-width:400px){.sr-v b .cur{display:none}.sr-v small::after{content:" (ج)";font-weight:400}.sr-name small .ph{display:none}}
+.sr-name b{display:block !important;-webkit-line-clamp:unset;overflow:visible}

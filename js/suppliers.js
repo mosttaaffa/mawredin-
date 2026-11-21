@@ -23,7 +23,7 @@ function supCard(r){
       <small><span class="num">${supCode(r.id)}</span>${digits ? `<span class="ph">${I.phone}<span class="num" dir="ltr">${esc(digits)}</span></span>` : ''}</small></span>
     <span class="sr-v"><small>الفواتير</small><b>${n(r.total_invoices)}</b></span>
     <span class="sr-v"><small>المدفوع</small><b class="pay">${n(r.total_paid)}</b></span>
-    <span class="sr-v"><small>${bal < 0 ? 'لصالح المحل' : 'الرصيد'}</small><b class="${bal > 0 ? 'due' : bal < 0 ? 'cred' : ''}">${n(bal)}</b></span>
+    <span class="sr-v"><small>${bal < 0 ? 'لنا' : 'الرصيد'}</small><b class="${bal > 0 ? 'due' : bal < 0 ? 'cred' : ''}">${n(bal)}</b></span>
     <button class="sr-more" onclick="event.stopPropagation();supMore(${r.id})" aria-label="المزيد">${I.dots}</button>
   </div>`;
 }
