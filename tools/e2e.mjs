@@ -30,6 +30,7 @@ const dev = {...devices['iPhone 13']}; if(engine === chromium) delete dev.defaul
 const ctx = await browser.newContext({...dev, locale:'ar-EG', timezoneId:'Africa/Cairo'});
 const A = await ctx.newPage(); const errs = [];
 A.on('pageerror', e => errs.push(String(e)));
+const cons = []; A.on('console', m => { if(m.type() === 'error' || m.type() === 'warning') cons.push(m.type() + ': ' + m.text()); });
 const ev = (p, f) => p.evaluate(f);
 A.on('dialog', d => d.accept());
 // صورة فاتورة تجريبية (PNG صغير) — الفاتورة لازم ليها صورة
@@ -38,7 +39,12 @@ const addInvoice = async (p, sid, amt) => {
   await p.waitForTimeout(1200);
   for(let i = 0; i < 3; i++){ await ev(p, `go('/invoice?s=${sid}')`); await p.waitForSelector('#amount'); await p.waitForTimeout(600); if(await p.$('#amount')) break; }
   await p.setInputFiles('#pgin-inv', {name:'فاتورة.png', mimeType:'image/png', buffer:PNG}); await p.waitForTimeout(700);
-  await p.fill('#amount', String(amt)); await p.click('#frm button[type=submit]'); await p.waitForTimeout(1200);
+  const nPg = await p.evaluate(() => (PG.inv || []).length);
+  await p.fill('#amount', String(amt)); await p.click('#frm button[type=submit]'); await p.waitForTimeout(1500);
+  if(await p.$('#frm')){   // لسه على الفورم = الحفظ ما تمّش — اطبع السبب
+    const why = await p.evaluate(() => ({hash:location.hash, pages:(PG.inv || []).length, errs:[...document.querySelectorAll('.field.err, .err-msg, .field .error')].map(e => e.innerText.trim()).join(' | '), toast:[...document.querySelectorAll('.toast, #toast, [class*=toast]')].map(e => e.innerText.trim()).join(' | ')}));
+    console.error('   الفاتورة ما اتحفظتش:', JSON.stringify({...why, pagesAfterPick:nPg}), '\n   console:', cons.slice(-5).join(' || '), '\n   errors:', errs.slice(-3).join(' || '));
+  }
 };
 const waitIdle = async p => { for(let i = 0; i < 40; i++){ if(await p.evaluate(() => store.queue.filter(o => o.status !== 'done' && o.status !== 'conflict' && o.status !== 'failed').length) === 0) return true; await p.evaluate(() => syncNow(true)).catch(() => {}); await p.waitForTimeout(500); } return false; };
 console.log(`المتصفح: ${engine.name()} · ${dev.viewport.width}×${dev.viewport.height} · ${URL}`);
