@@ -841,3 +841,6 @@ create trigger loan_payments_log after insert or update or delete on public.loan
 grant select, insert, update, delete on public.loans, public.loan_payments to authenticated;
 revoke all on public.loans, public.loan_payments from anon;
 grant usage, select on all sequences in schema public to authenticated;
+
+-- القروض (الإصدار 9.1): جدول أقساط متعدّل يدويًا (تاريخ وقيمة كل قسط) — لو فاضي بيتحسب من عدد الأقساط وأول ميعاد
+alter table public.loans add column if not exists schedule jsonb;

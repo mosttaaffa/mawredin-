@@ -8,6 +8,14 @@ const lmoney = c => `<span class="m"><span class="num">${(c / 100).toLocaleStrin
 const addMonths = (d, n) => { const [y, m, dd] = String(d).slice(0, 10).split('-').map(Number); const t = new Date(y, m - 1 + n, 1); const last = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate(); t.setDate(Math.min(dd, last)); return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; };
 const lDays = (a, b) => Math.round((new Date(b) - new Date(a)) / 864e5);
 
+// جدول الأقساط: المتعدّل يدويًا لو موجود، وإلا بيتحسب (شهري من أول ميعاد)
+function loanPlan(L){
+  if(Array.isArray(L.schedule) && L.schedule.length) return L.schedule.map(x => ({due:String(x.due).slice(0, 10), amt:LC(x.amt)})).sort((a, b) => a.due.localeCompare(b.due));
+  const n = Number(L.installments_count || 0), total = LC(L.total_amount);
+  if(!n || !L.first_due_date) return [];
+  const inst = L.installment_amount ? LC(L.installment_amount) : Math.round(total / n);
+  return Array.from({length:n}, (_, i) => ({due:addMonths(L.first_due_date, i), amt:i === n - 1 ? Math.max(0, total - inst * (n - 1)) : inst}));
+}
 function loanPays(id){ return [...(store.eff.loan_payments?.values() || [])].filter(p => p.loan_id === id).sort((a, b) => String(a.pay_date).localeCompare(String(b.pay_date)) || a.id - b.id); }
 // كل أرقام القرض من مكان واحد
 function loanInfo(L){
@@ -17,18 +25,15 @@ function loanInfo(L){
   const remaining = Math.max(0, total - paid), outlay = paid + pen;
   const interest = Math.max(0, total - net);
   // جدول الأقساط: بنوزّع المسدد على الأقساط بالترتيب
-  const n = Number(L.installments_count || 0), inst = L.installment_amount ? LC(L.installment_amount) : (n ? Math.round(total / n) : 0);
+  const plan = loanPlan(L), n = plan.length, inst = L.installment_amount ? LC(L.installment_amount) : (n ? Math.round(total / n) : 0);
   const sched = [];
-  if(n && L.first_due_date){
-    let left = paid;
-    for(let i = 0; i < n; i++){
-      const due = addMonths(L.first_due_date, i), amt = i === n - 1 ? Math.max(0, total - inst * (n - 1)) : inst;
-      const cover = Math.min(amt, left); left -= cover;
-      const st = cover >= amt ? 'paid' : cover > 0 ? 'partial' : due < t ? 'late' : due === t ? 'due' : 'next';
-      // تاريخ السداد الفعلي للقسط ده (آخر دفعة غطته)
-      sched.push({i:i + 1, due, amt, cover, st, late:st === 'late' || st === 'partial' && due < t ? lDays(due, t) : 0});
-    }
-  }
+  let left = paid;
+  plan.forEach((p, i) => {
+    const due = p.due, amt = p.amt;
+    const cover = Math.min(amt, left); left -= cover;
+    const st = cover >= amt ? 'paid' : cover > 0 ? 'partial' : due < t ? 'late' : due === t ? 'due' : 'next';
+    sched.push({i:i + 1, due, amt, cover, st, late:(st === 'late' || st === 'partial') && due < t ? lDays(due, t) : 0});
+  });
   const lateInst = sched.filter(s => s.late > 0), next = sched.find(s => s.st !== 'paid');
   const closed = L.status === 'closed' || (total > 0 && remaining === 0);
   return {pays, total, net, paid, pen, remaining, outlay, interest, rate:L.interest_rate, inst, n, sched, lateInst, next, closed,
@@ -79,25 +84,20 @@ async function viewLoan(id){
       <div class="ln-g"><span>إجمالي مبلغ القرض</span><b>${lmoney(i.total)}</b></div>
       <div class="ln-g"><span>اللي استلمته بعد الفايدة</span><b>${lmoney(i.net)}</b></div>
       <div class="ln-g"><span>الفايدة${rate ? ` (${rate}%)` : ''}</span><b class="due">${lmoney(i.interest)}</b></div>
-      <div class="ln-g"><span>القسط${i.n ? ` (${i.n} قسط)` : ''}</span><b>${i.inst ? lmoney(i.inst) : '—'}</b></div>
-      <div class="ln-g"><span>المسدد من الأقساط</span><b class="pay">${lmoney(i.paid)}</b></div>
-      <div class="ln-g"><span>غرامات التأخير</span><b class="due">${lmoney(i.pen)}</b></div>
+      <div class="ln-g"><span>${i.n ? `${i.n} قسط` : 'القسط'}${i.n && new Set(i.sched.map(s => s.amt)).size > 1 ? ' (مختلفين)' : ''}</span><b>${i.inst ? lmoney(i.inst) : '—'}</b></div>
+      <div class="ln-g"><span>إجمالي اللي دفعته</span><b class="pay">${lmoney(i.outlay)}</b></div>
+      <div class="ln-g"><span>غرامات التأخير</span><b class="${i.pen ? 'due' : ''}">${lmoney(i.pen)}</b></div>
+      <div class="ln-foot">${!i.closed ? `<div><span>لو سددت الباقي هتكون دفعت</span><b>${lmoney(i.outlay + i.remaining)}</b></div>` : ''}
+        <div><span>تكلفة القرض عليك (الفايدة + الغرامات)</span><b class="due">${lmoney(i.cost)}</b></div></div>
     </div>
-    <div class="card ln-final">
-      <div class="lf-r big"><span>إجمالي اللي دفعته لحد دلوقتي</span><b>${lmoney(i.outlay)}</b></div>
-      <div class="lf-r"><span>أقساط + غرامات</span><span>${lmoney(i.paid)} + ${lmoney(i.pen)}</span></div>
-      ${!i.closed ? `<div class="lf-r"><span>لو سددت الباقي (${lmoney(i.remaining)}) هتكون دفعت</span><b>${lmoney(i.outlay + i.remaining)}</b></div>` : ''}
-      <div class="lf-r"><span>تكلفة القرض عليك (الفايدة + الغرامات)</span><b class="due">${lmoney(i.cost)}</b></div>
-      <div class="hint">التكلفة = كل اللي هتدفعه − المبلغ اللي استلمته (${lmoney(i.net)})</div>
-    </div>
-    ${i.sched.length ? `<div class="card"><div class="section-t">جدول الأقساط</div><div class="ln-sched">${i.sched.map(s => `
-      <div class="ls-r ${s.st}"><span class="ls-n">${s.i}</span><span class="ls-d"><b>${fmtDate(s.due)}</b><small>${LST[s.st]}${s.late ? ` · ${s.late} يوم تأخير` : ''}${s.st === 'partial' ? ` · اتسدد ${lmoney(s.cover)}` : ''}</small></span><span class="ls-a">${lmoney(s.amt)}</span></div>`).join('')}</div></div>` : ''}
-    <div class="card"><div class="section-t">المدفوعات (${i.pays.length})</div>
+    <div class="card"><div class="section-t ls-h"><span>جدول الأقساط</span><button class="link" onclick="instEdit(${L.id})">${I.plus}قسط جديد</button></div>${i.sched.length ? `<div class="ln-sched">${i.sched.map(s => `
+      <div class="ls-r ${s.st}" onclick="instMenu(${L.id},${s.i - 1})"><span class="ls-n">${s.i}</span><span class="ls-d"><b>${fmtDate(s.due)}</b><small>${LST[s.st]}${s.late ? ` · ${s.late} يوم تأخير` : ''}${s.st === 'partial' ? ` · اتسدد ${lmoney(s.cover)}` : ''}</small></span><span class="ls-a">${lmoney(s.amt)}</span><span class="ls-e">${I.edit}</span></div>`).join('')}</div>` : '<div class="hint">مفيش جدول أقساط — دوس «قسط جديد» أو عدّل القرض وحط عدد الأقساط</div>'}</div>
+    <div class="card"><div class="section-t">المدفوعات (${i.pays.length}) <small class="hint">— دوس على أي دفعة لتعديلها</small></div>
       ${i.pays.length ? `<div class="list">${i.pays.slice().reverse().map(p => `<div class="item" onclick="go('/loan-pay/${L.id}/${p.id}')">
         <div class="ico pay">${I.coins2}</div>
         <div class="grow"><div class="t">${fmtDate(p.pay_date)}${p.due_date ? ` · قسط ${fmtDate(p.due_date)}` : ''}${p._pending ? ' <span class="tag pend-sync">على الجهاز</span>' : ''}</div>
           <div class="s">${LC(p.penalty) ? `غرامة ${lmoney(LC(p.penalty))} · ` : ''}${p.due_date && p.pay_date > p.due_date ? `متأخر ${lDays(p.due_date, p.pay_date)} يوم · ` : ''}${esc(p.notes || '')} ${esc(who(p.created_by))}</div></div>
-        <div class="amt ok">${lmoney(LC(p.amount) + LC(p.penalty))}</div></div>`).join('')}</div>` : '<div class="hint">لسه مفيش مدفوعات</div>'}</div>
+        <div class="amt ok">${lmoney(LC(p.amount) + LC(p.penalty))}</div><span class="ls-e">${I.edit}</span></div>`).join('')}</div>` : '<div class="hint">لسه مفيش مدفوعات</div>'}</div>
     ${L.notes || L.account_no ? `<div class="card">${L.account_no ? `<div class="kv"><span>رقم الحساب / العقد</span><span class="num">${esc(L.account_no)}</span></div>` : ''}${L.notes ? `<div class="kv"><span>ملاحظات</span><span>${esc(L.notes)}</span></div>` : ''}</div>` : ''}
     </div>`});
   $('#app').insertAdjacentHTML('beforeend', `<div class="dt-acts">${i.closed ? `<button class="btn ghost" onclick="loanReopen(${L.id})">رجّعه «جاري»</button>` : `<button class="btn primary" onclick="go('/loan-pay/${L.id}')">${I.plus}تسجيل قسط</button>`}
@@ -147,6 +147,10 @@ async function formLoan(id){
     const row = {bank, total_amount:total, net_received:net, interest_rate:$('#rate').value.trim() ? readAmount($('#rate').value) : null,
       start_date:$('#start').value || today(), first_due_date:$('#first').value || null, installments_count:count,
       installment_amount:inst || (count ? Math.round(total / count * 100) / 100 : null), account_no:$('#acc').value.trim() || null, notes:$('#notes').value.trim() || null};
+    if(x && Array.isArray(x.schedule) && x.schedule.length){
+      const changed = row.installments_count !== x.installments_count || row.first_due_date !== x.first_due_date || LC(row.total_amount) !== LC(x.total_amount) || ($('#inst').value.trim() && LC(row.installment_amount) !== LC(x.installment_amount));
+      if(changed){ if(!confirm('إنت عدّلت أقساط بإيدك قبل كده. تغيير المبلغ أو عدد الأقساط أو أول ميعاد هيعمل جدول جديد ويلغي تعديلات الأقساط. تكمل؟')) return; row.schedule = null; }
+    }
     if(x){ await q(ldb.from('loans').update(row).eq('id', x.id)); busy(false); toast('اتحفظ ✓'); history.back(); }
     else { await q(ldb.from('loans').insert(row)); busy(false); toast('اتسجل القرض ✓'); location.replace('#/loans'); }
   });
@@ -164,7 +168,8 @@ async function formLoan(id){
 async function formLoanPay(lid, pid){
   const L = store.eff.loans.get(lid); if(!L) return go('/loans');
   const x = pid ? store.eff.loan_payments.get(pid) : null, i = loanInfo(L);
-  const nx = i.next;
+  const qp = new URLSearchParams(location.hash.split('?')[1] || '');
+  const nx = qp.get('due') ? {due:qp.get('due'), amt:LC(qp.get('amt')), cover:0} : i.next;
   formShell(x ? 'تعديل قسط' : 'تسجيل قسط — ' + L.bank, `
     <div class="note-line" style="margin-bottom:10px">المتبقي من القرض ${lmoney(i.remaining + (x ? LC(x.amount) : 0))}${nx && !x ? ` · القسط الجاي ${fmtDate(nx.due)} (${lmoney(nx.amt - nx.cover)})` : ''}</div>
     <div class="field" id="f-amount"><label>المبلغ المدفوع من القسط</label><input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x ? x.amount : nx ? (nx.amt - nx.cover) / 100 : ''}"></div>
@@ -209,3 +214,51 @@ function loansSummary(){
   const ls = [...(store.eff?.loans?.values() || [])].map(L => loanInfo(L)).filter(i => !i.closed);
   return {n:ls.length, remaining:ls.reduce((a, i) => a + i.remaining, 0), late:ls.reduce((a, i) => a + i.lateInst.length, 0)};
 }
+
+/* ---------- تعديل الأقساط (جدول الأقساط) ---------- */
+window.instMenu = (lid, idx) => {
+  const L = store.eff.loans.get(lid), i = loanInfo(L), s = i.sched[idx];
+  openModal(`<h3>القسط ${s.i} — ${fmtDate(s.due)}</h3>
+    <div class="kv"><span>قيمة القسط</span><b>${lmoney(s.amt)}</b></div><div class="kv"><span>الحالة</span><span>${LST[s.st]}${s.late ? ` · ${s.late} يوم تأخير` : ''}</span></div>
+    <div class="menu-list" style="margin-top:10px">
+      ${s.st !== 'paid' ? `<button onclick="closeModal();go('/loan-pay/${lid}?due=${s.due}&amt=${(s.amt - s.cover) / 100}')">${I.coins2}تسجيل دفع القسط ده</button>` : ''}
+      <button onclick="closeModal();instEdit(${lid},${idx})">${I.edit}تعديل التاريخ أو القيمة</button>
+      <button class="danger" onclick="closeModal();instDelete(${lid},${idx})">${I.trash}حذف القسط من الجدول</button>
+    </div>`);
+};
+// حفظ الجدول: إجمالي القرض = مجموع الأقساط (عشان الأرقام تفضل متطابقة)
+async function saveSchedule(lid, plan){
+  plan = plan.filter(p => p.due && p.amt > 0).sort((a, b) => a.due.localeCompare(b.due));
+  const total = plan.reduce((a, p) => a + p.amt, 0);
+  const L = store.eff.loans.get(lid), paid = loanInfo(L).paid;
+  if(total < paid) throw new Error(`مجموع الأقساط (${(total / 100).toLocaleString('en-US')}) أقل من اللي اتدفع فعلًا (${(paid / 100).toLocaleString('en-US')})`);
+  await q(ldb.from('loans').update({schedule:plan.map(p => ({due:p.due, amt:p.amt / 100})), total_amount:total / 100, installments_count:plan.length,
+    first_due_date:plan[0]?.due || null, status:total - paid === 0 ? 'closed' : 'active'}).eq('id', lid));
+}
+window.instEdit = (lid, idx) => {
+  const L = store.eff.loans.get(lid), plan = loanPlan(L), s = idx != null ? plan[idx] : null;
+  const after = idx != null ? plan.length - idx - 1 : 0;
+  openModal(`<h3>${s ? `تعديل القسط ${idx + 1}` : 'قسط جديد'}</h3>
+    <div class="field"><label>ميعاد القسط</label><input id="ie-d" type="date" value="${s ? s.due : (plan.length ? addMonths(plan[plan.length - 1].due, 1) : today())}"></div>
+    <div class="field" id="f-ie-a"><label>قيمة القسط</label><input id="ie-a" class="amount-input" inputmode="decimal" value="${s ? s.amt / 100 : (plan.length ? plan[plan.length - 1].amt / 100 : '')}"></div>
+    ${s && after ? `<label class="chk-line"><input type="checkbox" id="ie-all" style="width:auto"> نفس القيمة لكل الأقساط اللي بعده (${after} قسط)</label>` : ''}
+    <div class="hint" style="margin:8px 0 12px">إجمالي القرض هيتعدل لوحده = مجموع الأقساط. المدفوعات المسجلة مش هتتغير.</div>
+    <div class="actions"><button class="btn primary" id="ie-ok">${I.save}حفظ</button><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`);
+  $('#ie-ok').onclick = async () => {
+    const a = readAmount($('#ie-a').value), d = $('#ie-d').value;
+    if(!(a > 0)) return markErr('ie-a', 'اكتب القيمة');
+    if(!d) return toast('اختار الميعاد', true);
+    const p2 = plan.map(x => ({...x}));
+    if(s){ p2[idx] = {due:d, amt:LC(a)}; if($('#ie-all')?.checked) for(let k = idx + 1; k < p2.length; k++) p2[k].amt = LC(a); }
+    else p2.push({due:d, amt:LC(a)});
+    busy(true);
+    try{ await saveSchedule(lid, p2); closeModal(); toast('اتعدّل الجدول ✓'); viewLoan(lid); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); }
+  };
+};
+window.instDelete = (lid, idx) => {
+  const L = store.eff.loans.get(lid), plan = loanPlan(L), s = plan[idx];
+  openModal(`<h3>حذف القسط ${idx + 1}؟</h3><div class="kv"><span>الميعاد</span><span>${fmtDate(s.due)}</span></div><div class="kv"><span>القيمة</span><b>${lmoney(s.amt)}</b></div>
+    <div class="hint" style="margin:8px 0 12px">إجمالي القرض هيقل بقيمة القسط ده.</div>
+    <div class="actions"><button class="btn danger" id="id-ok">تأكيد الحذف</button><button class="btn ghost" onclick="closeModal()">إلغاء</button></div>`);
+  $('#id-ok').onclick = async () => { busy(true); try{ await saveSchedule(lid, plan.filter((_, k) => k !== idx)); closeModal(); toast('اتحذف القسط'); viewLoan(lid); }catch(e){ toast(errMsg(e), true); } finally{ busy(false); } };
+};

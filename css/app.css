@@ -1651,3 +1651,15 @@ body.dash-fits{overflow:hidden}
 .ls-a{font-weight:900;font-size:13.5px}
 .ln-calc{min-height:48px;display:flex;align-items:center;padding:0 12px;border-radius:14px;background:var(--brand-soft);color:var(--red);font-weight:900}
 .ln-calc small{color:var(--muted);font-weight:600;margin-inline-start:4px}
+.ln-foot{grid-column:1 / -1;display:flex;flex-direction:column;gap:4px;margin-top:2px;padding-top:8px;border-top:1px dashed #E9B3BD}
+.ln-foot>div{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px}
+.ln-foot span{color:var(--muted);font-weight:700}.ln-foot b{font-weight:900;white-space:nowrap;font-size:14.5px}
+.ln-foot b .m,.ln-foot b .num{font-size:inherit}.ln-foot b.due{color:var(--red)}
+.ls-h{display:flex;justify-content:space-between;align-items:center}
+.ls-h .link{display:flex;align-items:center;gap:3px;font-size:13px;font-weight:800;color:var(--brand);background:none;border:0}
+.ls-h .link svg{width:16px;height:16px}
+.ls-r{grid-template-columns:auto 1fr auto auto;cursor:pointer}
+.ls-e{color:var(--muted);display:flex}.ls-e svg{width:15px;height:15px}
+.list .item .ls-e{margin-inline-start:4px}
+.chk-line{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:700;margin:4px 0}
+.menu-list .danger{color:var(--red)}
