@@ -19,6 +19,7 @@ function recentOps(n = 3){
     const outK = x.kind === 'payment' || x.kind === 'advance';
     out.push({d:x.tx_date, c:x.created_at, ic:'users', t:(typeof TX_KIND !== 'undefined' && TX_KIND[x.kind]) || 'حركة موظف', s:emp(x.employee_id), a:Math.abs(+x.amount), sg:outK ? -1 : 0, go:`/emp/${x.employee_id}`});
   }
+  for(const x of (store.eff.expenses?.values() || [])) out.push({d:x.exp_date, c:x.created_at, ic:'expense', t:'مصروف ' + x.category, s:x.branch, a:+x.amount, sg:-1, go:`/expense/${x.id}`});
   for(const s of (store.eff.daily_sales?.values() || [])) out.push({d:s.sale_date, c:s.created_at, ic:'safe', t:'مبيع ' + s.branch, s:`كاش ${(+s.cash).toLocaleString('en-US')} · تحويل ${(+s.transfer).toLocaleString('en-US')}`, a:(+s.cash) + (+s.transfer), sg:1, go:`/sale/${s.id}`});
   return out.sort((a, b) => String(b.d).localeCompare(String(a.d)) || String(b.c || '').localeCompare(String(a.c || ''))).slice(0, n);
 }
@@ -26,6 +27,7 @@ window.quickAdd = () => openModal(`<h3>إضافة سريعة</h3><div class="men
   <button onclick="closeModal();go('/invoice')">${I.invadd}فاتورة جديدة</button>
   <button onclick="closeModal();go('/payment')">${I.cash}دفعة جديدة</button>
   <button onclick="closeModal();go('/sale')">${I.safe}مبيع اليوم</button>
+  <button onclick="closeModal();go('/expense')">${I.expense}مصروف</button>
   <button onclick="closeModal();go('/adjust')">${I.ret}مرتجع أو خصم</button>
   <button onclick="closeModal();go('/employees')">${I.users}حركة موظف</button>
   <button onclick="closeModal();go('/supplier')">${I.box}مورد جديد</button></div>`);
@@ -49,7 +51,7 @@ async function viewDashboard(){
   const supDue = rows.reduce((a, r) => a + Math.max(0, C2(r.balance)), 0), supCred = rows.reduce((a, r) => a + Math.max(0, -C2(r.balance)), 0);
   const empDue = E.reduce((a, r) => a + Math.max(0, C2(r.balance)), 0), empOwe = E.reduce((a, r) => a + Math.max(0, -C2(r.balance)), 0);
   const chkRemC = C2(cs.sum);
-  const LS = loansSummary(), CS = cashSummary();
+  const LS = loansSummary(), CS = cashSummary(), XS = expSummary();
   const ours = supCred + empOwe, theirs = supDue + empDue + chkRemC + LS.remaining, net = ours - theirs;
   const salaries = act.reduce((a, r) => a + C2(r.base_salary), 0) / 100;
   const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3 && chkRem(c) > 0);
@@ -80,7 +82,7 @@ async function viewDashboard(){
       ${tile('reports', 'التقارير', 'chart', "go('/reports')")}
       ${tile('checks', 'الشيكات', 'check', "go('/checks')", `<em>${m(cs.sum)}</em><small class="c">مستحقة · ${N(cs.n)} شيك</small>`)}
       ${tile('banks', 'الحسابات البنكية', 'bank', mod('banks'))}
-      ${tile('expenses', 'المصروفات', 'expense', mod('expenses'))}
+      ${tile('expenses', 'المصروفات', 'expense', "go('/expenses')", XS.month ? `<em class="neg">${m(XS.month / 100)}</em><small class="c">مصروفات الشهر</small>` : '')}
       ${tile('cash', 'الخزينة', 'safe', "go('/cash')", CS.today.total ? `<em>${m(CS.today.total / 100)}</em><small class="c">مبيع النهارده</small>` : CS.n ? `<em>${m(CS.month.total / 100)}</em><small class="c">مبيع الشهر</small>` : '')}
       ${tile('loans', 'القروض والسلف', 'loan', "go('/loans')", LS.n ? `<em class="neg">${m(LS.remaining / 100)}</em><small class="c">${LS.late ? `${LS.late} قسط متأخر` : `${LS.n} قرض جاري`}</small>` : '')}
     </div>
@@ -136,7 +138,7 @@ const MODULES = [
   {k:'loans',     t:'القروض',            i:'loan',    c:'#b7791f', ready:true, d:'القروض اللي عليك أو ليك، والأقساط والمتبقي'},
   {k:'cash',      t:'الخزينة',           i:'safe',    c:'#2f855a', ready:true, d:'المبيع اليومي لكل فرع: كاش وتحويلات'},
   {k:'banks',     t:'الحسابات البنكية',  i:'bank',    c:'#6b46c1', d:'البنوك، الإيداع والسحب، والشيكات اللي بتتصرف منها'},
-  {k:'expenses',  t:'المصروفات',         i:'expense', c:'#c2546b', d:'إيجار وكهربا ونقل وغيره، بالتصنيف والصورة'},
+  {k:'expenses',  t:'المصروفات',         i:'expense', c:'#c05621', ready:true, d:'مصروفات كل فرع يوميًا — والدفعات والأقساط والمرتبات بتتسجل لوحدها'},
   {k:'other',     t:'حسابات أخرى',       i:'folder',  c:'#4a5568', d:'أي حساب تاني: شريك، عميل بالأجل، أمانات'},
 ];
 function viewMore(){

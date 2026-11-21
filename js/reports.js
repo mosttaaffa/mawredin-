@@ -275,6 +275,7 @@ async function viewLog(){
         : `عدّل دفعة سداد على الشيك${cn}${sup}`;
     }
     else if(r.entity === 'loans') t = `${{insert:'سجّل', update:'عدّل', delete:'مسح'}[r.action]} قرض ${row.bank || ''} (${f(row.total_amount)})`;
+    else if(r.entity === 'expenses') t = `${{insert:'سجّل', update:'عدّل', delete:'مسح'}[r.action]} مصروف ${row.category || ''} (${row.branch || ''}) يوم ${row.exp_date ? fmtDate(row.exp_date) : ''} — ${f(row.amount)}`;
     else if(r.entity === 'daily_sales') t = `${{insert:'سجّل', update:'عدّل', delete:'مسح'}[r.action]} مبيع ${row.branch || ''} يوم ${row.sale_date ? fmtDate(row.sale_date) : ''} (كاش ${f(row.cash)} + تحويل ${f(row.transfer)})`;
     else if(r.entity === 'loan_payments'){ const Lq = store.eff.loans?.get(row.loan_id); t = `${{insert:'سجّل', update:'عدّل', delete:'مسح'}[r.action]} قسط ${f(row.amount)}${Number(row.penalty) ? ' + غرامة ' + f(row.penalty) : ''} لقرض ${Lq?.bank || ''}`; }
     else if(r.entity === 'employees') t = `${{insert:'أضاف', update:'عدّل بيانات', delete:'مسح'}[r.action]} الموظف ${row.name}`;

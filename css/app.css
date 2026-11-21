@@ -1771,3 +1771,26 @@ body.dash-fits{overflow:hidden}
 .dmy-cal input[type=date]{position:absolute;inset:0;width:100%!important;height:100%!important;opacity:0;margin:0;padding:0;border:0;cursor:pointer;color:transparent;-webkit-text-fill-color:transparent}
 .dmy-cal input[type=date]::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 .dmy-text{display:none}
+
+/* =================== المصروفات =================== */
+.ex-4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.ex-4 .cs-k{flex-direction:row;justify-content:space-between;padding:9px 10px;text-align:start}
+.ex-4 .cs-k i svg{width:19px;height:19px}.ex-4 .cs-k span{flex:1;font-size:12.5px}.ex-4 .cs-k b{font-size:clamp(12.5px,3.7vw,15px)}
+.ex-cats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 10px;margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+.ex-cat{display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;min-width:0}
+.ex-cat span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-weight:700}.ex-cat b{font-size:12.5px;white-space:nowrap}
+.ex-cat i,.ex-auto{font-style:normal;font-size:9px;font-weight:800;color:#2b6cb0;background:#E8F1FB;border-radius:6px;padding:0 4px}
+.ex-r{grid-template-columns:minmax(0,1.1fr) repeat(4,minmax(0,1fr));border:0;background:none;font:inherit;padding:0;text-align:inherit;cursor:pointer;width:100%}
+.ex-r .cm-c{cursor:inherit}
+.ex-r .cm-t{position:relative}.ex-r .ex-auto{position:absolute;top:-5px;inset-inline-end:2px}
+.ex-sum{grid-template-columns:minmax(0,1.15fr) repeat(3,minmax(0,1fr))}.ex-sum .cm-sv b{font-size:13px}
+.ex-g{margin-bottom:8px}.ex-gh{display:flex;justify-content:space-between;padding:4px 2px;border-bottom:1px solid var(--line);font-size:13.5px}.ex-gh span{font-weight:900;color:var(--brand)}
+.ex-it{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;width:100%;border:0;border-bottom:1px dashed var(--line);background:none;font:inherit;text-align:start;padding:8px 2px;cursor:pointer}
+.ex-it span{display:flex;flex-direction:column;min-width:0}.ex-it b{font-size:13.5px}.ex-it small{font-size:11.5px;color:var(--muted)}
+.ex-it em{font-style:normal;font-weight:900;font-size:13.5px}.ex-it svg{width:15px;height:15px;color:var(--muted)}
+.ex-src{font-style:normal;color:#2b6cb0;font-weight:700}
+.ex-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}
+.ex-chips button{border:1px solid #EAD3D8;background:#fff;border-radius:999px;padding:4px 10px;font:inherit;font-size:12.5px;font-weight:700;color:var(--ink);cursor:pointer}
+@media (max-width:370px){.ex-r{grid-template-columns:minmax(0,1fr) repeat(4,minmax(0,1fr))}.ex-sum .cm-sv b{font-size:11.5px}}
+.ex-it em,.ex-it em .m{white-space:nowrap}
+.ex-r .cm-d>svg{display:none}.ex-r .cm-d{padding:4px 6px}

@@ -9,8 +9,8 @@
    ===================================================================== */
 
 const LDB_VERSION = 3;
-const TABLES = {suppliers:'id', invoices:'id', payments:'id', members:'email', employees:'id', emp_settlements:'id', emp_transactions:'id', emp_import_batches:'id', check_payments:'id', loans:'id', loan_payments:'id', daily_sales:'id'};
-const SYNC_TABLES = ['suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments','daily_sales'];
+const TABLES = {suppliers:'id', invoices:'id', payments:'id', members:'email', employees:'id', emp_settlements:'id', emp_transactions:'id', emp_import_batches:'id', check_payments:'id', loans:'id', loan_payments:'id', daily_sales:'id', expenses:'id'};
+const SYNC_TABLES = ['suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments','daily_sales','expenses'];
 const FK = ['supplier_id','invoice_id','employee_id','payment_id','replaced_by','loan_id'];      // أعمدة بتشاور على صفوف تانية (عشان الأرقام المؤقتة)
 const LOG_KEEP = 3000;
 const OVERLAP = 200;                                         // بنعيد آخر 200 حركة من السجل كل مرة احتياطي
@@ -540,7 +540,7 @@ function syncUI(){
   const s = syncState(); el.className = 'sync-pill s-' + s.k; el.querySelector('span').textContent = s.t;
   if(document.querySelector('#mdl .sync-panel')) renderSyncPanel();
 }
-const OPNAME = {suppliers:'مورد', invoices:'فاتورة', payments:'دفعة', members:'عضو', employees:'موظف', emp_settlements:'تسوية موظف', emp_transactions:'حركة موظف', check_payments:'سداد شيك', loans:'قرض', loan_payments:'قسط قرض', daily_sales:'مبيع يوم', _files:'صورة'};
+const OPNAME = {suppliers:'مورد', invoices:'فاتورة', payments:'دفعة', members:'عضو', employees:'موظف', emp_settlements:'تسوية موظف', emp_transactions:'حركة موظف', check_payments:'سداد شيك', loans:'قرض', loan_payments:'قسط قرض', daily_sales:'مبيع يوم', expenses:'مصروف', _files:'صورة'};
 const KIND = {insert:'إضافة', update:'تعديل', delete:'مسح', upload:'رفع', rmfile:'مسح'};
 const ST = {pending:'محفوظ على الجهاز', sending:'جاري الإرسال', conflict:'تعارض', failed:'فشل'};
 const opLabel = o => `${KIND[o.kind]} ${OPNAME[o.table] || ''}${o.row?.amount ? ' بـ ' + Number(o.row.amount).toLocaleString('en-US') + ' ج' : o.changes?.amount ? ' (المبلغ ' + Number(o.changes.amount).toLocaleString('en-US') + ')' : o.row?.name ? ' ' + o.row.name : ''}`;
