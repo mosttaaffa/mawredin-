@@ -185,6 +185,9 @@ async function formLoanPay(lid, pid){
       <div class="field"><label>تاريخ الدفع</label><input id="pdate" type="date" value="${x?.pay_date || today()}"></div>
       <div class="field"><label>عن قسط ميعاده</label><input id="ddate" type="date" value="${x?.due_date || nx?.due || ''}"></div>
     </div>
+    <div class="field"><label>اتدفع منين؟</label><div class="seg" id="lmeth" style="grid-template-columns:1fr 1fr">
+      <button type="button" data-v="bank" class="${x?.method === 'cash' ? '' : 'on'}" onclick="segPick(this)">من البنك</button><button type="button" data-v="cash" class="${x?.method === 'cash' ? 'on' : ''}" onclick="segPick(this)">كاش</button></div>
+      <div class="hint">«من البنك» بيتخصم من رصيد البنك.</div></div>
     <div id="latebox"></div>
     <div class="field" id="f-penalty"><label>غرامة التأخير</label><input id="penalty" class="amount-input" inputmode="decimal" placeholder="0" value="${x ? (Number(x.penalty) || '') : ''}"><div class="hint">لو البنك حسب عليك غرامة لأنك دفعت متأخر</div></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>
@@ -195,7 +198,7 @@ async function formLoanPay(lid, pid){
     if(!(a > 0) && !(pen > 0)) return markErr('amount', 'اكتب المبلغ أو الغرامة');
     const maxC = i.remaining + (x ? LC(x.amount) : 0);
     if(LC(a) > maxC) return markErr('amount', `أكبر من المتبقي من القرض (${(maxC / 100).toLocaleString('en-US')} ج)`);
-    const row = {loan_id:lid, amount:a, penalty:pen, pay_date:$('#pdate').value || today(), due_date:$('#ddate').value || null, notes:$('#notes').value.trim() || null};
+    const row = {loan_id:lid, amount:a, penalty:pen, pay_date:$('#pdate').value || today(), due_date:$('#ddate').value || null, notes:$('#notes').value.trim() || null, method:$('#lmeth .on')?.dataset.v === 'cash' ? 'cash' : 'bank'};
     if(x) await q(ldb.from('loan_payments').update(row).eq('id', x.id)); else await q(ldb.from('loan_payments').insert(row));
     // آخر قسط: القرض يتقفل لوحده
     const after = loanInfo(store.eff.loans.get(lid));

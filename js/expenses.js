@@ -11,7 +11,7 @@
 
 const EXP_BR = ['ورد', 'زهرة', 'مشترك'];
 const EXP_CATS = ['إيجار', 'كهربا', 'مياه', 'غاز', 'نت وتليفون', 'مواصلات ونقل', 'أكياس وتغليف', 'نظافة', 'صيانة', 'ضيافة وأكل', 'إعلانات', 'ضرايب ورسوم', 'أخرى'];
-const EXP_AUTO = {sup:'دفعات موردين', chk:'شيكات اتصرفت', loan:'أقساط قروض', emp:'مرتبات وسلف'};
+const EXP_AUTO = {sup:'دفعات موردين', chk:'شيكات اتصرفت', loan:'أقساط قروض', emp:'مرتبات وسلف', bank:'مصاريف بنكية'};
 let expMonth = null, expOpen = null;
 
 function expItems(){
@@ -39,6 +39,8 @@ function expItems(){
     out.push({d:d10(x.tx_date), br:x.branch === 'ورد' || x.branch === 'زهرة' ? x.branch : 'مشترك', cat:EXP_AUTO.emp, amt:Math.abs(C(x.amount)), src:'emp',
       t:`${x.kind === 'advance' ? 'سلفة' : 'صرف'} — ${E.employees?.get(x.employee_id)?.name || ''}`, pend:x._pending, go:`/emp/${x.employee_id}`});
   }
+  for(const m of (E.bank_moves?.values() || [])) if(m.kind === 'fee')
+    out.push({d:d10(m.move_date), br:'مشترك', cat:EXP_AUTO.bank, amt:C(m.amount), src:'bank', t:m.notes || 'مصاريف بنكية', pend:m._pending, go:`/bank-move/${m.id}`});
   return out.filter(x => x.d && x.amt > 0);
 }
 function expByMonth(){
@@ -117,6 +119,8 @@ async function formExpense(id){
         <div class="hint" id="emp-bal"></div></div>
       <div class="field" id="f-ekind"><label>نوع الصرف <span class="req">*</span></label><div class="seg" id="ekind" style="grid-template-columns:1fr 1fr">
         <button type="button" data-v="payment" class="on">صرف مستحقات / مرتب</button><button type="button" data-v="advance">سلفة</button></div></div>
+      <div class="field"><label>اتدفع إزاي؟</label><div class="seg" id="emeth" style="grid-template-columns:1fr 1fr">
+        <button type="button" data-v="cash" class="on">كاش</button><button type="button" data-v="transfer">تحويل من البنك</button></div></div>
     </div>`}
     <div class="field"><label>الفرع</label><div class="seg" id="ebr">
       ${EXP_BR.map(b => `<button type="button" data-v="${b}" class="${br === b ? 'on' : ''}" onclick="segPick(this)">${b}</button>`).join('')}</div></div>
@@ -138,7 +142,7 @@ async function formExpense(id){
       const eid = $('#emp').value, kind = $('#ekind .on')?.dataset.v || 'payment';
       if(!eid) return markErr('emp', 'اختار الموظف');
       if(!(amount > 0)) return markErr('amount', 'اكتب المبلغ');
-      await q(ldb.from('emp_transactions').insert({employee_id:+eid, kind, amount, tx_date:d, branch:branch === 'مشترك' ? null : branch, notes:$('#notes').value.trim() || null}));
+      await q(ldb.from('emp_transactions').insert({employee_id:+eid, kind, amount, method:$('#emeth .on')?.dataset.v === 'transfer' ? 'transfer' : 'cash', tx_date:d, branch:branch === 'مشترك' ? null : branch, notes:$('#notes').value.trim() || null}));
       localStorage.setItem('mawredin_exp_branch', branch); expMonth = d.slice(0, 7); expOpen?.add(expMonth);
       busy(false); toast(`اتسجل في حساب ${$('#emp').selectedOptions[0].textContent} وفي المصروفات ✓`); location.replace('#/expenses'); return;
     }
@@ -166,7 +170,7 @@ async function formExpense(id){
     if(v === 'loan') return go('/loans');
   };
   document.querySelectorAll('#efor button').forEach(b => b.onclick = () => setFor(b.dataset.v));
-  document.querySelectorAll('#ekind button').forEach(b => b.onclick = () => document.querySelectorAll('#ekind button').forEach(y => y.classList.toggle('on', y === b)));
+  document.querySelectorAll('#ekind button, #emeth button').forEach(b => b.onclick = () => b.parentNode.querySelectorAll('button').forEach(y => y.classList.toggle('on', y === b)));
   const showBal = () => { const o = $('#emp')?.selectedOptions[0], bal = o ? +o.dataset.bal : NaN;
     $('#emp-bal').innerHTML = o?.value ? (bal > 0 ? `ليه عند المحل ${smoney(C(bal))} <button type="button" class="link" onclick="$('#amount').value='${bal}'">ادفعهم كلهم</button>` : bal < 0 ? `عليه للمحل ${smoney(C(-bal))}` : 'رصيده صفر') : ''; };
   $('#emp').onchange = () => { showBal(); $('#f-emp').classList.remove('err'); };

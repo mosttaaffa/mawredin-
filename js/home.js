@@ -51,7 +51,7 @@ async function viewDashboard(){
   const supDue = rows.reduce((a, r) => a + Math.max(0, C2(r.balance)), 0), supCred = rows.reduce((a, r) => a + Math.max(0, -C2(r.balance)), 0);
   const empDue = E.reduce((a, r) => a + Math.max(0, C2(r.balance)), 0), empOwe = E.reduce((a, r) => a + Math.max(0, -C2(r.balance)), 0);
   const chkRemC = C2(cs.sum);
-  const LS = loansSummary(), CS = cashSummary(), XS = expSummary();
+  const LS = loansSummary(), CS = cashSummary(), XS = expSummary(), BS = bankSummary();
   const ours = supCred + empOwe, theirs = supDue + empDue + chkRemC + LS.remaining, net = ours - theirs;
   const salaries = act.reduce((a, r) => a + C2(r.base_salary), 0) / 100;
   const due = checks.filter(c => c.check_status === 'pending' && daysUntil(c.due_date) <= 3 && chkRem(c) > 0);
@@ -81,7 +81,7 @@ async function viewDashboard(){
       ${tile('employees', 'الموظفين', 'users', "go('/employees')", emps ? `<em class="neg">${m(salaries)}</em><small class="c">المرتبات · ${act.length} موظف</small>` : '<small>مش متاح دلوقتي</small>')}
       ${tile('reports', 'التقارير', 'chart', "go('/reports')")}
       ${tile('checks', 'الشيكات', 'check', "go('/checks')", `<em>${m(cs.sum)}</em><small class="c">مستحقة · ${N(cs.n)} شيك</small>`)}
-      ${tile('banks', 'الحسابات البنكية', 'bank', mod('banks'))}
+      ${tile('banks', 'البنك', 'bank', "go('/banks')", BS.n ? `<em class="${BS.bal < 0 ? 'neg' : ''}">${m(BS.bal / 100)}</em><small class="c">رصيد البنك</small>` : '<small>سجّل رصيد البنك</small>')}
       ${tile('expenses', 'المصروفات', 'expense', "go('/expenses')", XS.month ? `<em class="neg">${m(XS.month / 100)}</em><small class="c">مصروفات الشهر</small>` : '')}
       ${tile('cash', 'الخزينة', 'safe', "go('/cash')", CS.today.total ? `<em>${m(CS.today.total / 100)}</em><small class="c">مبيع النهارده</small>` : CS.n ? `<em>${m(CS.month.total / 100)}</em><small class="c">مبيع الشهر</small>` : '')}
       ${tile('loans', 'القروض والسلف', 'loan', "go('/loans')", LS.n ? `<em class="neg">${m(LS.remaining / 100)}</em><small class="c">${LS.late ? `${LS.late} قسط متأخر` : `${LS.n} قرض جاري`}</small>` : '')}
@@ -137,7 +137,7 @@ const MODULES = [
   {k:'employees', t:'الموظفين',          i:'emp',     c:'#2b6cb0', ready:true, d:'المرتبات والسلف والخصومات ورصيد كل موظف'},
   {k:'loans',     t:'القروض',            i:'loan',    c:'#b7791f', ready:true, d:'القروض اللي عليك أو ليك، والأقساط والمتبقي'},
   {k:'cash',      t:'الخزينة',           i:'safe',    c:'#2f855a', ready:true, d:'المبيع اليومي لكل فرع: كاش وتحويلات'},
-  {k:'banks',     t:'الحسابات البنكية',  i:'bank',    c:'#6b46c1', d:'البنوك، الإيداع والسحب، والشيكات اللي بتتصرف منها'},
+  {k:'banks',     t:'البنك',             i:'bank',    c:'#6b46c1', ready:true, d:'رصيد البنك: تحويلات المبيع داخلة، والدفعات والأقساط بالتحويل خارجة'},
   {k:'expenses',  t:'المصروفات',         i:'expense', c:'#c05621', ready:true, d:'مصروفات كل فرع يوميًا — والدفعات والأقساط والمرتبات بتتسجل لوحدها'},
   {k:'other',     t:'حسابات أخرى',       i:'folder',  c:'#4a5568', d:'أي حساب تاني: شريك، عميل بالأجل، أمانات'},
 ];

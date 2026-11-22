@@ -254,6 +254,9 @@ async function formEmpTx(id, presetEmp){
     <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label><input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x ? Math.abs(n0(x.amount)) : ''}">
       <div class="hint" id="adjhint" style="display:none">التسوية: اكتب المبلغ، وفعّل «بالسالب» لو هتنقص من رصيد الموظف.</div>
       <label id="negwrap" style="display:none;margin-top:6px;font-weight:600"><input type="checkbox" id="neg" ${x && n0(x.amount) < 0 ? 'checked' : ''}> بالسالب (على الموظف)</label></div>
+    <div class="field" id="f-meth" style="display:none"><label>اتدفع إزاي؟</label><div class="seg" id="tmeth" style="grid-template-columns:1fr 1fr">
+      <button type="button" data-v="cash" class="${x?.method === 'transfer' ? '' : 'on'}">كاش</button><button type="button" data-v="transfer" class="${x?.method === 'transfer' ? 'on' : ''}">تحويل من البنك</button></div>
+      <div class="hint">التحويل بيتخصم من رصيد البنك.</div></div>
     <div class="row2">
       <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x ? x.tx_date : today()}"></div>
       <div class="field"><label>الفرع</label><select id="branch"><option value="">—</option>${['زهرة','ورد'].map(b => `<option ${x?.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
@@ -265,13 +268,16 @@ async function formEmpTx(id, presetEmp){
     if(!eid) return markErr('emp', 'اختار الموظف');
     if(!kind) return markErr('kind', 'اختار نوع الحركة');
     if(!(amt > 0)) return markErr('amount', 'اكتب المبلغ');
-    const row = {employee_id:+eid, kind, amount: kind === 'adjustment' && $('#neg').checked ? -amt : amt, tx_date:$('#date').value || today(), branch:$('#branch').value || null, notes:$('#notes').value.trim() || null};
+    const row = {employee_id:+eid, kind, amount: kind === 'adjustment' && $('#neg').checked ? -amt : amt, tx_date:$('#date').value || today(), branch:$('#branch').value || null, notes:$('#notes').value.trim() || null,
+      method:(kind === 'payment' || kind === 'advance') ? ($('#tmeth .on')?.dataset.v === 'transfer' ? 'transfer' : 'cash') : null};
     if(x) await q(ldb.from('emp_transactions').update(row).eq('id', x.id)); else await q(ldb.from('emp_transactions').insert(row));
     busy(false); await celebrate('اتسجلت الحركة');
     location.replace('#/emp/' + eid);
   });
   const setK = k => { kind = k; document.querySelectorAll('#f-kind .seg button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
-    $('#adjhint').style.display = $('#negwrap').style.display = k === 'adjustment' ? '' : 'none'; $('#f-kind').classList.remove('err'); };
+    $('#adjhint').style.display = $('#negwrap').style.display = k === 'adjustment' ? '' : 'none'; $('#f-kind').classList.remove('err');
+    $('#f-meth').style.display = k === 'payment' || k === 'advance' ? '' : 'none'; };
+  document.querySelectorAll('#tmeth button').forEach(b => b.onclick = () => segPick(b));
   document.querySelectorAll('#f-kind .seg button').forEach(b => b.onclick = () => setK(b.dataset.k));
   if(kind) setK(kind);
 }

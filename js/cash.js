@@ -110,7 +110,7 @@ async function formSale(id){
     <div id="sdup"></div>
     <div class="field" id="f-cash"><label>مبيع كاش</label><input id="cash" class="amount-input" inputmode="decimal" placeholder="0" value="${x && Number(x.cash) ? x.cash : ''}"></div>
     <div class="field" id="f-transfer"><label>مبيع تحويلات</label><input id="transfer" class="amount-input" inputmode="decimal" placeholder="0" value="${x && Number(x.transfer) ? x.transfer : ''}">
-      <div class="hint">انستاباي، محفظة، فيزا، تحويل بنكي…</div></div>
+      <div class="hint">انستاباي، محفظة، فيزا، تحويل بنكي… — بيدخل رصيد البنك</div></div>
     <div class="field"><label>تفاصيل التحويلات <small class="hint">(اختياري)</small></label><input id="tnote" value="${esc(x?.transfer_note || '')}" placeholder="مثلًا: انستاباي 2000 + فودافون كاش 500"></div>
     <div class="cs-live"><span>إجمالي مبيع اليوم</span><b id="stot">—</b></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>

@@ -395,6 +395,8 @@ async function route(){
     if(parts[0] === 'loan') return await viewLoan(+parts[1]);
     if(parts[0] === 'loan-form') return await formLoan(parts[1] ? +parts[1] : null);
     if(parts[0] === 'loan-pay') return await formLoanPay(+parts[1], parts[2] ? +parts[2] : null);
+    if(parts[0] === 'banks') return await viewBanks();
+    if(parts[0] === 'bank-move') return formBankMove(parts[1] ? +parts[1] : null);
     if(parts[0] === 'employees') return await viewEmployees();
     if(parts[0] === 'emp' && parts[1]) return await viewEmployee(+parts[1]);
     if(parts[0] === 'emp-edit') return await formEmployee(parts[1] ? +parts[1] : null);

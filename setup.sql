@@ -507,7 +507,7 @@ declare
 begin
   if not public.is_member() then raise exception 'not allowed'; end if;
   if v_op is null then raise exception 'op_id required'; end if;
-  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments','daily_sales','expenses') then raise exception 'table not allowed: %', t; end if;
+  if t not in ('suppliers','invoices','payments','members','employees','emp_settlements','emp_transactions','check_payments','loans','loan_payments','daily_sales','expenses','bank_moves') then raise exception 'table not allowed: %', t; end if;
   if t = 'check_payments' and k = 'delete' then raise exception 'دفعة سداد الشيك مبتتمسحش — اعملها إلغاء'; end if;
   if k not in ('insert','update','delete') then raise exception 'kind not allowed: %', k; end if;
 
@@ -904,7 +904,8 @@ begin
      'loans', (select coalesce(sum(total_amount),0)::text from public.loans),
      'loan_payments', (select coalesce(sum(amount + penalty),0)::text from public.loan_payments),
      'daily_sales', (select coalesce(sum(cash + transfer),0)::text from public.daily_sales),
-     'expenses', (select coalesce(sum(amount),0)::text from public.expenses));
+     'expenses', (select coalesce(sum(amount),0)::text from public.expenses),
+     'bank_moves', (select coalesce(sum(amount),0)::text from public.bank_moves));
   return json_build_object('counts', c, 'totals', t);
 end $$;
 -- backup_storage_list: قائمة الصور (المكان والحجم والبصمة) عشان ننزّل الجديد بس
@@ -953,3 +954,33 @@ grant select, insert, update, delete on public.expenses to authenticated;
 revoke all on public.expenses from anon;
 grant usage, select on all sequences in schema public to authenticated;
 do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') then grant select on public.expenses to service_role; end if; end $$;
+
+-- البنك (الإصدار 14): حساب بنك واحد. رصيده بيتحسب في التطبيق من مكانه (مبيتنسخش):
+--   + تحويلات المبيع (daily_sales.transfer)  − دفعات الموردين بالتحويل  − سداد الشيكات من البنك
+--   − أقساط القروض (لو مش كاش)  − صرف/سلف الموظفين بالتحويل  ± الحركات اليدوية هنا
+-- bank_moves = الحركات اليدوية بس: رصيد أول المدة، إيداع من الخزينة، سحب للخزينة، مصاريف بنكية، إضافة/خصم تاني
+create table if not exists public.bank_moves (
+  id           bigint generated always as identity primary key,
+  move_date    date not null default current_date,
+  kind         text not null check (kind in ('opening','deposit','withdraw','fee','in','out')),
+  amount       numeric(14,2) not null check (amount > 0),
+  notes        text,
+  image_path   text,
+  extra_images text[] not null default '{}',
+  created_by   text not null default public.current_email(),
+  created_at   timestamptz not null default now()
+);
+create index if not exists bank_moves_date_idx on public.bank_moves(move_date);
+alter table public.bank_moves enable row level security;
+drop policy if exists bank_moves_all on public.bank_moves;
+create policy bank_moves_all on public.bank_moves for all to authenticated using ((select public.is_member())) with check ((select public.is_member()));
+drop trigger if exists bank_moves_log on public.bank_moves;
+create trigger bank_moves_log after insert or update or delete on public.bank_moves for each row execute function public.log_activity();
+grant select, insert, update, delete on public.bank_moves to authenticated;
+revoke all on public.bank_moves from anon;
+grant usage, select on all sequences in schema public to authenticated;
+do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') then grant select on public.bank_moves to service_role; end if; end $$;
+-- طريقة صرف/سلفة الموظف: null أو cash = كاش من الخزينة، transfer = تحويل من البنك
+alter table public.emp_transactions add column if not exists method text;
+alter table public.emp_transactions drop constraint if exists emp_transactions_method_check;
+alter table public.emp_transactions add constraint emp_transactions_method_check check (method is null or method in ('cash','transfer'));
