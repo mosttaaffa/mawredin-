@@ -1838,3 +1838,31 @@ header.page-h .iconbtn{width:36px;height:36px}
 .bk-it .grow{min-width:0}.bk-it .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .seg#bkind button{font-size:12.5px;padding-inline:4px}
 .bk-it .t{white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+/* التقارير — ملخص المحل */
+.rep-tabs{margin-bottom:10px}
+.rp-k{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.rp-t{display:flex;flex-direction:column;gap:2px;padding:11px 12px;border-radius:16px;background:#fff;border:1px solid #F1DDE1;box-shadow:0 4px 12px -8px rgba(120,16,34,.35);min-width:0}
+.rp-t>span{display:flex;align-items:center;gap:5px;font-size:12.5px;font-weight:800;color:var(--ink)}
+.rp-t>span svg{width:18px;height:18px;color:var(--brand);flex:none}
+.rp-t b{font-size:clamp(16px,5vw,21px);font-weight:900;color:var(--ink);white-space:nowrap}
+.rp-t b.neg{color:var(--red)}.rp-t b.pos{color:var(--green)}
+.rp-t.hl{background:var(--burg-grad, var(--brand));border-color:transparent}
+.rp-t.hl>span,.rp-t.hl>span svg,.rp-t.hl b,.rp-t.hl .rp-d{color:#fff !important}
+.rp-d{font-size:10.5px;color:var(--muted);font-weight:700;line-height:1.35}
+.rp-d.up{color:var(--green)}.rp-d.dn{color:var(--red)}
+.rp-bar{display:flex;gap:2px;height:14px;border-radius:7px;overflow:hidden;background:#F3E6E9;margin:4px 0 8px}
+.rp-bar i{width:var(--w);background:var(--c);border-radius:4px}
+.rp-lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;font-weight:700;color:var(--ink)}
+.rp-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:4px;vertical-align:-1px}
+.rp-mini{display:flex;flex-wrap:wrap;gap:4px 16px;margin-top:8px;padding-top:8px;border-top:1px solid #F3E6E9;font-size:12.5px;color:var(--muted)}
+.rp-mini b{color:var(--ink)}
+.rp-cats{display:flex;flex-direction:column;gap:6px}
+.rp-c{position:relative;display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 8px;padding:7px 2px 9px;border:0;border-bottom:1px solid #F3E6E9;background:none;font:inherit;text-align:start;color:var(--ink)}
+.rp-c:last-child{border-bottom:0}
+.rp-cn{font-size:13.5px;font-weight:800;min-width:0;overflow-wrap:anywhere}.rp-cn small{font-size:10px;color:var(--muted);font-weight:700}
+.rp-cv{font-size:13.5px;font-weight:900;white-space:nowrap}.rp-cv small{color:var(--muted);font-weight:700;font-size:11px}
+.rp-c i{grid-column:1 / -1;height:6px;width:var(--w);border-radius:3px;background:var(--brand);opacity:.85}
+.tbl tr.cur td{font-weight:800;background:var(--brand-soft)}
+.tbl td.neg{color:var(--red)}
+.card .tbl td.n,.card .tbl th.n{white-space:nowrap}
+@media (max-width:360px){.card .tbl td,.card .tbl th{padding-inline:4px;font-size:12px}}

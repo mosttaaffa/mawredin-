@@ -172,7 +172,93 @@ const AR_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو
 const monthName = ym => `${AR_MONTHS[+ym.slice(5,7)-1]} ${ym.slice(0,4)}`;
 const addMonth = (ym, n) => { const d = new Date(+ym.slice(0,4), +ym.slice(5,7)-1+n, 1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
 const CH = document.documentElement.dataset.theme === 'bordeaux' ? {buy:'#9B1B30', pay:'#178A3C'} : document.documentElement.dataset.theme === 'greige' ? {buy:'#A68B67', pay:'#247A45'} : {buy:'#3a6f2c', pay:'#ea8fa6'};   // ألوان اتراجعت لعمى الألوان
+let repTab = (() => { try{ return localStorage.getItem('mawredin_rep_tab') || 'shop'; }catch(e){ return 'shop'; } })();
+window.setRepTab = t => { repTab = t; try{ localStorage.setItem('mawredin_rep_tab', t); }catch(e){} viewReports(); };
+const repHead = ym => `
+    <div class="tabs rep-tabs"><button class="${repTab === 'shop' ? 'on' : ''}" onclick="setRepTab('shop')">ملخص المحل</button><button class="${repTab === 'sup' ? 'on' : ''}" onclick="setRepTab('sup')">الموردين</button></div>
+    <div class="month-bar">
+      <button class="iconbtn" onclick="repMonth=addMonth(repMonth,-1);viewReports()" aria-label="الشهر اللي فات">${I.back}</button>
+      <b>${monthName(ym)}</b>
+      <button class="iconbtn" style="transform:scaleX(-1)" onclick="repMonth=addMonth(repMonth,1);viewReports()" aria-label="الشهر الجاي">${I.back}</button>
+    </div>`;
 async function viewReports(){
+  if(repTab === 'shop') return viewRepShop();
+  return viewRepSuppliers();
+}
+
+/* ---------- ملخص المحل: المبيعات والمصروفات والصافي لكل شهر (من البيانات اللي على الجهاز — بيشتغل من غير نت) ---------- */
+function repMonthData(mk){
+  const S = salesByMonth()[mk], X = expByMonth()[mk];
+  const sales = salesAll().filter(r => String(r.sale_date).startsWith(mk));
+  const cash = sales.reduce((a, r) => a + SC(r.cash), 0), tr = sales.reduce((a, r) => a + SC(r.transfer), 0);
+  const days = S ? Object.values(S.days) : [];
+  const best = days.reduce((b, D) => !b || D.total > b.total ? D : b, null);
+  return {sales:S ? S.total : 0, exp:X ? X.total : 0, cash, tr, sBy:S ? S.by : {}, xBy:X ? X.by : {}, cats:X ? X.cats : {}, nDays:days.length, best};
+}
+function viewRepShop(){
+  const ym = repMonth, cur = repMonthData(ym), prev = repMonthData(addMonth(ym, -1));
+  const net = cur.sales - cur.exp;
+  const m = c => `<span class="num">${(Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
+  const sm = c => c < 0 ? `(${m(c)})` : m(c);
+  const shortM = k => `${AR_MONTHS[+k.slice(5, 7) - 1]} ${k.slice(2, 4)}`;
+  // مقارنة بالشهر اللي فات: «طالع» في المبيعات كويس، و«طالع» في المصروفات وحش
+  const delta = (a, b, upGood) => { if(!b) return '<small class="rp-d">—</small>'; const pc = Math.round((a - b) / Math.abs(b) * 100);
+    if(!pc) return '<small class="rp-d">زي الشهر اللي فات</small>';
+    const good = (pc > 0) === upGood; return `<small class="rp-d ${good ? 'up' : 'dn'}">${pc > 0 ? '▲' : '▼'} ${Math.abs(pc)}% عن الشهر اللي فات</small>`; };
+  // البنك آخر الشهر
+  let bankEnd = null; if(bankStart() && bankStart() <= ym + '-31'){ bankEnd = 0; for(const x of bankItems()) if(x.d <= ym + '-31') bankEnd += x.amt; }
+  // الفروع
+  const BR = ['ورد', 'زهرة'];
+  const brRow = b => { const sv = cur.sBy[b] || 0, xv = cur.xBy[b] || 0; return `<tr><td>${b}</td><td class="n">${m(sv)}</td><td class="n">${m(xv)}</td><td class="n ${sv - xv < 0 ? 'neg' : ''}">${sm(sv - xv)}</td></tr>`; };
+  // بنود المصروفات (أكبر 8 + الباقي «أخرى»)
+  const cats = Object.entries(cur.cats).map(([k, v]) => ({k, amt:v.amt, auto:v.auto})).sort((a, b) => b.amt - a.amt);
+  const top = cats.slice(0, 8), rest = cats.slice(8).reduce((a, c) => a + c.amt, 0); if(rest) top.push({k:'باقي البنود', amt:rest});
+  const cmax = Math.max(1, ...top.map(c => c.amt));
+  // آخر 6 شهور
+  const series = []; for(let i = 5; i >= 0; i--){ const k = addMonth(ym, -i), d = repMonthData(k); series.push({m:k, sales:d.sales / 100, exp:d.exp / 100}); }
+  const defs = [{k:'sales', c:CH.pay, l:'مبيعات'}, {k:'exp', c:CH.buy, l:'مصروفات'}];
+  const pct = (a, t) => t ? Math.round(a / t * 100) : 0;
+  shell({title:'التقارير', right:refreshBtn, nav:'reports', body:`${repHead(ym)}
+    <div class="rp-k">
+      <div class="rp-t hl"><span>${I.store}المبيعات</span><b>${m(cur.sales)}</b>${delta(cur.sales, prev.sales, true)}</div>
+      <div class="rp-t"><span>${I.expense}المصروفات</span><b>${m(cur.exp)}</b>${delta(cur.exp, prev.exp, false)}</div>
+      <div class="rp-t"><span>${I.layers}الصافي</span><b class="${net < 0 ? 'neg' : 'pos'}">${sm(net)}</b><small class="rp-d">المبيعات − كل اللي اتصرف</small></div>
+      <div class="rp-t"><span>${I.bank}البنك آخر الشهر</span><b class="${bankEnd < 0 ? 'neg' : ''}">${bankEnd == null ? '—' : sm(bankEnd)}</b><small class="rp-d">${bankEnd == null ? 'سجّل رصيد أول المدة' : 'من حساب البنك'}</small></div>
+    </div>
+    ${cur.sales ? `<div class="card rp-split">
+      <div class="section-t">المبيعات كاش وتحويلات</div>
+      <div class="rp-bar" role="img" aria-label="كاش ${pct(cur.cash, cur.sales)}% وتحويلات ${pct(cur.tr, cur.sales)}%"><i style="--w:${pct(cur.cash, cur.sales)}%;--c:${CH.pay}"></i><i style="--w:${pct(cur.tr, cur.sales)}%;--c:${CH.buy}"></i></div>
+      <div class="rp-lg"><span><i style="background:${CH.pay}"></i>كاش ${m(cur.cash)} · ${pct(cur.cash, cur.sales)}%</span><span><i style="background:${CH.buy}"></i>تحويلات ${m(cur.tr)} · ${pct(cur.tr, cur.sales)}%</span></div>
+      <div class="rp-mini"><span>متوسط اليوم <b>${m(Math.round(cur.sales / Math.max(1, cur.nDays)))}</b></span>${cur.best ? `<span>أعلى يوم <b>${m(cur.best.total)}</b> <small>${fmtDate(cur.best.date)}</small></span>` : ''}</div>
+    </div>` : ''}
+    <div class="card">
+      <div class="section-t">الفروع في ${monthName(ym)}</div>
+      <table class="tbl"><thead><tr><th>الفرع</th><th class="n">مبيعات</th><th class="n">مصروفات</th><th class="n">الصافي</th></tr></thead><tbody>
+        ${BR.map(brRow).join('')}
+        <tr><td>مشترك</td><td class="n">—</td><td class="n">${m(cur.xBy['مشترك'] || 0)}</td><td class="n neg">${cur.xBy['مشترك'] ? sm(-(cur.xBy['مشترك'])) : m(0)}</td></tr>
+        <tr class="tot"><td>الإجمالي</td><td class="n">${m(cur.sales)}</td><td class="n">${m(cur.exp)}</td><td class="n ${net < 0 ? 'neg' : ''}">${sm(net)}</td></tr>
+      </tbody></table>
+      <div class="hint" style="margin-top:6px">«مشترك» = دفعات الموردين والأقساط والمصروفات اللي مش على فرع معين.</div>
+    </div>
+    <div class="card">
+      <div class="section-t">المبيعات والمصروفات — آخر 6 شهور</div>
+      <div class="legend">${defs.map(d => `<span><i style="background:${d.c}"></i>${d.l}</span>`).join('')}</div>
+      <div class="chart-wrap" id="chart">${barChart(series, defs)}<div class="chart-tip" id="tip"></div></div>
+      <table class="tbl" style="margin-top:10px">
+        <thead><tr><th>الشهر</th><th class="n">مبيعات</th><th class="n">مصروفات</th><th class="n">الصافي</th></tr></thead>
+        <tbody>${series.slice().reverse().map(x => `<tr${x.m === ym ? ' class="cur"' : ''}><td>${shortM(x.m)}</td><td class="n">${m(x.sales * 100)}</td><td class="n">${m(x.exp * 100)}</td><td class="n ${x.sales - x.exp < 0 ? 'neg' : ''}">${sm((x.sales - x.exp) * 100)}</td></tr>`).join('')}</tbody>
+      </table>
+    </div>
+    <div class="card">
+      <div class="section-t">المصروفات حسب البند</div>
+      ${top.length ? `<div class="rp-cats">${top.map(c => `<button class="rp-c" onclick="expMonth='${ym}';expOpen=new Set(['${ym}']);go('/expenses')">
+          <span class="rp-cn">${esc(c.k)}${c.auto ? ' <small>تلقائي</small>' : ''}</span><span class="rp-cv">${m(c.amt)} <small>${pct(c.amt, cur.exp)}%</small></span>
+          <i style="--w:${Math.max(2, Math.round(c.amt / cmax * 100))}%"></i></button>`).join('')}</div>` : '<div class="empty" style="padding:14px">مفيش مصروفات في الشهر ده</div>'}
+    </div>`});
+  wireChart();
+}
+
+async function viewRepSuppliers(){
   if(!$('.month-bar')) shell({title:'التقارير', right:refreshBtn, nav:'reports', body:skeleton('home')});
   const ym = repMonth;
   const [r, series] = await Promise.all([api.reportMonth(ym), api.reportSeries(ym, 6)]);
@@ -181,12 +267,7 @@ async function viewReports(){
   series.forEach(x => { x.buy = N(x.buy); x.pay = N(x.pay); });
   const perRows = r.per || [];
   const PER_MAX = 50;
-  shell({title:'التقارير', right:refreshBtn, nav:'reports', body:`
-    <div class="month-bar">
-      <button class="iconbtn" onclick="repMonth=addMonth(repMonth,-1);viewReports()" aria-label="الشهر اللي فات">${I.back}</button>
-      <b>${monthName(ym)}</b>
-      <button class="iconbtn" style="transform:scaleX(-1)" onclick="repMonth=addMonth(repMonth,1);viewReports()" aria-label="الشهر الجاي">${I.back}</button>
-    </div>
+  shell({title:'التقارير', right:refreshBtn, nav:'reports', body:`${repHead(ym)}
     <div class="card hero" style="padding:14px">
       <div class="lbl">مشتريات الشهر (فواتير)</div><div class="big">${money(buy)}</div>
       <div class="row"><div class="mini"><span>اتدفع في الشهر</span><b>${money(paid)}</b></div><div class="mini"><span>الفرق</span><b>${money(buy - paid - adj)}</b></div></div>
@@ -216,9 +297,10 @@ async function viewReports(){
   window._perRest = perRows.slice(PER_MAX).map(o => `<tr onclick="go('/s/${o.id}')" style="cursor:pointer"><td>${esc(o.name)}</td><td class="n">${money(o.buy)}</td><td class="n">${money(o.pay)}</td></tr>`).join('');
   wireChart();
 }
-function barChart(series){
+const CH_DEF = () => [{k:'buy', c:CH.buy, l:'مشتريات'}, {k:'pay', c:CH.pay, l:'مدفوعات'}];
+function barChart(series, defs = CH_DEF()){
   const W = 340, H = 190, pl = 6, pr = 44, pt = 10, pb = 26;
-  const max = Math.max(1, ...series.flatMap(r => [r.buy, r.pay]));
+  const max = Math.max(1, ...series.flatMap(r => defs.map(d => r[d.k])));
   const step = Math.pow(10, Math.floor(Math.log10(max))); const top = Math.ceil(max / step) * step;
   const iw = W - pl - pr, ih = H - pt - pb, gw = iw / series.length, bw = Math.min(18, (gw - 14) / 2);
   const y = v => pt + ih - (v / top) * ih;
@@ -229,19 +311,19 @@ function barChart(series){
     return `<path d="M${x},${pt+ih} v${-(h-4)} q0,-4 4,-4 h${bw-8} q4,0 4,4 v${h-4} z" fill="${c}" data-i="${i}" data-k="${k}"/>`; };
   series.forEach((r, i) => {
     const cx = pl + gw*i + gw/2;
-    g += bar(cx - bw - 1, r.buy, CH.buy, 'buy', i) + bar(cx + 1, r.pay, CH.pay, 'pay', i);
+    g += bar(cx - bw - 1, r[defs[0].k], defs[0].c, defs[0].k, i) + bar(cx + 1, r[defs[1].k], defs[1].c, defs[1].k, i);
     g += `<rect x="${pl+gw*i}" y="${pt}" width="${gw}" height="${ih}" fill="transparent" data-hit="${i}"/>`;
     g += `<text x="${cx}" y="${H-8}" font-size="10.5" text-anchor="middle" fill="#8a7f82">${AR_MONTHS[+r.m.slice(5,7)-1]}</text>`;
   });
-  window._series = series;
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="مشتريات ومدفوعات آخر 6 شهور" style="direction:ltr">${g}</svg>`;
+  window._series = series; window._chartDefs = defs;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${defs.map(d => d.l).join(' و')} آخر 6 شهور" style="direction:ltr">${g}</svg>`;
 }
 function wireChart(){
   const wrap = $('#chart'), tip = $('#tip'); if(!wrap) return;
   const show = e => {
     const t = e.target.closest('[data-hit],[data-i]'); if(!t){ tip.style.display = 'none'; return; }
     const i = +(t.dataset.hit ?? t.dataset.i), r = window._series[i], b = wrap.getBoundingClientRect();
-    tip.innerHTML = `<b>${monthName(r.m)}</b><br><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${CH.buy}"></i> مشتريات ${money(r.buy)}<br><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${CH.pay}"></i> مدفوعات ${money(r.pay)}`;
+    tip.innerHTML = `<b>${monthName(r.m)}</b>` + (window._chartDefs || CH_DEF()).map(d => `<br><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${d.c}"></i> ${d.l} ${money(r[d.k])}`).join('');
     tip.style.display = 'block'; tip.style.left = Math.min(b.width - 70, Math.max(70, e.clientX - b.left)) + 'px'; tip.style.top = (e.clientY - b.top - 8) + 'px';
   };
   wrap.addEventListener('pointermove', show); wrap.addEventListener('pointerdown', show);
