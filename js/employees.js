@@ -95,10 +95,16 @@ async function viewEmployees(){
     name:(a, b) => a.name.localeCompare(b.name, 'ar'), no:(a, b) => noN(a) - noN(b) || a.id - b.id,
     recent:(a, b) => String(b.last_to || '').localeCompare(String(a.last_to || '')) || a.id - b.id}[empSort] || (() => 0));
   const m = v => `<span class="num">${Math.abs(v).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
-  const chip = (k, ic) => `<button class="sp-chip ${empFilter === k ? 'on' : ''}" onclick="empFilter='${k}';viewEmployees()">${I[ic]}${EMP_F[k]} (${cnt(k)})</button>`;
   const nAct = k => all.filter(r => k === 'all' || (k === 'on' ? empOn(r) : !empOn(r))).length;
-  const actChip = (k, ic) => `<button class="sp-chip ${empAct === k ? 'on' : ''}" onclick="empAct='${k}';viewEmployees()">${I[ic]}${EMP_ACT[k]} (${nAct(k)})</button>`;
-  const actRow = `<div class="sp-chips emp-act">${actChip('on', 'okc')}${actChip('off', 'pause')}${actChip('all', 'users')}</div>`;
+  const fc = (on, act, l, n) => `<button class="ef-chip ${on ? 'on' : ''}" onclick="${act};viewEmployees()"><b>${l}</b><span class="num">${n}</span></button>`;
+  const allOn = empAct === 'all' && empFilter === 'all';
+  const actRow = `<div class="ef-row">
+    ${fc(allOn, "empAct='all';empFilter='all'", 'الكل', all.length)}
+    ${fc(empAct === 'on', "empAct=empAct==='on'?'all':'on'", 'بيشتغلوا', nAct('on'))}
+    ${fc(empAct === 'off', "empAct=empAct==='off'?'all':'off'", 'تركوا العمل', nAct('off'))}
+    ${fc(empFilter === 'due', "empFilter=empFilter==='due'?'all':'due'", 'ليهم', cnt('due'))}
+    ${fc(empFilter === 'owe', "empFilter=empFilter==='owe'?'all':'owe'", 'عليهم', cnt('owe'))}
+  </div>`;
   const fNote = empFilter === 'zero' ? `<div class="sp-note">${I.filter}معروض: خالص (${cnt('zero')}) — <a onclick="empFilter='all';viewEmployees()">عرض الكل</a></div>` : '';
   const body = `
     <div class="sp-sum">
@@ -112,7 +118,6 @@ async function viewEmployees(){
       <button class="sp-fbtn" onclick="empFilterMenu()" aria-label="تصفية">${I.filter}</button>
     </div>
     ${actRow}
-    <div class="sp-chips">${chip('all', 'layers')}${chip('due', 'okc')}${chip('owe', 'warn')}</div>
     ${fNote}
     <div class="sp-bar">
       <button class="sp-sort" onclick="empSortMenu()">${I.sort}ترتيب: ${EMP_SORT[empSort]}<i>${I.chevL ? `<span style="display:inline-flex;transform:rotate(-90deg)">${I.chevL}</span>` : '▾'}</i></button>
