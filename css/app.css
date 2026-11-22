@@ -1806,3 +1806,12 @@ header.page-h .iconbtn{width:36px;height:36px}
 @media (max-width:400px){header.page-h .ph-t h1{font-size:18px}header.page-h .ph-app{width:36px;justify-content:center}}
 .cs-th2>b{white-space:nowrap}.cs-pick select{max-width:none}
 @media (max-width:370px){.cs-th2>b{font-size:13.5px}.cs-th2>b svg{display:none}.cs-pick{padding:6px 8px;gap:4px}}
+/* الموظفين بنفس شكل الموردين */
+.emp-adds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.emp-adds .add-sup{margin-bottom:8px}
+#emplist .sr-name small{flex-direction:column}
+.sp-t b.due{color:var(--red)}.sp-t.hl b.due{color:#fff}
+.hint b.cred{color:var(--green)}.hint b.due{color:var(--red)}
+#emplist .sr-name small>span{display:inline-flex;gap:3px}
+.sp-sort{white-space:nowrap}
+@media (max-width:360px){#emplist .sr-v small::after{content:none}}

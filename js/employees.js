@@ -30,48 +30,110 @@ const empApi = {
   txs: id => fetchAll(() => ldb.from('emp_transactions').select('*').eq('employee_id', id).order('tx_date', {ascending:false}).order('id', {ascending:false})),
 };
 
-/* =================== قائمة الموظفين =================== */
-let empFilter = 'all', empAct = 'on';
-async function viewEmployees(){
-  if(!$('#emplist')) shell({title:'الموظفين', nav:'employees', right:refreshBtn, body:skeleton('home')});
-  const all = await empApi.balances();
-  const isOn = r => r.active !== false;
-  const nOn = all.filter(isOn).length, nOff = all.length - nOn;
-  if(!nOff) empAct = 'on';
-  const rows = all.filter(r => empAct === 'all' || (empAct === 'on' ? isOn(r) : !isOn(r)));
-  const owe = rows.filter(r => n0(r.balance) < 0), due = rows.filter(r => n0(r.balance) > 0);
-  const sumOwe = owe.reduce((a,r) => a + n0(r.balance), 0), sumDue = due.reduce((a,r) => a + n0(r.balance), 0);
-  const list = rows.filter(r => empFilter === 'all' || (empFilter === 'due' ? n0(r.balance) > 0 : empFilter === 'owe' ? n0(r.balance) < 0 : n0(r.balance) === 0));
-  shell({title:'الموظفين', nav:'employees', right:refreshBtn, body:`
-    <div class="card hero">
-      <div class="lbl">أرصدة الموظفين (${rows.length} موظف${empAct === 'off' ? ' تركوا العمل' : empAct === 'all' ? ' - الكل' : ''})</div>
-      <div class="row">
-        <div class="mini"><span>ليهم (على المحل)</span><b>${money(sumDue)}</b><span>${due.length} موظف</span></div>
-        <div class="mini"><span>عليهم (للمحل)</span><b>${money(Math.abs(sumOwe))}</b><span>${owe.length} موظف</span></div>
-      </div>
-    </div>
-    <div class="actions" style="margin-bottom:12px">
-      <button class="btn primary" onclick="go('/emp-import')">${I.scan}استيراد كشف</button>
-      <button class="btn ghost" onclick="go('/emp-edit')">${I.plus}موظف جديد</button>
-    </div>
-    ${nOff ? `<div class="tabs" style="margin-bottom:10px">${[['on', `بيشتغلوا (${nOn})`], ['off', `تركوا العمل (${nOff})`], ['all', `الكل (${all.length})`]].map(([k, l]) => `<button class="${empAct === k ? 'on' : ''}" onclick="empAct='${k}';viewEmployees()">${l}</button>`).join('')}</div>` : ''}
-    <input class="search" id="esrch" placeholder="ابحث بالاسم أو الرقم..." oninput="filterEmp(this.value)">
-    <div class="chip-row">
-      ${[['all','الكل'],['owe','عليه رصيد'],['due','ليه رصيد'],['zero','خالص']].map(([k,l]) => `<button class="chip ${empFilter===k?'on':''}" onclick="empFilter='${k}';viewEmployees()">${l}</button>`).join('')}
-    </div>
-    <div class="card list emp-list" id="emplist">
-      ${list.length ? list.map(r => `
-        <div class="item" data-n="${esc((r.name + ' ' + (r.emp_no||'')).toLowerCase())}" onclick="go('/emp/${r.id}')">
-          <div class="avatar emp-av">${esc(r.emp_no || r.name.trim()[0])}</div>
-          <div class="grow"><div class="t">${esc(r.name)}${isOn(r) ? '' : ' <span class="tag left">ترك العمل</span>'}</div>
-            <div class="s">${r.base_salary ? 'أساسي ' + money(r.base_salary) : ''}${r.last_to ? ' · آخر تسوية ' + fmtDate(r.last_to) : ''}</div></div>
-          <div class="amt ${n0(r.balance) < 0 ? 'debt' : n0(r.balance) > 0 ? 'ok' : ''}">${signMoney(r.balance)}</div>
-        </div>`).join('') : `<div class="empty">${I.emp}<div>${rows.length ? 'مفيش موظفين في الفلتر ده' : 'لسه مفيش موظفين'}</div>
-          ${rows.length ? '' : `<button class="btn primary" style="margin-top:12px" onclick="go('/emp-import')">${I.scan}استيراد كشف الموظفين</button>`}</div>`}
-    </div>
-    <div class="hint" style="text-align:center">الرصيد بالأحمر بين قوسين = على الموظف للمحل · بالأخضر = للموظف على المحل</div>`});
+/* =================== قائمة الموظفين (بنفس شكل شاشة الموردين) =================== */
+let empFilter = 'all', empAct = 'on', empSort = 'high', empQ = '';
+let empView = (() => { try{ return localStorage.getItem('mawredin_emp_view') || 'list'; }catch(e){ return 'list'; } })();
+const EMP_F = {all:'الكل', due:'ليهم', owe:'عليهم', zero:'خالص'};
+const EMP_ACT = {on:'بيشتغلوا', off:'تركوا العمل', all:'الكل'};
+const EMP_SORT = {high:'الأعلى ليهم', low:'الأعلى عليهم', name:'الاسم', no:'رقم الموظف', recent:'آخر تسوية'};
+const empC = v => Math.round(n0(v) * 100);
+const empKind = r => { const c = empC(r.balance); return c > 0 ? 'due' : c < 0 ? 'owe' : 'zero'; };
+const empOn = r => r.active !== false;
+const empInAct = r => empAct === 'all' || (empAct === 'on' ? empOn(r) : !empOn(r));
+window.empHelp = () => openModal(`<h3>شاشة الموظفين</h3>
+  <div class="hint" style="line-height:1.9">
+    <div><b class="cred">أخضر</b> = ليه فلوس على المحل.</div>
+    <div><b class="due">أحمر</b> = عليه فلوس للمحل (سلف أكتر من المستحق).</div>
+    <div>الرصيد = صافي آخر تسوية + الحركات اللي بعد نهاية فترتها.</div>
+    <div style="margin-top:8px">البحث بيدور في الاسم ورقم الموظف ورقم التليفون.</div></div>`);
+window.setEmpView = v => { empView = v; try{ localStorage.setItem('mawredin_emp_view', v); }catch(e){} viewEmployees(); };
+window.empSortMenu = () => openModal(`<h3>ترتيب الموظفين</h3><div class="menu-list">${Object.entries(EMP_SORT).map(([k, l]) => `<button class="${empSort === k ? 'on' : ''}" onclick="empSort='${k}';closeModal();viewEmployees()">${I.sort}${l}${empSort === k ? ' ✓' : ''}</button>`).join('')}</div>`);
+window.empFilterMenu = async () => {
+  const all = await empApi.balances(), inAct = all.filter(empInAct);
+  const cf = k => inAct.filter(r => k === 'all' || empKind(r) === k).length;
+  const ca = k => all.filter(r => k === 'all' || (k === 'on' ? empOn(r) : !empOn(r))).length;
+  const sec = (t, obj, cur, varn, cnt, ic) => `<div class="section-t"${t.m ? ' style="margin-top:12px"' : ''}>${t.l}</div><div class="menu-list">${Object.entries(obj).map(([k, l]) => `<button class="${cur === k ? 'on' : ''}" onclick="${varn}='${k}';closeModal();viewEmployees()">${I[ic]}${l}${cnt ? ` (${cnt(k)})` : ''}${cur === k ? ' ✓' : ''}</button>`).join('')}</div>`;
+  openModal(`<h3>تصفية وترتيب</h3>${sec({l:'الحالة'}, EMP_ACT, empAct, 'empAct', ca, 'users')}${sec({l:'الرصيد', m:1}, EMP_F, empFilter, 'empFilter', cf, 'filter')}${sec({l:'الترتيب', m:1}, EMP_SORT, empSort, 'empSort', null, 'sort')}`);
+};
+function empCard(r){
+  const bal = n0(r.balance), ph = String(r.phone || '').replace(/[^\d+]/g, '');
+  const n = v => `<span class="num">${Math.abs(n0(v)).toLocaleString('en-US', {maximumFractionDigits:2})}</span><i class="cur"> ج</i>`;
+  const code = r.emp_no ? `رقم ${esc(r.emp_no)}` : (r.branch ? esc(r.branch) : '');
+  return `<div class="srow" data-n="${esc((r.name + ' ' + (r.emp_no || '') + ' ' + ph.replace(/\D/g, '')).toLowerCase())}" onclick="go('/emp/${r.id}')">
+    <span class="sr-go">${I.chevL ? `<i style="display:inline-flex;transform:scaleX(-1)">${I.chevL}</i>` : '›'}</span>
+    <span class="sr-ic">${I.emp}</span>
+    <span class="sr-name"><b>${esc(r.name)}${empOn(r) ? '' : ' <span class="tag left">ترك العمل</span>'}</b>
+      <small>${code ? `<span class="num">${code}</span>` : ''}${r.last_to ? `<span>تسوية <span class="num">${String(r.last_to).slice(0, 10).split('-').reverse().slice(0, 2).join('/')}</span></span>` : ''}${ph ? `<span class="ph">${I.phone}<span class="num" dir="ltr">${esc(ph)}</span></span>` : ''}</small></span>
+    <span class="sr-v"><small>أساسي</small><b>${r.base_salary ? n(r.base_salary) : '—'}</b></span>
+    <span class="sr-v"><small>التسوية</small><b class="${n0(r.last_net) > 0 ? 'cred' : n0(r.last_net) < 0 ? 'due' : ''}">${r.last_to ? n(r.last_net) : '—'}</b></span>
+    <span class="sr-v"><small>${bal < 0 ? 'عليه' : bal > 0 ? 'ليه' : 'الرصيد'}</small><b class="${bal > 0 ? 'cred' : bal < 0 ? 'due' : ''}">${n(bal)}</b></span>
+    <button class="sr-more" onclick="event.stopPropagation();empMore(${r.id})" aria-label="المزيد">${I.dots}</button>
+  </div>`;
 }
-window.filterEmp = v => { v = v.trim().toLowerCase(); document.querySelectorAll('#emplist .item').forEach(el => el.style.display = el.dataset.n.includes(v) ? '' : 'none'); };
+window.empMore = async id => {
+  const r = (await empApi.balances()).find(x => x.id === id); if(!r) return;
+  openModal(`<h3>${esc(r.name)}</h3><div class="hint" style="margin-bottom:10px">${r.emp_no ? 'رقم ' + esc(r.emp_no) + ' · ' : ''}الرصيد ${signMoney(r.balance)}</div>
+    <div class="menu-list">
+      <button onclick="closeModal();go('/emp/${id}')">${I.folder}فتح الحساب</button>
+      <button onclick="closeModal();go('/emp-tx?e=${id}')">${I.coins2}إضافة حركة (صرف / سلفة / خصم)</button>
+      <button onclick="closeModal();go('/emp-statement/${id}')">${I.doc}كشف حساب</button>
+      <button onclick="closeModal();go('/emp-edit/${id}')">${I.edit}تعديل بيانات الموظف</button>
+    </div>`);
+};
+async function viewEmployees(){
+  if(!$('#emplist')) shell({title:'الموظفين', nav:'employees', page:{sub:'حسابات الموظفين والمرتبات والسلف', icon:'users'}, body:skeleton('home')});
+  const all = await empApi.balances();
+  if(!EMP_F[empFilter]) empFilter = 'all';
+  if(!all.some(r => !empOn(r))) empAct = 'on';
+  const rows = all.filter(empInAct);
+  const due = rows.filter(r => empC(r.balance) > 0), owe = rows.filter(r => empC(r.balance) < 0);
+  const sumDue = due.reduce((a, r) => a + empC(r.balance), 0) / 100, sumOwe = owe.reduce((a, r) => a + empC(r.balance), 0) / 100;
+  const net = sumDue + sumOwe;
+  const cnt = k => rows.filter(r => k === 'all' || empKind(r) === k).length;
+  const list = rows.filter(r => empFilter === 'all' || empKind(r) === empFilter);
+  const N = v => n0(v), noN = r => Number(String(r.emp_no || '').replace(/\D/g, '')) || 1e9;
+  list.sort({high:(a, b) => N(b.balance) - N(a.balance) || a.id - b.id, low:(a, b) => N(a.balance) - N(b.balance) || a.id - b.id,
+    name:(a, b) => a.name.localeCompare(b.name, 'ar'), no:(a, b) => noN(a) - noN(b) || a.id - b.id,
+    recent:(a, b) => String(b.last_to || '').localeCompare(String(a.last_to || '')) || a.id - b.id}[empSort] || (() => 0));
+  const m = v => `<span class="num">${Math.abs(v).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
+  const chip = (k, ic) => `<button class="sp-chip ${empFilter === k ? 'on' : ''}" onclick="empFilter='${k}';viewEmployees()">${I[ic]}${EMP_F[k]} (${cnt(k)})</button>`;
+  const actNote = empAct !== 'on' ? `<div class="sp-note">${I.users}معروض: ${EMP_ACT[empAct]} (${rows.length}) — <a onclick="empAct='on';viewEmployees()">عرض اللي بيشتغلوا</a></div>` : '';
+  const fNote = empFilter === 'zero' ? `<div class="sp-note">${I.filter}معروض: خالص (${cnt('zero')}) — <a onclick="empFilter='all';viewEmployees()">عرض الكل</a></div>` : '';
+  const body = `
+    <div class="sp-sum">
+      <div class="sp-t hl"><i>${I.coins2}</i><span>ليهم</span><b>${m(sumDue)}</b></div>
+      <div class="sp-t"><i>${I.warn}</i><span>عليهم</span><b class="due">${m(sumOwe)}</b></div>
+      <div class="sp-t"><i>${I.layers}</i><span>الصافي</span><b class="${net < 0 ? 'due' : net > 0 ? 'pay' : ''}">${net < 0 ? '(' + m(net) + ')' : m(net)}</b></div>
+      <div class="sp-t"><i>${I.users}</i><span>الموظفين</span><b>${rows.length}</b></div>
+    </div>
+    ${actNote}
+    <div class="sp-search">
+      <label class="search-w">${I.search}<input class="search" id="esrch" placeholder="ابحث باسم الموظف أو الرقم أو التليفون..." value="${esc(empQ)}" oninput="empQ=this.value;filterEmp(this.value)"></label>
+      <button class="sp-fbtn" onclick="empFilterMenu()" aria-label="تصفية">${I.filter}</button>
+    </div>
+    <div class="sp-chips">${chip('all', 'layers')}${chip('due', 'okc')}${chip('owe', 'warn')}</div>
+    ${fNote}
+    <div class="sp-bar">
+      <button class="sp-sort" onclick="empSortMenu()">${I.sort}ترتيب: ${EMP_SORT[empSort]}<i>${I.chevL ? `<span style="display:inline-flex;transform:rotate(-90deg)">${I.chevL}</span>` : '▾'}</i></button>
+      <div class="sp-view"><button class="${empView === 'list' ? 'on' : ''}" onclick="setEmpView('list')" aria-label="قائمة">${I.list || I.doc}</button><button class="${empView === 'grid' ? 'on' : ''}" onclick="setEmpView('grid')" aria-label="شبكة">${I.grid}</button></div>
+    </div>
+    <div id="emplist" class="sp-list ${empView}">
+      ${rows.length ? (list.length ? list.map(empCard).join('') : `<div class="card empty">${I.emp}<div>مفيش موظفين في «${EMP_F[empFilter]}»</div></div>`)
+        : `<div class="card empty">${I.emp}<div>${all.length ? 'مفيش موظفين هنا' : 'لسه مفيش موظفين'}</div></div>`}
+      <div class="card empty" id="enores" style="display:none">${I.emp}<div>مفيش موظف بالاسم أو الرقم ده</div></div>
+    </div>
+    <div class="emp-adds">
+      <button class="btn primary block add-sup" onclick="go('/emp-import')">${I.scan}استيراد كشف</button>
+      <button class="btn ghost block add-sup" onclick="go('/emp-edit')">${I.plus}موظف جديد</button>
+    </div>`;
+  shell({title:'الموظفين', nav:'employees', page:{sub:'حسابات الموظفين والمرتبات والسلف', icon:'users', help:'empHelp()'}, body});
+  if(empQ) filterEmp(empQ);
+}
+window.filterEmp = v => {
+  v = v.trim().toLowerCase(); const d = v.replace(/\D/g, ''); let n = 0;
+  document.querySelectorAll('#emplist .srow').forEach(el => { const ok = el.dataset.n.includes(v) || (d.length >= 7 && el.dataset.n.includes(d.replace(/^(00)?20|^0/, ''))); el.style.display = ok ? '' : 'none'; n += ok; });
+  const e = $('#enores'); if(e) e.style.display = n || !document.querySelector('#emplist .srow') ? 'none' : '';
+};
 
 /* =================== ملف الموظف =================== */
 let empTab = {};
