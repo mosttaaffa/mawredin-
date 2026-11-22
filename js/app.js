@@ -70,7 +70,7 @@ async function viewSettings(){
       ${members.length < 2 ? `<div class="field" style="margin-top:12px"><label>إضافة المستخدم التاني (أخوك)</label>
         <input id="newm" type="email" inputmode="email" placeholder="إيميله الحقيقي" dir="ltr" style="margin-bottom:8px">
         <div class="picker"><input id="newn" placeholder="اسمه اللي يظهر في السجل (مثلًا: محمد)"><button class="btn primary" onclick="addMember()">إضافة</button></div>
-        <div class="hint">بعد الإضافة: يفتح التطبيق على موبايله ويدوس «أول مرة؟ اعمل حساب جديد» بنفس الإيميل ويختار كلمة السر بتاعته بنفسه، وبعدين يأكد من الرسالة اللي هتوصله على الإيميل. إنت مش محتاج تعرف كلمة السر بتاعته.</div></div>`
+        <div class="hint">بعد الإضافة: يفتح التطبيق على موبايله ويدوس «أول مرة؟ اعمل حساب جديد» بنفس الإيميل ويختار كلمة السر بتاعته بنفسه، ويدخل على طول. إنت مش محتاج تعرف كلمة السر بتاعته.</div></div>`
         : '<div class="hint" style="margin-top:8px">التطبيق متاح لمستخدمين اتنين بس.</div>'}
     </div>
     <div class="card"><div class="section-t">رقمي الشخصي لاستقبال كشوف الحساب</div>
