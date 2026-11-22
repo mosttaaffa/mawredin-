@@ -339,7 +339,7 @@ function applyPerms(){
   if(el.textContent !== css) el.textContent = css;
 }
 // شاشة كاملة مقفولة (السجل / النسخ)
-function permBlocked(title, k){ shell({title, back:true, nav:'more', body:`<div class="card empty">${I.warn}<div>${k === 'log' ? 'سجل التعديلات' : PERM_GLOBAL[k] || PERM_SECTIONS[k] || ''} مقفول لحسابك</div><div class="hint">صاحب التطبيق يقدر يفتحه من الإعدادات ← الصلاحيات</div></div>`}); }
+function permBlocked(title, k){ shell({title, back:true, nav:'more', body:`<div class="card empty">${I.warn}<div>${k === 'log' ? 'سجل التعديلات' : PERM_GLOBAL[k] || PERM_SECTIONS[k] || ''} مقفول لحسابك</div><div class="hint">صاحب التطبيق يقدر يفتحه من المزيد ← الصلاحيات</div></div>`}); }
 const urlCache = new Map();
 async function signedUrl(path){
   if(!path) return null;
@@ -415,6 +415,7 @@ async function route(){
     if(parts[0] === 'checks') return await viewChecks();
     if(parts[0] === 'backups') return can('backup') ? await viewBackups() : permBlocked('النسخ الاحتياطية', 'backup');
     if(parts[0] === 'settings') return await viewSettings();
+    if(parts[0] === 'perms') return await viewPerms();
     if(parts[0] === 'suppliers') return await viewSuppliers();
     if(parts[0] === 'more') return viewMore();
     if(parts[0] === 'install') return viewInstall();

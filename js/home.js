@@ -148,6 +148,8 @@ function viewMore(){
         <span class="mt-t">الإعدادات</span><span class="mt-d">الأعضاء، الألوان، التنبيهات، التصدير والنسخة الاحتياطية</span></button>
       <button class="more-tile" onclick="go('/checks')"><span class="mt-ico" style="--c:#9B1B30">${I.check}</span>
         <span class="mt-t">الشيكات</span><span class="mt-d">الشيكات المستحقة والمسددة وسداد الدفعات</span></button>
+      <button class="more-tile" onclick="go('/perms')"><span class="mt-ico" style="--c:#2f855a">${I.users}</span>
+        <span class="mt-t">الصلاحيات</span><span class="mt-d">${isOwner ? 'افتح واقفل اللي المستخدم التاني يقدر يعمله' : 'صلاحيات حسابك'}</span></button>
       <button class="more-tile" onclick="go('/log')"><span class="mt-ico" style="--c:#b7791f">${I.hist}</span>
         <span class="mt-t">سجل التعديلات</span><span class="mt-d">مين عمل إيه وإمتى</span></button>
       <button class="more-tile" onclick="go('/m/other')"><span class="mt-ico" style="--c:#4a5568">${I.folder}</span>
