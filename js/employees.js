@@ -304,6 +304,12 @@ async function viewEmpImport(){
       <div class="card mod-hero"><span class="mt-ico big" style="--c:#2b6cb0">${I.scan}</span><h2>استيراد كشف الموظفين</h2>
         <p>صوّر كشف الحساب أو انسخه من Excel، وراجع كل الأرقام قبل ما يتحفظ.</p></div>
       <div class="card">
+        <div class="field"><label>ملف Excel (كشف حساب الموظفين)</label>
+          <label class="photo" for="impxlsx"><div>${I.list}<div class="ph-t">اختار ملف الكشف (.xlsx)</div></div><input type="file" id="impxlsx" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="draftFromXlsx(this.files[0])"></label>
+          <div class="hint">التطبيق بيقرا الشيت بنفس شكله: الأعمدة بالأسماء (الاسم، المرتب الأساسي، أيام العمل، … الإجمالي الصافي)، والفترة من سطر «الفترة من … إلى …»، وإجماليات «مراجعة الصورة» للمقارنة. الخانات اللي فيها معادلات بتتحسب بنفس معادلات الشيت. وبتراجع كل حاجة قبل الحفظ.</div></div>
+        <div id="xlsxmsg"></div>
+      </div>
+      <div class="card">
         <div class="field"><label>1) صورة الكشف</label>
           <label class="photo" for="impimg"><div id="impimg-prev">${I.camera}<div class="ph-t">اختار صورة الكشف</div></div><input type="file" id="impimg" accept="image/*" onchange="previewPhoto('impimg')"></label>
           <div class="hint">الصورة بتتحفظ مع الكشف كمصدر. قراءة الجداول الكبيرة من الصورة على الموبايل مش دقيقة، فالأضمن: ابعت الصورة لـ Claude يطلّع الأرقام ويبعتلك رابط مراجعة، أو الصق الجدول من Excel تحت.</div></div>
@@ -317,6 +323,78 @@ async function viewEmpImport(){
   }
   renderEmpReview();
 }
+/* ---------- قراءة شيت Excel «كشف حساب الموظفين» ----------
+   الأعمدة بتتعرف بأسمائها (مش بمكانها)، فلو الترتيب اتغير أو اتضاف عمود الشيت لسه بيتقري.
+   الخانات المحسوبة (المرتب، إجمالي العمولات، إجمالي السلف والخصومات، الصافي) لو الملف مفيهوش قيمتها المحفوظة
+   بنحسبها بنفس معادلات الشيت: المرتب = ROUND(الأساسي × الأيام ÷ 30) … الصافي = المرتب + العمولات − السلف والخصومات − التأخير + القديم */
+const XL_NORM = t => String(t ?? '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[ـ\s]+/g, ' ').trim();
+const XL_COLS = {'م':'emp_no', 'رقم':'emp_no', 'الاسم':'name', 'الموظف':'name', 'المرتب الاساسي':'base_salary', 'الاساسي':'base_salary', 'ايام العمل':'work_days',
+  'المرتب':'earned_salary', 'المرتب المستحق':'earned_salary', 'عمولات زهره':'comm_zahra', 'عمولات ورد':'comm_ward', 'اجمالي العمولات':'comm_total',
+  'سلف زهره':'adv_zahra', 'سلف ورد':'adv_ward', 'خصومات':'ded_general', 'ملابس':'ded_clothes', 'اجمالي السلف والخصومات':'adv_ded_total',
+  'خصم تاخير وغياب':'late_ded', 'خصم التاخير':'late_ded', 'تاخير':'late_ded', 'حساب قديم':'prev_balance', 'الحساب القديم':'prev_balance',
+  'الاجمالي الصافي':'net_balance', 'الصافي':'net_balance'};
+const XL_TOTALS = {'المرتبات':'earned_salary', 'العمولات':'comm_total', 'السلف زهره':'adv_zahra', 'سلف زهره':'adv_zahra', 'السلف ورد':'adv_ward', 'سلف ورد':'adv_ward',
+  'الخصومات':'ded_general', 'الملابس':'ded_clothes', 'السلف والخصومات':'adv_ded_total', 'خصم التاخير':'late_ded', 'الحساب القديم':'prev_balance', 'الصافي':'net_balance'};
+function xlNum(v){ if(v == null || v === '' || v === '-' || v === '—') return null; if(typeof v === 'number') return v; return readAmountSigned(String(v)); }
+function xlDate(t){ const m = String(t).match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/); return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : ''; }
+function parseEmpSheet(rows){
+  // rows: مصفوفة صفوف، كل صف مصفوفة خانات {v:القيمة المحفوظة، f:المعادلة}
+  const txt = r => (r || []).map(c => c?.v ?? '').join(' ');
+  let hi = rows.findIndex(r => (r || []).some(c => XL_NORM(c?.v) === 'الاسم'));
+  if(hi < 0) throw new Error('مقدرتش ألاقي صف العناوين (عمود «الاسم») في الشيت');
+  const col = {}; (rows[hi] || []).forEach((c, j) => { const k = XL_COLS[XL_NORM(c?.v)]; if(k && col[k] == null) col[k] = j; });
+  if(col.name == null) throw new Error('عمود «الاسم» مش موجود');
+  const d = emptyDraft(); d.source = 'excel';
+  const head = rows.slice(0, hi).map(txt).join(' ');
+  const pm = head.match(/من\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{4})\s*(?:الى|إلى|لـ|-|حتى)\s*(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{4})/);
+  if(pm){ d.period_from = xlDate(pm[1]); d.period_to = xlDate(pm[2]); }
+  for(const t of rows.slice(0, hi).map(txt)){ const bm = t.match(/فرع\s+([^\-|]+)/); if(bm){ d.branch = bm[1].trim(); break; } }
+  const R = x => Math.round(x * 100) / 100;
+  let i = hi + 1;
+  for(; i < rows.length; i++){
+    const r = rows[i] || [], name = String(r[col.name]?.v ?? '').trim();
+    if(!name) { if(rows.slice(i, i + 2).every(x => !txt(x).trim())) break; continue; }
+    if(/^(ال)?اجمالي$/.test(XL_NORM(name))) break;   // صف الإجمالي = آخر الجدول
+    const row = {emp_no:String(col.emp_no != null ? (r[col.emp_no]?.v ?? '') : ''), name, original:{}, uncertain:[]};
+    const val = k => col[k] == null ? null : xlNum(r[col[k]]?.v);
+    for(const [k] of EMP_FIELDS){ row[k] = val(k); row.original[k] = col[k] == null ? null : (r[col[k]]?.f ? '=' + r[col[k]].f : r[col[k]]?.v ?? null); }
+    // المعادلات اللي ملهاش قيمة محفوظة في الملف: نحسبها زي الشيت
+    if(row.earned_salary == null && row.base_salary != null && row.work_days != null) row.earned_salary = Math.round(row.base_salary * row.work_days / 30);
+    if(row.comm_total == null && (row.comm_zahra != null || row.comm_ward != null)) row.comm_total = R(n0(row.comm_zahra) + n0(row.comm_ward));
+    if(row.adv_ded_total == null) row.adv_ded_total = R(n0(row.adv_zahra) + n0(row.adv_ward) + n0(row.ded_general) + n0(row.ded_clothes));
+    if(row.net_balance == null) row.net_balance = R(n0(row.earned_salary) + n0(row.comm_total) - n0(row.adv_ded_total) - n0(row.late_ded) + n0(row.prev_balance));
+    for(const k of ['comm_zahra', 'comm_ward', 'adv_zahra', 'adv_ward', 'ded_general', 'ded_clothes', 'late_ded', 'prev_balance']) if(row[k] == null && col[k] != null) row[k] = 0;
+    d.rows.push(row);
+  }
+  // إجماليات «مراجعة الصورة» (لو موجودة) للمقارنة بس
+  for(; i < rows.length; i++){
+    const r = rows[i] || []; const lab = r.findIndex(c => XL_TOTALS[XL_NORM(c?.v)]);
+    if(lab < 0) continue;
+    const k = XL_TOTALS[XL_NORM(r[lab].v)], v = xlNum(r[lab + 1]?.v);
+    if(v != null && d.totals_original[k] == null) d.totals_original[k] = v;
+  }
+  return d;
+}
+window.draftFromXlsx = async (file) => {
+  if(!file) return;
+  const msg = $('#xlsxmsg'); if(msg) msg.innerHTML = '<div class="hint">بقرا الملف...</div>';
+  try{
+    await loadScript('vendor/xlsx.full.min.js');
+    const wb = XLSX.read(await file.arrayBuffer(), {type:'array', cellFormula:true});
+    let d = null, lastErr = null;
+    for(const sn of wb.SheetNames){
+      const ws = wb.Sheets[sn], ref = ws['!ref']; if(!ref) continue;
+      const rg = XLSX.utils.decode_range(ref), rows = [];
+      for(let r = rg.s.r; r <= rg.e.r; r++){ const row = []; for(let c = 0; c <= rg.e.c; c++){ const cell = ws[XLSX.utils.encode_cell({r, c})]; row[c] = cell ? {v:cell.v, f:cell.f} : null; } rows.push(row); }
+      try{ d = parseEmpSheet(rows); if(d.rows.length) break; }catch(e){ lastErr = e; }
+    }
+    if(!d || !d.rows.length) throw lastErr || new Error('مقدرتش ألاقي موظفين في الملف');
+    d.notes = `اتقرا من ملف: ${file.name}`;
+    empDraft = d; saveDraft();
+    toast(`اتقرا ${d.rows.length} موظف — راجع قبل الحفظ`);
+    renderEmpReview();
+  }catch(e){ console.error(e); if(msg) msg.innerHTML = `<div class="hint" style="color:var(--red)">${esc(e.message || 'مقدرتش أقرا الملف')}</div>`; else toast(errMsg(e), true); }
+};
 function emptyDraft(){ return {branch:'زهرة وورد', period_from:'', period_to:'', rows:[], totals_original:{}, source:'manual', notes:''}; }
 window.draftFromPaste = () => {
   const t = $('#paste').value.trim(); if(!t) return toast('الصق الجدول الأول', true);
