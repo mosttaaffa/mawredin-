@@ -70,6 +70,13 @@ window.setPerm = async (email, k, val, el) => {
   try{ await q(ldb.from('members').update({perms:Object.keys(p).length ? p : null}).eq('email', email)); toast(val ? 'اتفتحت ✓' : 'اتقفلت ✓'); }
   catch(err){ if(el) el.checked = !val; toast(errMsg(err), true); }
 };
+// شاشة الصلاحيات (من «المزيد»)
+async function viewPerms(){
+  const members = await api.members(), others = members.filter(m => !m.is_owner);
+  shell({title:'الصلاحيات', back:true, nav:'more', body: others.length ? others.map(m => permCard(m)).join('')
+    : `<div class="card empty">${I.users}<div>لسه مفيش مستخدم تاني</div><div class="hint">ضيفه من الإعدادات ← المستخدمين، وبعدين ارجع هنا تحدد صلاحياته.</div>
+       ${isOwner ? `<button class="btn primary" style="margin-top:12px" onclick="go('/settings')">${I.gear}الإعدادات</button>` : ''}</div>`});
+}
 async function viewSettings(){
   const members = await api.members();
   if(IS_LOCAL){ try{ lanUrls = (await (await fetch('/local-info')).json()).urls || []; }catch(e){} }
@@ -91,7 +98,6 @@ async function viewSettings(){
         <div class="hint">بعد الإضافة: يفتح التطبيق على موبايله ويدوس «أول مرة؟ اعمل حساب جديد» بنفس الإيميل ويختار كلمة السر بتاعته بنفسه، ويدخل على طول. إنت مش محتاج تعرف كلمة السر بتاعته.</div></div>`
         : '<div class="hint" style="margin-top:8px">التطبيق متاح لمستخدمين اتنين بس.</div>'}
     </div>
-    ${members.filter(m => !m.is_owner).map(m => permCard(m)).join('')}
     <div class="card"><div class="section-t">رقمي الشخصي لاستقبال كشوف الحساب</div>
       <div class="picker"><input id="mywa" type="tel" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx" value="${esc(localStorage.getItem('mawredin_my_wa') || '')}"><button class="btn primary" onclick="saveMyWa()">حفظ</button></div>
       <div class="hint">بيتحفظ على الموبايل ده، وبيستخدم في «إرسال الكشف لرقمي» على واتساب.</div></div>
