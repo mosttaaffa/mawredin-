@@ -308,6 +308,37 @@ function shareLink(){
 }
 
 let sb = null, me = null, isOwner = false;
+
+/* ---------- الصلاحيات (صاحب التطبيق بيفتح ويقفل للمستخدم التاني) ----------
+   members.perms: null = كله مفتوح. مفتاح = false يبقى مقفول. السيرفر بيمنع نفس الحاجات (RLS + sync_apply) — ده عشان الشكل والرسالة. */
+const PERM_SECTIONS = {suppliers:'الموردين', checks:'الشيكات', employees:'الموظفين', loans:'القروض', sales:'المبيعات', expenses:'المصروفات', banks:'البنك'};
+const PERM_GLOBAL = {delete:'المسح', log:'سجل التعديلات', backup:'النسخ الاحتياطي والتصدير'};
+const TABLE_PERM = {suppliers:'suppliers', invoices:'suppliers', payments:'suppliers', check_payments:'checks', employees:'employees', emp_settlements:'employees', emp_transactions:'employees', emp_import_batches:'employees', loans:'loans', loan_payments:'loans', daily_sales:'sales', expenses:'expenses', bank_moves:'banks'};
+const ROUTE_PERM = {supplier:'suppliers', invoice:'suppliers', payment:'suppliers', adjust:'suppliers', 'emp-edit':'employees', 'emp-tx':'employees', 'emp-set':'employees', 'emp-import':'employees', 'loan-form':'loans', 'loan-pay':'loans', sale:'sales', expense:'expenses', 'bank-move':'banks'};
+function myPerms(){ const e = (typeof store !== 'undefined' && store.email) || me?.email; return (e && store.eff?.members?.get(String(e).toLowerCase())?.perms) || null; }
+function can(k){ if(isOwner) return true; const p = myPerms(); return !p || p[k] !== false; }
+const permDenied = k => PERM_SECTIONS[k] ? `مش مسموحلك تضيف أو تعدّل في ${PERM_SECTIONS[k]}` : k === 'delete' ? 'مش مسموحلك تمسح' : 'مش مسموحلك';
+// إخفاء أزرار الإضافة والمسح المقفولة (من غير ما نلف على كل شاشة)
+const PERM_HIDE = {
+  suppliers:["go('/invoice", "go('/payment", "go('/adjust", "go('/supplier'", "go('/supplier?", "go('/supplier/"],
+  checks:['cpForm(', 'setCheckSt('],
+  employees:["go('/emp-import", "go('/emp-edit", "go('/emp-tx?", "go('/emp-tx')", 'setEmpActive('],
+  loans:["go('/loan-form", "go('/loan-pay", 'loanReopen('],
+  sales:["go('/sale')", "go('/sale?"],
+  expenses:["go('/expense')", "go('/expense?"],
+  banks:["go('/bank-move')", "go('/bank-move?"],
+  delete:['Delete(', 'delEmpTx(', 'DelDay(', 'delInvoice(', 'delPayment(', 'delSupplier(', 'delInvDetails(', 'delPayDetails('],
+  log:["go('/log')"], backup:["go('/backups')", 'exportExcel('],
+};
+function applyPerms(){
+  let css = '';
+  if(!isOwner) for(const [k, list] of Object.entries(PERM_HIDE)) if(!can(k)) css += list.map(x => `[onclick*="${x.replace(/"/g, '\\"')}"]`).join(',') + '{display:none !important}';
+  if(!can('sales')) css += '.cm-c[onclick*="go(\'/sale?"]{display:flex !important;pointer-events:none}';
+  let el = document.getElementById('perm-css'); if(!el){ el = document.createElement('style'); el.id = 'perm-css'; document.head.appendChild(el); }
+  if(el.textContent !== css) el.textContent = css;
+}
+// شاشة كاملة مقفولة (السجل / النسخ)
+function permBlocked(title, k){ shell({title, back:true, nav:'more', body:`<div class="card empty">${I.warn}<div>${k === 'log' ? 'سجل التعديلات' : PERM_GLOBAL[k] || PERM_SECTIONS[k] || ''} مقفول لحسابك</div><div class="hint">صاحب التطبيق يقدر يفتحه من الإعدادات ← الصلاحيات</div></div>`}); }
 const urlCache = new Map();
 async function signedUrl(path){
   if(!path) return null;
@@ -381,7 +412,7 @@ async function route(){
   try{
     if(parts[0] === 's' && parts[1]) return await viewSupplier(+parts[1]);
     if(parts[0] === 'checks') return await viewChecks();
-    if(parts[0] === 'backups') return await viewBackups();
+    if(parts[0] === 'backups') return can('backup') ? await viewBackups() : permBlocked('النسخ الاحتياطية', 'backup');
     if(parts[0] === 'settings') return await viewSettings();
     if(parts[0] === 'suppliers') return await viewSuppliers();
     if(parts[0] === 'more') return viewMore();
@@ -403,7 +434,7 @@ async function route(){
     if(parts[0] === 'emp-tx') return await formEmpTx(parts[1] ? +parts[1] : null, params.get('e'));
     if(parts[0] === 'emp-set' && parts[1]) return await formSettlement(+parts[1]);
     if(parts[0] === 'emp-statement' && parts[1]) return await viewEmpStatement(+parts[1]);
-    if(parts[0] === 'emp-import') return await viewEmpImport();
+    if(parts[0] === 'emp-import') return can('employees') ? await viewEmpImport() : permBlocked('استيراد كشف', 'employees');
     if(parts[0] === 'm' && parts[1]) return viewModule(parts[1]);
     if(parts[0] === 'invoice') return await formInvoice(parts[1] ? +parts[1] : null, params.get('s'));
     if(parts[0] === 'pay') return await viewPayDetails(+parts[1]);
@@ -413,7 +444,7 @@ async function route(){
     if(parts[0] === 'adjust') return await formAdjust(parts[1] ? +parts[1] : null, params.get('s'));
     if(parts[0] === 'statement' && parts[1]) return await viewStatement(+parts[1], params.get('from'), params.get('to'));
     if(parts[0] === 'reports') return await viewReports();
-    if(parts[0] === 'log') return await viewLog();
+    if(parts[0] === 'log') return can('log') ? await viewLog() : permBlocked('سجل التعديلات', 'log');
     return await viewDashboard();
   }catch(e){ console.error(e); toast(errMsg(e), true); }
 }
@@ -421,7 +452,7 @@ async function route(){
 /* =================== هيكل الصفحة =================== */
 let lastShown = null;
 function shell({title, back, right='', body, nav=null, fabs='', home=null, page=null}){
-  const app = $('#app');
+  const app = $('#app'); applyPerms();
   document.body.classList.remove('dash-fits');          // قفل السكرول خاص بالرئيسية بس
   const loading = body.includes('class="skel"');
   if(loading && store.ready && hasLocalData()) return;      // البيانات على الجهاز: مفيش داعي لشاشة تحميل

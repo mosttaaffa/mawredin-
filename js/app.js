@@ -52,6 +52,24 @@ window.showCheck = async id => {
 };
 
 /* =================== الإعدادات =================== */
+// كارت صلاحيات المستخدم التاني — مفاتيح زي إعدادات الآيفون (صاحب التطبيق بس يقدر يغيرها)
+function permCard(m){
+  const p = m.perms || {}, on = k => p[k] !== false, name = esc(m.display_name || shortName(m.email));
+  const row = (k, l, d) => `<label class="ios-row"><span><b>${l}</b>${d ? `<small>${d}</small>` : ''}</span>
+      <input type="checkbox" class="ios-sw" ${on(k) ? 'checked' : ''} ${isOwner ? '' : 'disabled'} onchange="setPerm('${esc(m.email)}','${k}',this.checked,this)"><i></i></label>`;
+  return `<div class="ios-h">صلاحيات ${name} — يضيف ويعدّل</div>
+    <div class="ios-grp">${Object.entries(PERM_SECTIONS).map(([k, l]) => row(k, l)).join('')}</div>
+    <div class="ios-f">المقفول بيبقى «عرض بس»: يشوف القسم ومايقدرش يضيف أو يعدّل فيه. التقارير ظاهرة دايمًا.</div>
+    <div class="ios-h">صلاحيات عامة</div>
+    <div class="ios-grp">${row('delete', 'المسح', 'يمسح فواتير ودفعات وحركات')}${row('log', 'سجل التعديلات', 'يشوف مين عمل إيه')}${row('backup', 'النسخ الاحتياطي والتصدير', 'ينزّل نسخة أو Excel')}</div>
+    ${isOwner ? '' : '<div class="ios-f">الصلاحيات بيغيرها صاحب التطبيق بس.</div>'}`;
+}
+window.setPerm = async (email, k, val, el) => {
+  const m = store.eff.members.get(email); if(!m || !isOwner) return;
+  const p = {...(m.perms || {})}; if(val) delete p[k]; else p[k] = false;
+  try{ await q(ldb.from('members').update({perms:Object.keys(p).length ? p : null}).eq('email', email)); toast(val ? 'اتفتحت ✓' : 'اتقفلت ✓'); }
+  catch(err){ if(el) el.checked = !val; toast(errMsg(err), true); }
+};
 async function viewSettings(){
   const members = await api.members();
   if(IS_LOCAL){ try{ lanUrls = (await (await fetch('/local-info')).json()).urls || []; }catch(e){} }
@@ -60,19 +78,20 @@ async function viewSettings(){
       <div class="kv"><span>اسمك في السجل</span><span><b>${esc(who(me.email))}</b> <button class="link" onclick="editName('${esc(me.email)}')">تغيير</button></span></div>
       <div class="kv" style="border:0"><span>الإيميل</span><span class="num">${esc(me.email)}</span></div>
       ${!myMember(members)?.display_name ? '<div class="note-line">اكتب اسمك عشان يظهر في سجل العمليات بدل الإيميل</div>' : ''}</div>
-    <div class="card"><div class="section-t">المستخدمين (${members.length} من 2) — نفس الصلاحيات الكاملة</div>
+    <div class="card"><div class="section-t">المستخدمين (${members.length} من 2)</div>
       ${members.map(m => `<div class="mem-row">
         <div class="avatar">${esc((m.display_name || m.email).trim()[0])}</div>
         <div class="grow"><div class="t">${esc(m.display_name || shortName(m.email))}${m.email === me.email ? ' <span class="tag cleared">إنت</span>' : ''}</div><div class="s num">${esc(m.email)}</div></div>
         <button class="link" onclick="editName('${esc(m.email)}')">الاسم</button>
-        ${!m.is_owner && m.email !== me.email ? `<button class="link" style="color:var(--red)" onclick="delMember('${esc(m.email)}')">إزالة</button>` : ''}
+        ${isOwner && !m.is_owner && m.email !== me.email ? `<button class="link" style="color:var(--red)" onclick="delMember('${esc(m.email)}')">إزالة</button>` : ''}
       </div>`).join('')}
-      ${members.length < 2 ? `<div class="field" style="margin-top:12px"><label>إضافة المستخدم التاني (أخوك)</label>
+      ${!isOwner ? '' : members.length < 2 ? `<div class="field" style="margin-top:12px"><label>إضافة المستخدم التاني (أخوك)</label>
         <input id="newm" type="email" inputmode="email" placeholder="إيميله الحقيقي" dir="ltr" style="margin-bottom:8px">
         <div class="picker"><input id="newn" placeholder="اسمه اللي يظهر في السجل (مثلًا: محمد)"><button class="btn primary" onclick="addMember()">إضافة</button></div>
         <div class="hint">بعد الإضافة: يفتح التطبيق على موبايله ويدوس «أول مرة؟ اعمل حساب جديد» بنفس الإيميل ويختار كلمة السر بتاعته بنفسه، ويدخل على طول. إنت مش محتاج تعرف كلمة السر بتاعته.</div></div>`
         : '<div class="hint" style="margin-top:8px">التطبيق متاح لمستخدمين اتنين بس.</div>'}
     </div>
+    ${members.filter(m => !m.is_owner).map(m => permCard(m)).join('')}
     <div class="card"><div class="section-t">رقمي الشخصي لاستقبال كشوف الحساب</div>
       <div class="picker"><input id="mywa" type="tel" inputmode="tel" dir="ltr" placeholder="01xxxxxxxxx" value="${esc(localStorage.getItem('mawredin_my_wa') || '')}"><button class="btn primary" onclick="saveMyWa()">حفظ</button></div>
       <div class="hint">بيتحفظ على الموبايل ده، وبيستخدم في «إرسال الكشف لرقمي» على واتساب.</div></div>

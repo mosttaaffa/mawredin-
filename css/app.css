@@ -1866,3 +1866,20 @@ header.page-h .iconbtn{width:36px;height:36px}
 .tbl td.neg{color:var(--red)}
 .card .tbl td.n,.card .tbl th.n{white-space:nowrap}
 @media (max-width:360px){.card .tbl td,.card .tbl th{padding-inline:4px;font-size:12px}}
+/* مفاتيح الصلاحيات (شكل إعدادات الآيفون) */
+.ios-h{margin:18px 14px 6px;font-size:14px;font-weight:800;color:var(--muted)}
+.ios-grp{background:#fff;border-radius:18px;border:1px solid #F1DDE1;box-shadow:var(--shadow);overflow:hidden;margin-bottom:6px}
+.ios-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;min-height:56px;cursor:pointer}
+.ios-row+.ios-row{border-top:1px solid #F3E6E9}
+.ios-row>span{display:flex;flex-direction:column;min-width:0}
+.ios-row b{font-size:16px;font-weight:700;color:var(--ink)}
+.ios-row small{font-size:12px;color:var(--muted)}
+.ios-row{position:relative}
+.ios-sw{position:absolute;opacity:0;width:1px;height:1px}
+.ios-row i{flex:none;position:relative;width:51px;height:31px;border-radius:16px;background:#E5E5EA;transition:background .2s}
+.ios-row i::after{content:"";position:absolute;top:2px;right:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.25);transition:transform .2s}
+.ios-sw:checked+i{background:#34C759}
+.ios-sw:checked+i::after{transform:translateX(-20px)}
+.ios-sw:focus-visible+i{outline:2px solid var(--brand);outline-offset:2px}
+.ios-sw:disabled+i{opacity:.55}
+.ios-f{margin:0 14px 10px;font-size:12px;color:var(--muted);line-height:1.6}
