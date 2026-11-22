@@ -454,6 +454,15 @@ function formShell(title, body, onSave){
     <main><form id="frm" autocomplete="off" novalidate>${body}
       ${/^تعديل/.test(title) ? `<div class="edit-acts"><button class="btn primary" type="submit">${I.save}حفظ التعديلات</button><button class="btn ghost" type="button" onclick="history.back()">إلغاء</button></div>`
         : `<button class="btn primary block" type="submit" style="padding:15px;font-size:17px">حفظ</button>`}</form></main></div>`;
+  applyPerms();
+  const sec = ROUTE_PERM[location.hash.replace(/^#\/?/, '').split(/[/?]/)[0]];
+  if(sec && !can(sec)){   // عرض بس: نفس البيانات من غير حفظ
+    $('#frm').insertAdjacentHTML('afterbegin', `<div class="sp-note" style="margin-bottom:12px">${I.warn}عرض بس — ${permDenied(sec)}</div>`);
+    $('#frm').querySelectorAll('input,select,textarea').forEach(el => el.disabled = true);
+    $('#frm').querySelectorAll('button').forEach(b => { if(b.type === 'submit' || b.classList.contains('danger') || !/history\.back/.test(b.getAttribute('onclick') || '')) b.style.display = 'none'; });
+    $('#frm').addEventListener('submit', e => e.preventDefault());
+    return;
+  }
   let saving = false;
   $('#frm').addEventListener('submit', async e => {
     e.preventDefault(); if(saving) return; saving = true; busy(true);

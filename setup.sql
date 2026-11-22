@@ -521,6 +521,7 @@ begin
 
   keycol := case when t = 'members' then 'email' else 'id' end;
   begin
+    perform public.assert_perm(t, k, v_key);
     if k = 'insert' then
       r := p->'row';
       select string_agg(quote_ident(col.column_name), ',' order by col.ordinal_position) into cols
@@ -984,3 +985,82 @@ do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') th
 alter table public.emp_transactions add column if not exists method text;
 alter table public.emp_transactions drop constraint if exists emp_transactions_method_check;
 alter table public.emp_transactions add constraint emp_transactions_method_check check (method is null or method in ('cash','transfer'));
+
+-- الصلاحيات (الإصدار 15): صاحب التطبيق بيفتح ويقفل صلاحيات المستخدم التاني
+-- members.perms: null = كل الصلاحيات. أي مفتاح = false يبقى مقفول:
+--   أقسام (يضيف ويعدّل): suppliers, checks, employees, loans, sales, expenses, banks
+--   عامة: delete (المسح)، log (سجل التعديلات)، backup (النسخ الاحتياطي والتصدير)
+-- الحماية على السيرفر: سياسات RLS «restrictive» على الإضافة والتعديل والمسح + فحص في sync_apply برسالة واضحة.
+-- (السجل والنسخ: بيتقفلوا في التطبيق بس، لأن المزامنة محتاجة السجل والبيانات كلها على الموبايل أصلًا)
+alter table public.members add column if not exists perms jsonb;
+create or replace function public.is_owner_me()
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select is_owner from public.members where lower(email) = public.current_email()), false)
+$$;
+create or replace function public.has_perm(k text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce((select is_owner or perms is null or coalesce((perms->>k)::boolean, true)
+                   from public.members where lower(email) = public.current_email()), false)
+$$;
+create or replace function public.table_perm(t text)
+returns text language sql immutable as $$
+  select case when t in ('suppliers','invoices','payments') then 'suppliers'
+              when t = 'check_payments' then 'checks'
+              when t in ('employees','emp_settlements','emp_transactions','emp_import_batches') then 'employees'
+              when t in ('loans','loan_payments') then 'loans'
+              when t = 'daily_sales' then 'sales'
+              when t = 'expenses' then 'expenses'
+              when t = 'bank_moves' then 'banks' end
+$$;
+create or replace function public.assert_perm(t text, k text, v_key text)
+returns void language plpgsql stable security definer set search_path = public as $$
+declare s text := public.table_perm(t); ok boolean;
+begin
+  if s is null then return; end if;
+  ok := public.has_perm(s);
+  -- تغيير حالة الشيك أو سداده من صفحة الشيكات مسموح بصلاحية الشيكات
+  if not ok and t = 'payments' and k = 'update' then
+    ok := public.has_perm('checks') and exists (select 1 from public.payments where id::text = v_key and method = 'check');
+  end if;
+  if not ok then
+    raise exception 'مش مسموحلك تضيف أو تعدّل في %', case s when 'suppliers' then 'الموردين' when 'checks' then 'الشيكات' when 'employees' then 'الموظفين'
+      when 'loans' then 'القروض' when 'sales' then 'المبيعات' when 'expenses' then 'المصروفات' when 'banks' then 'البنك' else s end;
+  end if;
+  if k = 'delete' and not public.has_perm('delete') then raise exception 'مش مسموحلك تمسح'; end if;
+end $$;
+revoke execute on function public.is_owner_me(), public.has_perm(text), public.assert_perm(text, text, text) from public, anon;
+grant execute on function public.is_owner_me(), public.has_perm(text), public.table_perm(text), public.assert_perm(text, text, text) to authenticated;
+do $$
+declare t text; s text;
+begin
+  foreach t in array array['suppliers','invoices','payments','check_payments','employees','emp_settlements','emp_transactions','emp_import_batches','loans','loan_payments','daily_sales','expenses','bank_moves'] loop
+    s := public.table_perm(t);
+    execute format('drop policy if exists %1$s_perm_ins on public.%1$s', t);
+    execute format('drop policy if exists %1$s_perm_upd on public.%1$s', t);
+    execute format('drop policy if exists %1$s_perm_del on public.%1$s', t);
+    execute format('create policy %1$s_perm_ins on public.%1$s as restrictive for insert to authenticated with check ((select public.has_perm(%2$L)))', t, s);
+    if t = 'payments' then
+      execute 'create policy payments_perm_upd on public.payments as restrictive for update to authenticated
+               using ((select public.has_perm(''suppliers'')) or (method = ''check'' and (select public.has_perm(''checks'')))) with check ((select public.has_perm(''suppliers'')) or (method = ''check'' and (select public.has_perm(''checks''))))';
+    else
+      execute format('create policy %1$s_perm_upd on public.%1$s as restrictive for update to authenticated using ((select public.has_perm(%2$L))) with check ((select public.has_perm(%2$L)))', t, s);
+    end if;
+    execute format('create policy %1$s_perm_del on public.%1$s as restrictive for delete to authenticated using ((select public.has_perm(%2$L)) and (select public.has_perm(''delete'')))', t, s);
+  end loop;
+end $$;
+-- المستخدمين: الإضافة والإزالة وتغيير الصلاحيات لصاحب التطبيق بس
+drop policy if exists members_add_owner on public.members;
+create policy members_add_owner on public.members as restrictive for insert to authenticated with check ((select public.is_owner_me()));
+drop policy if exists members_del_owner on public.members;
+create policy members_del_owner on public.members as restrictive for delete to authenticated using ((select public.is_owner_me()));
+grant update (display_name, perms) on public.members to authenticated;
+create or replace function public.members_guard()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if new.perms is distinct from old.perms and not public.is_owner_me() then raise exception 'تغيير الصلاحيات لصاحب التطبيق بس'; end if;
+  if old.is_owner then new.perms := null; end if;
+  return new;
+end $$;
+revoke execute on function public.members_guard() from public, anon, authenticated;
+drop trigger if exists members_guard on public.members;
+create trigger members_guard before update on public.members for each row execute function public.members_guard();
