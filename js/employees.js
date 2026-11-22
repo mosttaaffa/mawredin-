@@ -84,7 +84,6 @@ async function viewEmployees(){
   if(!$('#emplist')) shell({title:'الموظفين', nav:'employees', page:{sub:'حسابات الموظفين والمرتبات والسلف', icon:'users'}, body:skeleton('home')});
   const all = await empApi.balances();
   if(!EMP_F[empFilter]) empFilter = 'all';
-  if(!all.some(r => !empOn(r))) empAct = 'on';
   const rows = all.filter(empInAct);
   const due = rows.filter(r => empC(r.balance) > 0), owe = rows.filter(r => empC(r.balance) < 0);
   const sumDue = due.reduce((a, r) => a + empC(r.balance), 0) / 100, sumOwe = owe.reduce((a, r) => a + empC(r.balance), 0) / 100;
@@ -97,7 +96,9 @@ async function viewEmployees(){
     recent:(a, b) => String(b.last_to || '').localeCompare(String(a.last_to || '')) || a.id - b.id}[empSort] || (() => 0));
   const m = v => `<span class="num">${Math.abs(v).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
   const chip = (k, ic) => `<button class="sp-chip ${empFilter === k ? 'on' : ''}" onclick="empFilter='${k}';viewEmployees()">${I[ic]}${EMP_F[k]} (${cnt(k)})</button>`;
-  const actNote = empAct !== 'on' ? `<div class="sp-note">${I.users}معروض: ${EMP_ACT[empAct]} (${rows.length}) — <a onclick="empAct='on';viewEmployees()">عرض اللي بيشتغلوا</a></div>` : '';
+  const nAct = k => all.filter(r => k === 'all' || (k === 'on' ? empOn(r) : !empOn(r))).length;
+  const actChip = (k, ic) => `<button class="sp-chip ${empAct === k ? 'on' : ''}" onclick="empAct='${k}';viewEmployees()">${I[ic]}${EMP_ACT[k]} (${nAct(k)})</button>`;
+  const actRow = `<div class="sp-chips emp-act">${actChip('on', 'okc')}${actChip('off', 'pause')}${actChip('all', 'users')}</div>`;
   const fNote = empFilter === 'zero' ? `<div class="sp-note">${I.filter}معروض: خالص (${cnt('zero')}) — <a onclick="empFilter='all';viewEmployees()">عرض الكل</a></div>` : '';
   const body = `
     <div class="sp-sum">
@@ -106,11 +107,11 @@ async function viewEmployees(){
       <div class="sp-t"><i>${I.layers}</i><span>الصافي</span><b class="${net < 0 ? 'due' : net > 0 ? 'pay' : ''}">${net < 0 ? '(' + m(net) + ')' : m(net)}</b></div>
       <div class="sp-t"><i>${I.users}</i><span>الموظفين</span><b>${rows.length}</b></div>
     </div>
-    ${actNote}
     <div class="sp-search">
       <label class="search-w">${I.search}<input class="search" id="esrch" placeholder="ابحث باسم الموظف أو الرقم أو التليفون..." value="${esc(empQ)}" oninput="empQ=this.value;filterEmp(this.value)"></label>
       <button class="sp-fbtn" onclick="empFilterMenu()" aria-label="تصفية">${I.filter}</button>
     </div>
+    ${actRow}
     <div class="sp-chips">${chip('all', 'layers')}${chip('due', 'okc')}${chip('owe', 'warn')}</div>
     ${fNote}
     <div class="sp-bar">

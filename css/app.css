@@ -1815,3 +1815,4 @@ header.page-h .iconbtn{width:36px;height:36px}
 #emplist .sr-name small>span{display:inline-flex;gap:3px}
 .sp-sort{white-space:nowrap}
 @media (max-width:360px){#emplist .sr-v small::after{content:none}}
+.sp-chips.emp-act .sp-chip:not(.on){background:var(--brand-soft)}
