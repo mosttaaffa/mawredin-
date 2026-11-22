@@ -104,13 +104,26 @@ async function formExpense(id){
   const qp = new URLSearchParams(location.hash.split('?')[1] || '');
   const br = x?.branch || qp.get('b') || localStorage.getItem('mawredin_exp_branch') || 'ورد';
   const used = [...new Set([...EXP_CATS, ...[...(store.eff.expenses?.values() || [])].map(e => e.category).filter(Boolean)])];
+  const emps = x ? [] : await fetchAll(() => ldb.from('employee_balances').select('id,name,balance,active').order('name')).catch(() => []);
+  const presetEmp = qp.get('e');
   formShell(x ? 'تعديل مصروف' : 'تسجيل مصروف', `
+    ${x ? '' : `<div class="field"><label>المصروف ده لمين؟</label><div class="seg ex-for" id="efor" style="grid-template-columns:repeat(4,1fr)">
+      <button type="button" data-v="exp" class="${presetEmp ? '' : 'on'}">مصروف</button><button type="button" data-v="emp" class="${presetEmp ? 'on' : ''}">موظف</button>
+      <button type="button" data-v="sup">مورد</button><button type="button" data-v="loan">قرض</button></div>
+      <div class="hint" id="efor-h"></div></div>
+    <div id="emp-box" style="display:none">
+      <div class="field" id="f-emp"><label>الموظف <span class="req">*</span></label><select id="emp"><option value="">— اختار الموظف —</option>
+        ${emps.filter(e => e.active !== false || String(e.id) === presetEmp).map(e => `<option value="${e.id}" data-bal="${n0(e.balance)}" ${String(e.id) === presetEmp ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select>
+        <div class="hint" id="emp-bal"></div></div>
+      <div class="field" id="f-ekind"><label>نوع الصرف <span class="req">*</span></label><div class="seg" id="ekind" style="grid-template-columns:1fr 1fr">
+        <button type="button" data-v="payment" class="on">صرف مستحقات / مرتب</button><button type="button" data-v="advance">سلفة</button></div></div>
+    </div>`}
     <div class="field"><label>الفرع</label><div class="seg" id="ebr">
       ${EXP_BR.map(b => `<button type="button" data-v="${b}" class="${br === b ? 'on' : ''}" onclick="segPick(this)">${b}</button>`).join('')}</div></div>
     <div class="field"><label>اليوم</label><input id="edate" type="date" value="${x?.exp_date || qp.get('d') || today()}"></div>
-    <div class="field" id="f-cat"><label>نوع المصروف <span class="req">*</span></label><input id="cat" list="exp-cats" value="${esc(x?.category || '')}" placeholder="مثلًا: كهربا، إيجار، نقل…">
+    <div id="cat-box"><div class="field" id="f-cat"><label>نوع المصروف <span class="req">*</span></label><input id="cat" list="exp-cats" value="${esc(x?.category || '')}" placeholder="مثلًا: كهربا، إيجار، نقل…">
       <datalist id="exp-cats">${used.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
-      <div class="ex-chips">${EXP_CATS.slice(0, 8).map(c => `<button type="button" onclick="$('#cat').value='${c}';$('#f-cat').classList.remove('err')">${c}</button>`).join('')}</div></div>
+      <div class="ex-chips">${EXP_CATS.slice(0, 8).map(c => `<button type="button" onclick="$('#cat').value='${c}';$('#f-cat').classList.remove('err')">${c}</button>`).join('')}</div></div></div>
     <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label><input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x ? x.amount : ''}"></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>
     ${pagesField('exp', 'صورة الإيصال', false, '(اختياري)')}
@@ -120,6 +133,15 @@ async function formExpense(id){
     const branch = $('#ebr .on')?.dataset.v, d = $('#edate').value, cat = $('#cat').value.trim(), amount = readAmount($('#amount').value);
     if(!branch) return toast('اختار الفرع', true);
     if(!d) return toast('اكتب اليوم', true);
+    if(!x && $('#efor .on')?.dataset.v === 'emp'){
+      // مصروف لموظف = حركة في حساب الموظف — بتظهر في المصروفات لوحدها (مش بتتسجل مرتين)
+      const eid = $('#emp').value, kind = $('#ekind .on')?.dataset.v || 'payment';
+      if(!eid) return markErr('emp', 'اختار الموظف');
+      if(!(amount > 0)) return markErr('amount', 'اكتب المبلغ');
+      await q(ldb.from('emp_transactions').insert({employee_id:+eid, kind, amount, tx_date:d, branch:branch === 'مشترك' ? null : branch, notes:$('#notes').value.trim() || null}));
+      localStorage.setItem('mawredin_exp_branch', branch); expMonth = d.slice(0, 7); expOpen?.add(expMonth);
+      busy(false); toast(`اتسجل في حساب ${$('#emp').selectedOptions[0].textContent} وفي المصروفات ✓`); location.replace('#/expenses'); return;
+    }
     if(!cat) return markErr('cat', 'اكتب نوع المصروف');
     if(!(amount > 0)) return markErr('amount', 'اكتب المبلغ');
     if(Object.values(EXP_AUTO).includes(cat)) return markErr('cat', 'ده بيتسجل تلقائي — اختار نوع تاني');
@@ -131,6 +153,24 @@ async function formExpense(id){
     else { await q(ldb.from('expenses').insert(row)); busy(false); toast(savedMsg('المصروف')); location.replace('#/expenses'); }
   });
   pgInit('exp', x ? rowPages(x) : []);
+  if(x) return;
+  const H = {exp:'إيجار، كهربا، نقل، … أي مصروف للمحل.', emp:'بيتسجل في حساب الموظف (بيقلل رصيده) وبيظهر في المصروفات لوحده.',
+    sup:'دفعة المورد بتتسجل من فورم الدفعة (عشان تنزل من حسابه) — وبتظهر في المصروفات لوحدها.', loan:'القسط بيتسجل من صفحة القرض — وبيظهر في المصروفات لوحده.'};
+  const setFor = v => {
+    document.querySelectorAll('#efor button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    $('#efor-h').textContent = H[v];
+    $('#emp-box').style.display = v === 'emp' ? '' : 'none';
+    $('#cat-box').style.display = v === 'emp' ? 'none' : '';
+    $('#f-exp') && ($('#f-exp').style.display = v === 'emp' ? 'none' : '');
+    if(v === 'sup') return go('/payment');
+    if(v === 'loan') return go('/loans');
+  };
+  document.querySelectorAll('#efor button').forEach(b => b.onclick = () => setFor(b.dataset.v));
+  document.querySelectorAll('#ekind button').forEach(b => b.onclick = () => document.querySelectorAll('#ekind button').forEach(y => y.classList.toggle('on', y === b)));
+  const showBal = () => { const o = $('#emp')?.selectedOptions[0], bal = o ? +o.dataset.bal : NaN;
+    $('#emp-bal').innerHTML = o?.value ? (bal > 0 ? `ليه عند المحل ${smoney(C(bal))} <button type="button" class="link" onclick="$('#amount').value='${bal}'">ادفعهم كلهم</button>` : bal < 0 ? `عليه للمحل ${smoney(C(-bal))}` : 'رصيده صفر') : ''; };
+  $('#emp').onchange = () => { showBal(); $('#f-emp').classList.remove('err'); };
+  setFor(presetEmp ? 'emp' : 'exp'); showBal();
 }
 window.expDelete = id => {
   const x = store.eff.expenses.get(id);
