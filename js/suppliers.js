@@ -609,12 +609,21 @@ async function formPayment(id, presetSup){
         <button type="button" data-m="transfer">${I.transfer}تحويل</button>
       </div></div>
     <div id="m-check" class="sub" style="display:none">
+      ${x ? '' : `<div class="field"><div class="seg" id="chkmode" style="grid-template-columns:1fr 1fr">
+        <button type="button" data-v="new" class="on">${I.plus}شيك جديد</button><button type="button" data-v="old">${I.check}سداد شيك موجود</button></div></div>
+      <div id="chk-old" style="display:none">
+        <div class="field" id="f-oldchk"><label>الشيك <span class="req">*</span></label><select id="oldchk"></select></div>
+        <div class="field"><label>اتدفع إزاي؟</label><select id="oldm">${Object.entries(CP_METHOD).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select></div>
+        <div class="paycalc" id="oldcalc"></div>
+      </div>`}
+      <div id="chk-new">
       <div class="row2">
         <div class="field"><label>رقم الشيك</label><input id="chk_no" inputmode="numeric" value="${esc(x?.check_no||'')}"></div>
         <div class="field"><label>البنك</label><input id="bank" value="${esc(x?.bank||'')}"></div>
       </div>
       <div class="field" id="f-due"><label>تاريخ الاستحقاق <span class="req">*</span></label><input id="due" type="date" value="${x?.due_date||''}"></div>
       ${pagesField('chk', 'صور الشيك', false, '(اختياري — وش وضهر مثلًا)')}
+      </div>
     </div>
     <div id="m-transfer" class="sub transfer" style="display:none">
       ${pagesField('tr', 'سكرين شوت التحويل', true)}
@@ -626,6 +635,7 @@ async function formPayment(id, presetSup){
     if(!sid) return markErr('sup', 'اختار المورد');
     if(!(amount > 0)) return markErr('amount', 'اكتب المبلغ');
     if(!method) return markErr('method', 'اختار نوع الدفعة: كاش ولا شيك ولا تحويل');
+    if(!x && method === 'check' && chkMode === 'old') return saveOldCheckPay(+sid, amount);
     if(method==='transfer' && !(PG.tr || []).length && !(x && x.method === 'transfer')) return markErr('tr', 'لازم سكرين شوت التحويل');
     if(method==='check' && !$('#due').value) return markErr('due', 'اكتب تاريخ استحقاق الشيك');
     if(x && x.method === 'check'){
@@ -650,14 +660,45 @@ async function formPayment(id, presetSup){
     busy(false); await celebrate(savedMsg('الدفعة'), true);
     if(x && new URLSearchParams(location.hash.split('?')[1] || '').get('from') === 'd') history.back(); else location.replace('#/s/' + sid);
   });
+  // سداد شيك موجود: قايمة الشيكات اللي لسه عليها فلوس للمورد ده
+  let chkMode = 'new';
+  const oldChecks = sid => [...store.eff.payments.values()].filter(p => String(p.supplier_id) === String(sid) && p.method === 'check' && p.check_status === 'pending')
+    .map(p => ({p, i:checkInfo(p)})).filter(o => o.i.remaining > 0).sort((a, b) => String(a.p.due_date).localeCompare(String(b.p.due_date)));
+  const fillOld = () => { const sel = $('#oldchk'); if(!sel) return; const list = oldChecks($('#sup').value), cur = sel.value;
+    sel.innerHTML = list.length ? list.map(o => `<option value="${o.p.id}">شيك ${esc(o.p.check_no || 'من غير رقم')} · يستحق ${fmtDate(o.p.due_date)} · المتبقي ${(o.i.remaining / 100).toLocaleString('en-US')} ج</option>`).join('')
+      : '<option value="">مفيش شيكات عليها باقي للمورد ده</option>';
+    if(list.some(o => String(o.p.id) === cur)) sel.value = cur; oldCalc(); };
+  const oldSplit = () => { const p = chkRow($('#oldchk')?.value), a = C(readAmount($('#amount').value) || 0); if(!p) return null;
+    const rem = checkInfo(p).remaining; return {p, rem, onChk:Math.min(a, rem), extra:Math.max(0, a - rem)}; };
+  const oldCalc = () => { const el = $('#oldcalc'); if(!el) return; const o = oldSplit();
+    if(!o || !(readAmount($('#amount').value) > 0)){ el.innerHTML = ''; return; }
+    el.innerHTML = `<div><span>على الشيك</span><b>${money(o.onChk / 100)}</b></div>${o.extra ? `<div class="op">+</div><div><span>زيادة للمورد</span><b>${money(o.extra / 100)}</b></div>` : ''}
+      <div class="after"><span>${o.onChk >= o.rem ? 'الشيك' : 'باقي الشيك'}</span><b>${o.onChk >= o.rem ? 'اتقفل ✓' : money((o.rem - o.onChk) / 100)}</b></div>`; };
+  window.saveOldCheckPay = async (sid, amount) => {
+    const o = oldSplit(); if(!o) return markErr('oldchk', 'اختار الشيك');
+    const d = $('#date').value || today(), notes = $('#notes').value.trim() || null, m = $('#oldm').value, no = o.p.check_no || '';
+    if(o.extra && !confirm(`المبلغ أكبر من الباقي من الشيك:\n• ${(o.onChk / 100).toLocaleString('en-US')} ج سداد على الشيك ${no} (هيتقفل)\n• ${(o.extra / 100).toLocaleString('en-US')} ج دفعة زيادة للمورد (هتنزل من حسابه)\n\nتكمل؟`)) return;
+    await q(ldb.from('check_payments').insert({payment_id:o.p.id, amount:o.onChk / 100, pay_date:d, method:m, notes}));
+    await syncCheckStatus(o.p.id);
+    if(o.extra) await q(ldb.from('payments').insert({supplier_id:sid, amount:o.extra / 100, method:m === 'cash' ? 'cash' : 'transfer', pay_date:d,
+      notes:[`زيادة عن سداد شيك ${no}`.trim(), CP_METHOD[m], notes].filter(Boolean).join(' — ')}));
+    busy(false); await celebrate(o.extra ? 'اتسدد الشيك واتسجلت الزيادة' : savedMsg('السداد'), true);
+    location.replace('#/s/' + sid);
+  };
+  const setChkMode = v => { chkMode = v; document.querySelectorAll('#chkmode button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    $('#chk-old').style.display = v === 'old' ? '' : 'none'; $('#chk-new').style.display = v === 'old' ? 'none' : '';
+    const inv = $('#invsel')?.closest('.field'); if(inv) inv.style.display = v === 'old' ? 'none' : '';
+    if(v === 'old') fillOld(); calc(); };
+  document.querySelectorAll('#chkmode button').forEach(b => b.onclick = () => setChkMode(b.dataset.v));
+  $('#oldchk')?.addEventListener('change', () => { oldCalc(); calc(); });
   const setM = m => {
     method = m;
-    document.querySelectorAll('.seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
+    document.querySelectorAll('#f-method .seg button').forEach(b => b.classList.toggle('on', b.dataset.m === m));
     $('#m-check').style.display = m==='check' ? '' : 'none';
     $('#m-transfer').style.display = m==='transfer' ? '' : 'none';
     $('#f-method').classList.remove('err');
   };
-  document.querySelectorAll('.seg button').forEach(b => b.onclick = () => setM(b.dataset.m));
+  document.querySelectorAll('#f-method .seg button').forEach(b => b.onclick = () => setM(b.dataset.m));
   if(method) setM(method);
   pgInit('chk', x?.method === 'check' ? rowPages(x) : []); pgInit('tr', x?.method === 'transfer' ? rowPages(x) : []);
   fillInvoices($('#sup').value, x?.invoice_id, x?.id);
@@ -667,11 +708,13 @@ async function formPayment(id, presetSup){
     const sid = $('#sup').value, el = $('#paycalc'); if(!el) return; if(!sid){ el.innerHTML = ''; return; }
     let before = supBalance(sid);
     if(x && String(x.supplier_id) === String(sid)) before += payEffect(x) / 100;   // التعديل: نشيل الدفعة القديمة الأول
-    const a = readAmount($('#amount').value) || 0, after = before - a;
-    el.innerHTML = `<div><span>المستحق قبل الدفعة</span><b>${money(before)}</b></div><div class="op">−</div><div><span>الدفعة</span><b>${money(a)}</b></div><div class="op">=</div>
+    let a = readAmount($('#amount').value) || 0;
+    if(!x && method === 'check' && chkMode === 'old'){ const o = oldSplit(); a = o ? o.extra / 100 : 0; oldCalc(); }   // الشيك محسوب من يوم كتابته — الزيادة بس هي اللي بتنزل
+    const after = before - a;
+    el.innerHTML = `<div><span>المستحق قبل الدفعة</span><b>${money(before)}</b></div><div class="op">−</div><div><span>${!x && method === 'check' && chkMode === 'old' ? 'ينزل من الحساب' : 'الدفعة'}</span><b>${money(a)}</b></div><div class="op">=</div>
       <div class="${after < 0 ? 'neg-after' : 'after'}"><span>${after < 0 ? 'هيبقى ليك عنده' : 'المتوقع بعد الدفع'}</span><b>${money(Math.abs(after))}</b></div>`;
   };
-  $('#sup').addEventListener('change', calc); $('#amount').addEventListener('input', calc); calc();
+  $('#sup').addEventListener('change', () => { fillOld(); calc(); }); $('#amount').addEventListener('input', calc); calc();
 }
 
 /* =================== فورم المرتجع / الخصم =================== */
