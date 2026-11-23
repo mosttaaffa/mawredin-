@@ -1,22 +1,25 @@
 /* كشف الحساب، التقارير، سجل التعديلات، التصدير والنسخة الاحتياطية */
 /* =================== كشف حساب المورد =================== */
+// ملاحظة الحركة في سطر واحد (لو مكتوبة على كذا سطر)
+const stNote = n => { const t = String(n || '').split(/\n+/).map(x => x.trim()).filter(Boolean).join(' · '); return ['تحويل', 'كاش', 'نقدي', 'فاتورة', 'دفعة'].includes(t) ? '' : t; };   // اللي بيكرر نوع الحركة مش محتاج يتكتب
 async function viewStatement(id, from, to){
-  if(from === null && to === null){ const d = new Date(); d.setMonth(d.getMonth() - 3); from = d.toISOString().slice(0,10); }
+  // الكشف السريع بيفتح على كل الحركات (قبل كده كان آخر 3 شهور بس، فالقديم كان بيتجمع في «رصيد أول المدة» ومش باين)
+  if(from === null && to === null) from = 'all';
   if(from === 'all') from = '';
   shell({title:'كشف حساب', back:true, body:skeleton('sup')});
   const [s, invs, pays] = await Promise.all([api.supplier(id), api.invoices(id), api.payments(id)]);
   const inRange = d => (!from || d >= from) && (!to || d <= to);
   const ev = [
-    ...invs.map(x => ({d:String(x.inv_date).slice(0,10), c:x.created_at, desc:'فاتورة' + (x.inv_no ? ' رقم ' + x.inv_no : ''), deb:Number(x.amount), cre:0})),
+    ...invs.map(x => ({d:String(x.inv_date).slice(0,10), c:x.created_at, desc:'فاتورة' + (x.inv_no ? ' رقم ' + x.inv_no : ''), note:stNote(x.notes), deb:Number(x.amount), cre:0})),
     ...pays.filter(p => payEffect(p) > 0).map(p => ({d:String(p.pay_date).slice(0,10), c:p.created_at,
       desc: IS_ADJ(p.method) ? METHOD[p.method] : ('دفعة ' + METHOD[p.method] + (p.method === 'check' ? (p.check_no ? ` ${p.check_no}` : '') + (p.check_status === 'pending' ? ` (يستحق ${String(p.due_date).slice(5,10).split('-').reverse().join('/')})` : '') : '')),
-      deb:0, cre:payEffect(p) / 100})),
+      note:stNote(p.notes), deb:0, cre:payEffect(p) / 100})),
   ].sort((a,b) => a.d === b.d ? (a.c < b.c ? -1 : 1) : (a.d < b.d ? -1 : 1));
   let open = 0; ev.filter(e => from && e.d < from).forEach(e => open += e.deb - e.cre);
   let run = open, td = 0, tc = 0;
   const lines = [];
   const rows = ev.filter(e => inRange(e.d)).map(e => { run += e.deb - e.cre; td += e.deb; tc += e.cre; lines.push({...e, run});
-    return `<tr><td>${fmtDate(e.d)}</td><td>${esc(e.desc)}</td><td class="n deb">${e.deb ? money(e.deb) : ''}</td><td class="n cre">${e.cre ? money(e.cre) : ''}</td><td class="n">${money(run)}</td></tr>`; }).join('');
+    return `<tr><td>${fmtDate(e.d)}</td><td>${esc(e.desc)}${e.note ? `<br><small>${esc(e.note)}</small>` : ''}</td><td class="n deb">${e.deb ? money(e.deb) : ''}</td><td class="n cre">${e.cre ? money(e.cre) : ''}</td><td class="n">${money(run)}</td></tr>`; }).join('');
   window._stmt = {s, open, td, tc, run, from, to, lines};
   const presets = [['آخر 3 شهور', -3], ['السنة دي', 'y'], ['آخر سنة', -12], ['كل الحركات', 'all']].map(([l,v]) => {
     let f; if(v === 'all') f = 'all'; else if(v === 'y') f = today().slice(0,4) + '-01-01'; else { const d = new Date(); d.setMonth(d.getMonth() + v); f = d.toISOString().slice(0,10); }
@@ -25,7 +28,7 @@ async function viewStatement(id, from, to){
   const custom = !presets.some(p => p.on);
   const period = from || to ? `${from ? fmtDate(from) : 'من البداية'} — ${to ? fmtDate(to) : 'لحد النهارده'}` : 'كل الحركات';
   const mrow = (e) => `<div class="sl">
-      <div class="sl-r"><div class="sl-t">${esc(e.desc)}</div><div class="sl-d">${fmtDate(e.d)}</div></div>
+      <div class="sl-r"><div class="sl-t">${esc(e.desc)}</div>${e.note ? `<div class="sl-n">${esc(e.note)}</div>` : ''}<div class="sl-d">${fmtDate(e.d)}</div></div>
       <div class="sl-l"><div class="sl-a ${e.deb ? 'deb' : 'cre'}">${e.deb ? '+ ' + money(e.deb) : '− ' + money(e.cre)}</div><div class="sl-b">الرصيد ${money(e.run)}</div></div>
     </div>`;
   shell({title:'كشف حساب', back:true, body:`
@@ -104,7 +107,7 @@ function stmtImageHTML(page, pages, chunk){
         ${first && from ? `<tr style="background:#faf7f2"><td style="padding:10px"></td><td style="padding:10px;font-weight:700">رصيد أول المدة</td><td></td><td></td><td style="padding:10px;text-align:left;font-weight:700">${f(open)}</td></tr>` : ''}
         ${chunk.map((e,i) => `<tr style="background:${i % 2 ? '#faf8f5' : '#fff'}">
           <td style="padding:10px;white-space:nowrap;color:#555">${dd(e.d)}</td>
-          <td style="padding:10px">${esc(e.desc)}</td>
+          <td style="padding:10px">${esc(e.desc)}${e.note ? `<div style="font-size:18px;color:#777">${esc(e.note)}</div>` : ''}</td>
           <td style="padding:10px;text-align:left;color:#2b6cb0;font-weight:700">${e.deb ? f(e.deb) : ''}</td>
           <td style="padding:10px;text-align:left;color:${green};font-weight:700">${e.cre ? f(e.cre) : ''}</td>
           <td style="padding:10px;text-align:left;font-weight:700">${f(e.run)}</td></tr>`).join('')}
