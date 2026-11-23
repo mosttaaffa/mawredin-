@@ -117,6 +117,22 @@ try{
   await ev(A, () => go('/sync')).catch(() => {}); await A.waitForTimeout(800); await A.screenshot({path:join(SHOTS, '4 التعارض.png')});
   await ctx2.close();
 
+  // 6.5) كشف الحساب لازم يعرض كل الحركات (حتى القديمة جدًا) — حتى لو المستخدم كان مختار فترة قبل كده
+  {
+    const ss = await ev(A, async () => { const s = (await sb.from('suppliers').insert({name:'مورد كشف قديم'}).select().single()).data;
+      await sb.from('invoices').insert({supplier_id:s.id, inv_date:'2024-01-05', amount:1111}); await sb.from('payments').insert({supplier_id:s.id, pay_date:'2024-02-01', amount:111, method:'cash'});
+      await sb.from('invoices').insert({supplier_id:s.id, inv_date:today(), amount:500}); return s.id; });
+    await ev(A, () => syncNow(true)).catch(() => {}); await waitIdle(A); await A.waitForTimeout(1500);
+    await ev(A, `location.replace('#/statement/${ss}?from=${new Date().getFullYear()}-01-01&to=')`); await A.waitForTimeout(600);
+    await ev(A, `go('/statement/${ss}')`); await A.waitForTimeout(800);
+    const q = await ev(A, () => ({n:window._stmt?.lines.length, run:window._stmt?.run, open:window._stmt?.open}));
+    expect(q.n === 3 && Math.round(q.run) === 1500 && !q.open, 'الكشف السريع بيعرض كل الحركات (من 2024) والرصيد صح', JSON.stringify(q));
+    await ev(A, () => localStorage.setItem('mawredin_stmt_opts', JSON.stringify({mode:'range', kind:'detail', imgs:false, from:today(), to:today()})));
+    await ev(A, `go('/stmt/${ss}')`); await A.waitForTimeout(800);
+    const s2 = await ev(A, `(() => { const st = buildStatement(${ss}, stOpts()); return {mode:document.querySelector('#st-mode .on')?.dataset.v, n:st.rows.length, c:st.T.closing}; })()`);
+    expect(s2.mode === 'full' && s2.n === 3 && s2.c === 150000, 'إصدار الكشف بيبدأ «كشف كامل» حتى لو اتختارت فترة قبل كده', JSON.stringify(s2));
+  }
+
   // 7) شاشات أساسية بتفتح من غير أخطاء
   for(const r of ['/suppliers', '/cash', '/loans', '/checks', '/reports', '/backups']){ await ev(A, `go('${r}')`); await A.waitForTimeout(700); }
   ok('الشاشات الأساسية فتحت');

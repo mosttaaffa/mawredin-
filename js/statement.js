@@ -387,7 +387,8 @@ async function viewStatementIssue(sid){
       <button class="btn primary" style="margin-top:12px" onclick="syncNow(true).then(()=>viewStatementIssue(${+sid}))">${I.refresh}حاول تاني</button></div>`});
     return;
   }
-  const o = stOpts();
+  // كل كشف بيبدأ «كشف كامل»: الفترة المحددة مش بتتفتكر من مورد للتاني (عشان محدش يبعت كشف ناقص من غير ما ياخد باله)
+  const o = {...stOpts(), mode:'full', from:'', to:''};
   const seg = (id, items, cur) => `<div class="seg st-seg" id="${id}" style="grid-template-columns:repeat(${items.length},1fr)">${items.map(([v, l, ic]) => `<button type="button" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${I[ic]}${l}</button>`).join('')}</div>`;
   shell({title:'إصدار كشف حساب', back:true, body:`
     <div class="card"><div class="kv" style="border:0"><span>المورد</span><span><b>${esc(s.name)}</b></span></div></div>
