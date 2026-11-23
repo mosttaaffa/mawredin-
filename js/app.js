@@ -234,7 +234,11 @@ const USER_KEY = 'mawredin_user';
 async function afterLogin(){
   let session = null, cached = null;
   try{ cached = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }catch(e){}
-  try{ ({ data:{ session } } = await withTimeout(sb.auth.getSession(), 6000)); }catch(e){}
+  // الجلسة ممكن تحتاج تتجدد من النت (بعد ساعة من آخر فتح) — لو دخلنا قبل كده على الجهاز ده منستناش النت:
+  // بنفتح من البيانات اللي على الموبايل على طول، والتأكد من الحساب بيكمل في الخلفية
+  const sessP = withTimeout(sb.auth.getSession(), 6000).then(r => r.data.session).catch(() => null);
+  session = cached ? await Promise.race([sessP, new Promise(r => setTimeout(() => r(undefined), 300))]) : await sessP;
+  const late = session === undefined; if(late) session = null;
   if(!session && !cached){
     if(IS_LOCAL){ try{ const i = await (await fetch('/local-info')).json(); if(!i.hasUsers) return viewLogin('up', true); }catch(e){} }
     return viewLogin();
@@ -253,6 +257,7 @@ async function afterLogin(){
     localStorage.setItem(USER_KEY, JSON.stringify({email: me.email, id: me.id, owner: r.owner}));
     return true;
   };
+  if(late) sessP.then(s2 => { if(s2 && s2.user?.email === me.email){ me = s2.user; checkMember().catch(() => {}); } });
   if(session){
     if(cached) checkMember().catch(() => {});                 // اتأكدنا قبل كده: نفتح على طول ونتأكد في الخلفية
     else { try{ if(!await checkMember()) return; }catch(e){ if(!isNetErr(e)) throw e; } }

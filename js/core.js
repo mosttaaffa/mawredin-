@@ -194,7 +194,8 @@ function celebrate(text, confetti=false){
       document.body.appendChild(c); setTimeout(() => c.remove(), 1200);
     }
   }
-  return new Promise(r => setTimeout(() => { ov.style.transition = 'opacity .2s'; ov.style.opacity = 0; setTimeout(() => { ov.remove(); r(); }, 200); }, 950));
+  // أسرع: العلامة بتظهر لحظة وبعدين نكمل على طول
+  return new Promise(r => setTimeout(() => { ov.style.transition = 'opacity .12s'; ov.style.opacity = 0; setTimeout(() => { ov.remove(); r(); }, 120); }, 430));
 }
 
 // ورد متساقط في شاشة الدخول

@@ -1866,3 +1866,20 @@ header.page-h .iconbtn{width:36px;height:36px}
 .tbl td.neg{color:var(--red)}
 .card .tbl td.n,.card .tbl th.n{white-space:nowrap}
 @media (max-width:360px){.card .tbl td,.card .tbl th{padding-inline:4px;font-size:12px}}
+/* أسرع: حركات الشاشات أقصر (الإحساس بالسرعة) */
+main.enter{animation-duration:.16s}
+.sheet{animation-duration:.18s}
+.list .item{animation-duration:.2s;animation-delay:calc(min(var(--i,0), 6) * 18ms)}
+.hero{animation-duration:.22s}
+.hero .mini{animation-duration:.2s;animation-delay:0s}
+.bal3 div{animation-duration:.2s}
+.fabs .fab,.fab.inv{animation-delay:0s}
+.fabs .fab{animation-duration:.2s}
+.modal{animation-duration:.14s}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}}
+.done-box{animation-duration:.22s}
+.done-box circle{animation-duration:.25s}
+.done-box path{animation-duration:.18s;animation-delay:.15s}
+.more-tile{animation-duration:.2s}
+.alert{animation-duration:.18s}
+.fbar i::after{animation-duration:.3s}
