@@ -32,6 +32,40 @@ window.quickAdd = () => openModal(`<h3>إضافة سريعة</h3><div class="men
   <button onclick="closeModal();go('/employees')">${I.users}حركة موظف</button>
   <button onclick="closeModal();go('/supplier')">${I.box}مورد جديد</button></div>`);
 window.soonModule = k => go('/m/' + k);
+/* أيقونات الأقسام في الرئيسية — SVG مرسومة (أبيض + لمسات دهبي) جوه مربع عنابي. خفيفة ومن غير ملفات خارجية */
+const DB_GOLD = '#F2C86B', DB_INK = '#8E1630', DB_SOFT = '#F6E1E6', DB_MID = '#E8BFC8';
+const DB_ICONS = {
+  suppliers:`<path d="M24 5 41 14 24 23 7 14z" fill="#fff"/><path d="M7 14 24 23v20L7 34z" fill="${DB_SOFT}"/><path d="M41 14 24 23v20l17-9z" fill="${DB_MID}"/>
+    <path d="M30.6 8.5 34.4 10.5 17.4 19.5V39.5L13.6 37.5V17.5z" fill="${DB_GOLD}"/><path d="M24 23v20" stroke="${DB_INK}" stroke-width=".8" opacity=".35"/>`,
+  employees:`<circle cx="12.5" cy="16.5" r="5" fill="${DB_SOFT}"/><path d="M2.5 36c0-6 4.5-10 10-10s10 4 10 10v2h-20z" fill="${DB_SOFT}"/>
+    <circle cx="35.5" cy="16.5" r="5" fill="${DB_SOFT}"/><path d="M25.5 36c0-6 4.5-10 10-10s10 4 10 10v2h-20z" fill="${DB_SOFT}"/>
+    <circle cx="24" cy="14.5" r="6.8" fill="#fff" stroke="${DB_INK}" stroke-width="1.4"/><path d="M10.5 41c0-7.8 6-13.6 13.5-13.6S37.5 33.2 37.5 41v2.2h-27z" fill="#fff" stroke="${DB_INK}" stroke-width="1.4"/>
+    <path d="M20 28.2l4 5 4-5" stroke="${DB_GOLD}" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  reports:`<path d="M11 4h19l9 9v29a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#fff"/><path d="M30 4v7a2 2 0 0 0 2 2h7z" fill="${DB_MID}"/>
+    <rect x="13.5" y="10" width="12" height="2.4" rx="1.2" fill="${DB_MID}"/><rect x="13.5" y="15" width="8" height="2.4" rx="1.2" fill="${DB_MID}"/>
+    <rect x="13.5" y="28" width="5" height="10.5" rx="1.2" fill="#9B1B30"/><rect x="21.5" y="23" width="5" height="15.5" rx="1.2" fill="#9B1B30"/><rect x="29.5" y="19" width="5" height="19.5" rx="1.2" fill="${DB_GOLD}"/>`,
+  checks:`<rect x="2.5" y="13" width="37" height="24" rx="3" fill="#fff"/><rect x="2.5" y="13" width="37" height="4.5" rx="2" fill="${DB_SOFT}"/>
+    <rect x="7" y="21.5" width="12" height="2.4" rx="1.2" fill="${DB_MID}"/><rect x="26" y="20.5" width="9" height="5" rx="1.5" fill="${DB_SOFT}"/>
+    <path d="M7.5 31c1.8-2.2 3.4 1.6 5.4 0s3-2.2 4.6 0" stroke="#9B1B30" stroke-width="1.7" fill="none" stroke-linecap="round"/><rect x="21" y="31" width="14" height="2" rx="1" fill="${DB_MID}"/>
+    <path d="M44 7.5 46.8 10.3 30.6 26.5l-4.4 1.6 1.6-4.4z" fill="${DB_GOLD}" stroke="${DB_INK}" stroke-width="1.2" stroke-linejoin="round"/><path d="M41.2 10.3l2.8 2.8" stroke="${DB_INK}" stroke-width="1.2"/>`,
+  banks:`<path d="M24 3.5 44.5 13.5V17h-41v-3.5z" fill="#fff"/><circle cx="24" cy="11.5" r="2.5" fill="${DB_GOLD}"/><rect x="5.5" y="18.5" width="37" height="3" rx="1" fill="${DB_SOFT}"/>
+    <rect x="8.5" y="23" width="5" height="13" rx="1" fill="#fff"/><rect x="17" y="23" width="5" height="13" rx="1" fill="#fff"/><rect x="26" y="23" width="5" height="13" rx="1" fill="#fff"/><rect x="34.5" y="23" width="5" height="13" rx="1" fill="#fff"/>
+    <rect x="5" y="37.5" width="38" height="3.5" rx="1" fill="#fff"/><rect x="2.5" y="42" width="43" height="3" rx="1.5" fill="${DB_GOLD}"/>`,
+  expenses:`<path d="M10 3.5h20a2 2 0 0 1 2 2V43l-3.7-2.6-3.6 2.6-3.7-2.6-3.6 2.6-3.7-2.6L8 43V5.5a2 2 0 0 1 2-2z" fill="#fff"/>
+    <rect x="12" y="9" width="16" height="2.4" rx="1.2" fill="${DB_MID}"/><rect x="12" y="15" width="11" height="2.4" rx="1.2" fill="${DB_MID}"/><rect x="12" y="21" width="14" height="2.4" rx="1.2" fill="${DB_MID}"/><rect x="12" y="27" width="8" height="2.4" rx="1.2" fill="#9B1B30"/>
+    <g fill="${DB_GOLD}" stroke="${DB_INK}" stroke-width="1.2"><path d="M27.5 37v3.5c0 1.6 3.4 2.9 7.5 2.9s7.5-1.3 7.5-2.9V37"/><path d="M27.5 32.5V37c0 1.6 3.4 2.9 7.5 2.9s7.5-1.3 7.5-2.9v-4.5"/><ellipse cx="35" cy="32.5" rx="7.5" ry="2.9"/></g>`,
+  cash:`<rect x="5" y="4.5" width="38" height="34" rx="5" fill="#fff"/><rect x="9" y="8.5" width="30" height="26" rx="3" fill="${DB_SOFT}"/>
+    <circle cx="21.5" cy="21.5" r="7.5" fill="#fff" stroke="#9B1B30" stroke-width="2"/><circle cx="21.5" cy="21.5" r="2.6" fill="${DB_GOLD}"/>
+    <path d="M21.5 14.8v2.2M21.5 26v2.2M14.8 21.5H17M26 21.5h2.2" stroke="#9B1B30" stroke-width="1.6" stroke-linecap="round"/>
+    <rect x="32.5" y="15.5" width="3" height="12" rx="1.5" fill="#9B1B30"/><rect x="2.5" y="11" width="4.5" height="5.5" rx="1.2" fill="${DB_GOLD}"/><rect x="2.5" y="26.5" width="4.5" height="5.5" rx="1.2" fill="${DB_GOLD}"/>
+    <rect x="9" y="38.5" width="6" height="4.5" rx="1.2" fill="#fff"/><rect x="33" y="38.5" width="6" height="4.5" rx="1.2" fill="#fff"/>`,
+  loans:`<path d="M19.5 4.5h9L26 10h-4z" fill="${DB_GOLD}"/><path d="M21.6 10h4.8c6.3 3.1 9.4 8.6 9.4 13.6 0 5.2-4.7 7.9-11.8 7.9s-11.8-2.7-11.8-7.9c0-5 3.1-10.5 9.4-13.6z" fill="${DB_GOLD}"/>
+    <path d="M27.2 16.8c-.8-1-2-1.5-3.3-1.4-1.8.1-3.1 1.1-3.1 2.4 0 3.4 6.6 1.6 6.6 5.1 0 1.4-1.4 2.5-3.4 2.5-1.4 0-2.7-.6-3.5-1.6M24 13.8v1.6m0 10.3v1.7" stroke="${DB_INK}" stroke-width="1.9" fill="none" stroke-linecap="round"/>
+    <rect x="1.5" y="33" width="6.5" height="13" rx="1.5" fill="${DB_SOFT}"/><path d="M8 35.2c4-1.6 8-1.6 11 0l7 .4c1.8 0 2.8 1 2.8 2.3s-1 2.3-2.8 2.3h-7.2M8 35.2V46h21l13.5-8.3c1.2-.8 1.6-2.2.9-3.2-.6-1-2-1.4-3.3-.7l-9.6 5.4" fill="#fff"/>
+    <path d="M18.8 40.2h7.2c1.8 0 2.8-1 2.8-2.3" stroke="${DB_MID}" stroke-width="1.3" fill="none" stroke-linecap="round"/>`,
+};
+const dbIcon = k => `<svg viewBox="0 0 48 48" aria-hidden="true">${DB_ICONS[k] || ''}</svg>`;
+
 async function viewDashboard(){
   if(!$('.db')) shell({title:'حسابات المحل', nav:'home', home:{}, body:homeSkeleton()});
   const N = v => Number(v || 0), C2 = v => Math.round(N(v) * 100);
@@ -58,7 +92,7 @@ async function viewDashboard(){
   const ready = k => MODULES.find(m => m.k === k)?.ready;
   const m = (v, raw) => `<span class="m"><span class="num">${raw ? v : fmt0(v)}</span> ج.م</span>`;
   const tile = (k, t, ic, go, extra = '') => `<button class="db-tile${extra ? ' rich' : ''}" onclick="${go}" aria-label="${t}">
-      <span class="db-ic">${I[ic]}</span><span class="db-tb"><b>${t}</b>${extra}</span><span class="db-go">${I.chevL}</span></button>`;
+      <span class="db-ic">${DB_ICONS[k] ? dbIcon(k) : I[ic]}</span><span class="db-tb"><b>${t}</b>${extra}</span><span class="db-go">${I.chevL}</span></button>`;
   const mod = k => ready(k) ? `go('/${k}')` : `soonModule('${k}')`;
   const ops = recentOps(3);
   const sign = o => o.sg < 0 ? 'neg' : o.sg > 0 ? 'pos' : '';
@@ -66,15 +100,15 @@ async function viewDashboard(){
     <div class="db one">
     <button class="db-hero" onclick="go('/suppliers')">
       <span class="dh-t">إجمالي مستحقات الموردين</span>
-      <span class="dh-v">${m(supDue / 100)}</span>
+      <span class="dh-v"><i class="dh-vi">${I.coins2}</i>${m(supDue / 100)}</span>
       <span class="dh-n">${I.box}${rows.length} ${rows.length === 1 ? 'مورد' : 'موردين'}</span>
       <span class="dh-sep"></span>
       <span class="dh-ic">${I.coins2}</span>
       <span class="dh-btn">عرض التفاصيل ${I.chevL}</span>
     </button>
-    ${due.length ? `<button class="mini-alert ${due.some(c => daysUntil(c.due_date) <= 0) ? 'over' : ''}" onclick="go('/checks')">${I.bell}<span>شيكات ميعادها قرّب</span><b>${due.length}</b></button>` : ''}
+    ${due.length ? `<button class="mini-alert ${due.some(c => daysUntil(c.due_date) <= 0) ? 'over' : ''}" onclick="go('/checks')">${I.bell}<span>شيكات ميعادها قرّب</span><b>${due.length}</b><i class="ma-go">${I.chevL}</i></button>` : ''}
     ${usageAlert()}
-    ${(backupAge() == null || backupAge() >= 7) ? `<button class="mini-alert" onclick="go('/backups')">${I.save}<span>${backupAge() == null ? 'اعمل أول نسخة احتياطية' : `آخر نسخة احتياطية من ${backupAge()} يوم`}</span><b>حفظ</b></button>` : ''}
+    ${(backupAge() == null || backupAge() >= 7) ? `<button class="mini-alert" onclick="go('/backups')">${I.save}<span>${backupAge() == null ? 'اعمل أول نسخة احتياطية' : `آخر نسخة احتياطية من ${backupAge()} يوم`}</span><b class="ma-save">${I.save}حفظ</b><i class="ma-go">${I.chevL}</i></button>` : ''}
     <div class="db-h"><span>${I.grid}الأقسام الرئيسية</span><i></i></div>
     <div class="db-grid">
       ${tile('suppliers', 'الموردين', 'box', "go('/suppliers')")}
@@ -106,8 +140,7 @@ async function viewDashboard(){
         <span class="db-oi">${I[o.ic] || I.doc}</span><span class="db-ot"><b>${o.t}</b><small>${esc(o.s)}</small></span>
         <span class="db-od num">${fmtDate(o.d)}</span><span class="db-oa ${sign(o)}">${o.sg < 0 ? '- ' : o.sg > 0 ? '+ ' : ''}${m(o.a)}</span></button>`).join('')
       : '<div class="empty" style="padding:14px">لسه مفيش عمليات</div>'}</div>
-    </div>
-    <button class="db-fab" onclick="quickAdd()" aria-label="إضافة">${I.plus}</button>`});
+    </div>`, fabs:`<button class="db-fab" onclick="quickAdd()" aria-label="إضافة">${I.plus}</button>`});
   fitDash();
 }
 // الرئيسية كلها في شاشة واحدة: نفس الشكل، بس بتتصغّر على قد المساحة اللي فوق شريط التنقل (من غير ما تقل عن حجم مقروء)

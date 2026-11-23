@@ -1900,3 +1900,64 @@ main.enter{animation-duration:.16s}
 .ios-sw:focus-visible+i{outline:2px solid var(--brand);outline-offset:2px}
 .ios-sw:disabled+i{opacity:.55}
 .ios-f{margin:0 14px 10px;font-size:12px;color:var(--muted);line-height:1.6}
+
+/* ===== الرئيسية — التصميم المعتمد (الصورة): أيقونات الأقسام، أزرار الهيدر، الشريط العنابي/الدهبي ===== */
+/* الهيدر: زراير بيضا دايرية بظل، والتنبيه نقطة حمرا صغيرة */
+[data-theme="bordeaux"] header.home-h .iconbtn{background:#fff;color:var(--ink);width:46px;height:46px;border:1px solid #F3E6E9;box-shadow:0 6px 16px -6px rgba(73,20,30,.28)}
+[data-theme="bordeaux"] header.home-h .iconbtn svg{color:#2a2124;width:23px;height:23px}
+[data-theme="bordeaux"] header.home-h .hh-btns{padding-inline-end:0}
+[data-theme="bordeaux"] header.home-h .hh-btns::after{display:none}
+[data-theme="bordeaux"] header.home-h .badge{top:7px;inset-inline-end:9px;min-width:0;width:11px;height:11px;padding:0;border-radius:50%;font-size:0;line-height:0;background:#E0203A;box-shadow:0 0 0 2px #fff}
+[data-theme="bordeaux"] header.home-h .hh-store svg{width:26px;height:26px}
+/* شريط منحني عنابي ودهبي تحت الهيدر من الشمال */
+[data-theme="bordeaux"] header.home-h::after{display:block !important;content:"";position:absolute;top:auto;right:auto;left:0;bottom:0;width:72%;height:34px;border-radius:0;pointer-events:none;z-index:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 34' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%239B1B30'/%3E%3Cstop offset='.55' stop-color='%23C7364F' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23C7364F' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='o' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23E9C46A'/%3E%3Cstop offset='1' stop-color='%23E9C46A' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 6C55 9 120 20 200 34H0Z' fill='url(%23g)'/%3E%3Cpath d='M0 3C60 6 125 17 200 31' stroke='url(%23o)' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat left bottom/100% 100%}
+[data-theme="bordeaux"] header.home-h>*{position:relative;z-index:1}
+/* الكارت الكبير: موج خفيف + أيقونة جنب الرقم + زرار دهبي */
+.db-hero::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;opacity:.14;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 120' preserveAspectRatio='none'%3E%3Cg fill='none' stroke='%23fff' stroke-width='1.2'%3E%3Cpath d='M0 90C60 60 120 120 190 80S280 40 300 50'/%3E%3Cpath d='M0 100C70 70 130 128 200 90S285 52 300 62'/%3E%3Cpath d='M0 110C80 82 140 134 210 100S290 66 300 74'/%3E%3C/g%3E%3C/svg%3E") no-repeat center/100% 100%}
+.db-hero>*{position:relative;z-index:1}
+.db-hero .dh-v{display:flex;align-items:center;gap:8px}
+.dh-vi{display:inline-grid;font-style:normal;opacity:.95}.dh-vi svg{width:.78em;height:.78em}
+[data-theme="bordeaux"] .db-hero .dh-btn{background:linear-gradient(180deg,#FDF0CF,#EFCF8C);color:#4A0D19;box-shadow:0 4px 10px -3px rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.6)}
+/* صفوف التنبيه: سهم في الآخر، و«حفظ» بأيقونة */
+.db .mini-alert .ma-go{display:inline-grid;font-style:normal;color:var(--brand);flex:none}.db .mini-alert .ma-go svg{width:16px;height:16px}
+.db .mini-alert b{display:inline-flex;align-items:center;gap:4px;border-radius:10px}
+.db .mini-alert b.ma-save{padding:3px 10px}.db .mini-alert b svg{width:14px;height:14px}
+[data-theme="bordeaux"] .db .mini-alert b{background:var(--burg-grad, var(--brand));color:#fff}
+/* عنوان الأقسام: خط متدرج طويل */
+.db-h i{flex:1;width:auto;height:2px;background:linear-gradient(to left,var(--brand),rgba(155,27,48,.25) 60%,rgba(155,27,48,0))}
+/* أيقونات الأقسام: مربع عنابي متدرج + لمعة + ظل، والأيقونة بيضا بلمسات دهبي */
+.db-ic{width:46px;height:46px;border-radius:14px;background:linear-gradient(150deg,#C0283F 0%,#9B1B30 48%,#6E0C1F 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -2px 4px rgba(0,0,0,.18),0 7px 12px -6px rgba(110,12,31,.75)}
+.db-ic svg{width:31px;height:31px;filter:drop-shadow(0 1px 1px rgba(60,0,10,.35))}
+.db-tile{align-items:center;min-height:62px}
+.db-tb{min-width:0;flex:1}
+.db-tb b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.db-tb em{white-space:nowrap}
+.db-grid{grid-auto-rows:1fr}
+@media (max-width:380px){.db-ic{width:42px;height:42px;border-radius:13px}.db-ic svg{width:28px;height:28px}}
+@media (max-width:340px){.db-ic{width:38px;height:38px;border-radius:12px}.db-ic svg{width:25px;height:25px}.db-tile{gap:6px;padding:7px 6px}}
+/* زرار الإضافة: فوق شريط التنقل في النص (زي الصورة) على كل المقاسات */
+.db-fab{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(74px + var(--safe-b));width:56px;height:56px;z-index:41}
+.db-fab:active{transform:translateX(-50%) scale(.94)}
+.db-fab svg{width:27px;height:27px}
+/* الشريط اللي فوق: أرفع ومن غير ما يغطي الزراير */
+[data-theme="bordeaux"] header.home-h::after{height:22px;width:62%}
+.db-tb b{overflow:visible;text-overflow:clip;letter-spacing:-.2px}
+.db-tile{gap:8px}
+@media (max-width:400px){.db-tb b{font-size:clamp(12.5px,3.65vw,14.5px)}.db-ic{width:42px;height:42px}.db-ic svg{width:28px;height:28px}}
+@media (max-width:360px){
+  [data-theme="bordeaux"] header.home-h{gap:6px;padding-inline:10px}
+  [data-theme="bordeaux"] header.home-h .iconbtn{width:38px;height:38px}
+  [data-theme="bordeaux"] header.home-h .iconbtn svg{width:19px;height:19px}
+  [data-theme="bordeaux"] header.home-h .hh-btns{gap:5px}
+  [data-theme="bordeaux"] header.home-h .hh-t h1{font-size:19px;gap:4px}
+  [data-theme="bordeaux"] header.home-h .hh-store svg{width:20px;height:20px}
+  [data-theme="bordeaux"] header.home-h small{font-size:13px}
+  [data-theme="bordeaux"] header.home-h small em{width:16px}
+  .hh-logo img{width:38px !important;height:38px !important}
+  .hh-logo img+img{margin-inline-start:-12px}
+  .db-tb b{font-size:12.5px}
+  .db-tile{padding:7px 6px;gap:6px}
+}
