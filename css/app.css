@@ -1961,3 +1961,33 @@ main.enter{animation-duration:.16s}
   .db-tb b{font-size:12.5px}
   .db-tile{padding:7px 6px;gap:6px}
 }
+/* ===== تظبيط الجزء العلوي زي الصورة: شريط حريري عنابي بحافة دهبي بيعدي ورا الكارت ===== */
+[data-theme="bordeaux"] header.home-h{overflow:visible;z-index:auto;padding-bottom:16px}
+[data-theme="bordeaux"] header.home-h::after{display:block !important;content:"";position:absolute;left:0;right:auto;top:auto;bottom:-46px;width:58%;height:78px;z-index:0;pointer-events:none;border-radius:0;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 78' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%237A0F22'/%3E%3Cstop offset='.45' stop-color='%23A51E36' stop-opacity='.85'/%3E%3Cstop offset='1' stop-color='%23C7364F' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='s' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23E35A70' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23E35A70' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='o' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23C99A3E'/%3E%3Cstop offset='.5' stop-color='%23F3D58A'/%3E%3Cstop offset='1' stop-color='%23F3D58A' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 10C60 12 130 34 220 74V78H0Z' fill='url(%23b)'/%3E%3Cpath d='M0 24C70 27 135 46 220 76L220 78C140 56 70 40 0 40Z' fill='url(%23s)'/%3E%3Cpath d='M0 7C62 9 132 31 220 71' fill='none' stroke='url(%23o)' stroke-width='2.4'/%3E%3Cpath d='M0 16C66 18 134 39 220 75' fill='none' stroke='%23F3D58A' stroke-opacity='.35' stroke-width='.8'/%3E%3C/svg%3E") no-repeat left top/100% 100%}
+[data-theme="bordeaux"] .db{position:relative;z-index:auto}
+[data-theme="bordeaux"] .db-hero{margin-top:6px}
+/* الكارت: لمعة حريرية ناعمة بدل الخطوط + حافة فاتحة */
+[data-theme="bordeaux"] .db-hero{border-radius:22px;border:1px solid rgba(255,255,255,.14);padding:16px 18px;
+  background:linear-gradient(135deg,#A8213A 0%,#8E1630 45%,#6A0C1E 100%)}
+[data-theme="bordeaux"] .db-hero::after{opacity:1;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120C60 92 110 60 165 74S250 96 300 40V120Z' fill='%23fff' fill-opacity='.07'/%3E%3Cpath d='M0 120C70 104 120 78 175 88S255 104 300 64V120Z' fill='%23fff' fill-opacity='.06'/%3E%3Cpath d='M0 0H300V30C240 10 170 60 110 38S30 0 0 18Z' fill='%23fff' fill-opacity='.05'/%3E%3C/svg%3E") no-repeat center/100% 100%,
+  linear-gradient(110deg,rgba(255,255,255,.10),rgba(255,255,255,0) 38%)}
+[data-theme="bordeaux"] .db-hero .dh-sep{background:rgba(255,255,255,.4);width:1.5px}
+[data-theme="bordeaux"] .db-hero .dh-ic svg{width:54px;height:54px}
+[data-theme="bordeaux"] .db-hero .dh-v{font-size:clamp(28px,8.4vw,36px)}
+/* الهيدر: لوجوهات وزراير أكبر شوية */
+[data-theme="bordeaux"] .hh-logo img{width:54px;height:54px;border:3px solid #fff;box-shadow:0 6px 14px -4px rgba(73,20,30,.35)}
+[data-theme="bordeaux"] .hh-logo img+img{margin-inline-start:-16px}
+[data-theme="bordeaux"] header.home-h .iconbtn{width:50px;height:50px}
+[data-theme="bordeaux"] header.home-h .iconbtn svg{width:24px;height:24px}
+@media (max-width:360px){[data-theme="bordeaux"] .hh-logo img{width:40px !important;height:40px !important;border-width:2px}[data-theme="bordeaux"] header.home-h .iconbtn{width:40px;height:40px}}
+/* الشريط ورا الكارت: الهيدر شفاف (الخلفية بيضا أصلًا) والشريط في الطبقة اللي تحت */
+[data-theme="bordeaux"] header.home-h{background:transparent !important}
+[data-theme="bordeaux"] header.home-h::after{z-index:-1}
+[data-theme="bordeaux"] .db-hero{background:linear-gradient(160deg,#9E1C33 0%,#8A1530 50%,#6E0E21 100%)}
+[data-theme="bordeaux"] .db-hero::after{opacity:1;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 120' preserveAspectRatio='none'%3E%3Cpath d='M0 120C60 92 110 60 165 74S250 96 300 40V120Z' fill='%23fff' fill-opacity='.06'/%3E%3Cpath d='M0 120C70 104 120 78 175 88S255 104 300 64V120Z' fill='%23fff' fill-opacity='.05'/%3E%3C/svg%3E") no-repeat center/100% 100%}
+[data-theme="bordeaux"] header.home-h::after{width:46%;height:70px;bottom:-40px;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 78' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%236E0C1F'/%3E%3Cstop offset='.5' stop-color='%238E1630' stop-opacity='.9'/%3E%3Cstop offset='1' stop-color='%239B1B30' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='s' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23C23A52' stop-opacity='.45'/%3E%3Cstop offset='1' stop-color='%23C23A52' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='o' x1='0' y1='0' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23C99A3E'/%3E%3Cstop offset='.55' stop-color='%23F3D58A'/%3E%3Cstop offset='1' stop-color='%23F3D58A' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 10C60 12 130 34 220 74V78H0Z' fill='url(%23b)'/%3E%3Cpath d='M0 30C70 33 135 50 220 76L220 78C140 60 70 46 0 46Z' fill='url(%23s)'/%3E%3Cpath d='M0 7C62 9 132 31 220 71' fill='none' stroke='url(%23o)' stroke-width='2.6'/%3E%3C/svg%3E") no-repeat left top/100% 100%}
+[data-theme="bordeaux"] header.home-h .badge{inset-inline-end:auto;left:auto;right:3px;top:3px}
