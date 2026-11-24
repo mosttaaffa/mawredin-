@@ -2141,3 +2141,18 @@ main.enter{animation-duration:.16s}
 .sp-search .search-w svg{width:17px;height:17px;inset-inline-start:11px}
 .sp-search .sp-fbtn{width:40px;border-radius:12px}
 .sp-search .sp-fbtn svg{width:19px;height:19px}
+/* الموظفين — عرض الشبكة: كارتين جنب بعض (اسم + رصيد + حركات الشهر + مرحّل) */
+#emplist.grid .ecard{grid-column:auto;display:flex;flex-direction:column;border-inline-start-width:1px;border-top:4px solid var(--brand);padding:8px;min-width:0}
+#emplist.grid .ec-r1{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"av nm mo" "bal bal bal" "mv mv mv";gap:6px 5px;min-height:0;align-items:center}
+#emplist.grid .ec-av{grid-area:av;width:34px;height:34px}
+#emplist.grid .ec-nm{grid-area:nm;min-width:0}
+#emplist.grid .ec-nm b{font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+#emplist.grid .ec-nm small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#emplist.grid .ec-lt,#emplist.grid .ec-mlt{display:none}
+#emplist.grid .ec-more{grid-area:mo}
+#emplist.grid .ec-bal{grid-area:bal;flex-direction:column;gap:1px;justify-content:center;padding:5px 4px}
+#emplist.grid .ec-bal i{display:none}
+#emplist.grid .ec-bal b{font-size:15px}
+#emplist.grid .ec-m{grid-area:mv;flex-direction:row;justify-content:space-between;border:0;border-top:1px solid #F3E6E9;padding:4px 2px 0;gap:4px}
+#emplist.grid .ec-m small{font-size:10.5px}
+#emplist.grid .ec-r2{display:none}
