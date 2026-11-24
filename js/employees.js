@@ -30,6 +30,45 @@ const empApi = {
   txs: id => fetchAll(() => ldb.from('emp_transactions').select('*').eq('employee_id', id).order('tx_date', {ascending:false}).order('id', {ascending:false})),
 };
 
+
+/* =================== حساب الموظف بالشهر ===================
+   كل شهر لوحده: المرحّل من الشهر اللي فات + المرتب (بينزل لوحده أول الشهر) + العمولات − السلف − الخصومات − اللي اتصرف له ± التسويات = آخر الشهر (بيترحّل).
+   البداية: صافي آخر تسوية (كشف مستورد) — نفس قاعدة الرصيد بالظبط، فرصيد آخر شهر = الرصيد الحالي. كل الحسابات بالقروش. */
+let empMonth = null;
+const fmtN = c => (c / 100).toLocaleString('en-US', {maximumFractionDigits:2});                       // الشهر المختار في شاشة الموظفين (YYYY-MM)
+const empYM = d => String(d || '').slice(0, 7);
+const empMonthName = ym => `${AR_MONTHS[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
+function empMonthly(empId){
+  const E = store.eff, id = Number(empId);
+  const sets = [...E.emp_settlements.values()].filter(x => Number(x.employee_id) === id)
+    .sort((a, b) => String(a.period_to).localeCompare(String(b.period_to)) || a.id - b.id);
+  const last = sets[sets.length - 1] || null, lastTo = last ? String(last.period_to).slice(0, 10) : '';
+  const txs = [...E.emp_transactions.values()].filter(x => Number(x.employee_id) === id && (!last || String(x.tx_date).slice(0, 10) > lastTo))
+    .sort((a, b) => String(a.tx_date).localeCompare(String(b.tx_date)) || a.id - b.id);
+  const cur = today().slice(0, 7);
+  let start = last ? empYM(addDays(lastTo, 1)) : (txs.length ? empYM(txs[0].tx_date) : cur);
+  let end = cur; for(const x of txs) if(empYM(x.tx_date) > end) end = empYM(x.tx_date);
+  if(start > end) end = start;
+  const months = []; let open = last ? C(last.net_balance) : 0;
+  for(let ym = start; ym <= end; ym = addMonthsYM(ym, 1)){
+    const rows = txs.filter(x => empYM(x.tx_date) === ym), sum = k => rows.filter(x => x.kind === k).reduce((a, x) => a + Math.abs(C(x.amount)), 0);
+    const M = {ym, open, rows, sal:sum('salary'), com:sum('commission'), adv:sum('advance'), ded:sum('deduction'), pay:sum('payment'),
+      adj:rows.filter(x => x.kind === 'adjustment').reduce((a, x) => a + C(x.amount), 0)};
+    M.net = M.sal + M.com - M.adv - M.ded - M.pay + M.adj; M.close = M.open + M.net;
+    months.push(M); open = M.close;
+  }
+  return {last, sets, months, start};
+}
+// حالة الموظف في شهر معيّن (للقايمة)
+function empMonthState(id, ym){
+  const D = empMonthly(id), M = D.months.find(x => x.ym === ym);
+  if(M) return {mstate:'month', mopen:M.open, mnet:M.net, mclose:M.close};
+  if(D.months.length && ym > D.months[D.months.length - 1].ym){ const L = D.months[D.months.length - 1]; return {mstate:'month', mopen:L.close, mnet:0, mclose:L.close}; }
+  if(D.last && ym >= empYM(D.last.period_from) && ym <= empYM(D.last.period_to)) return {mstate:'set', mopen:null, mnet:null, mclose:C(D.last.net_balance)};
+  const S = D.sets.find(x => ym >= empYM(x.period_from) && ym <= empYM(x.period_to));
+  return S ? {mstate:'set', mopen:null, mnet:null, mclose:C(S.net_balance)} : {mstate:'none', mopen:null, mnet:null, mclose:0};
+}
+
 /* =================== قائمة الموظفين (بنفس شكل شاشة الموردين) =================== */
 let empFilter = 'all', empAct = 'on', empSort = 'high', empQ = '';
 let empView = (() => { try{ return localStorage.getItem('mawredin_emp_view') || 'list'; }catch(e){ return 'list'; } })();
@@ -64,9 +103,9 @@ function empCard(r){
     <span class="sr-ic">${I.emp}</span>
     <span class="sr-name"><b>${esc(r.name)}${empOn(r) ? '' : ' <span class="tag left">ترك العمل</span>'}</b>
       <small>${code ? `<span class="num">${code}</span>` : ''}${r.last_to ? `<span>تسوية <span class="num">${String(r.last_to).slice(0, 10).split('-').reverse().slice(0, 2).join('/')}</span></span>` : ''}${ph ? `<span class="ph">${I.phone}<span class="num" dir="ltr">${esc(ph)}</span></span>` : ''}</small></span>
-    <span class="sr-v"><small>أساسي</small><b>${r.base_salary ? n(r.base_salary) : '—'}</b></span>
-    <span class="sr-v"><small>التسوية</small><b class="${n0(r.last_net) > 0 ? 'cred' : n0(r.last_net) < 0 ? 'due' : ''}">${r.last_to ? n(r.last_net) : '—'}</b></span>
-    <span class="sr-v"><small>${bal < 0 ? 'عليه' : bal > 0 ? 'ليه' : 'الرصيد'}</small><b class="${bal > 0 ? 'cred' : bal < 0 ? 'due' : ''}">${n(bal)}</b></span>
+    <span class="sr-v"><small>مرحّل</small><b class="${r.mopen > 0 ? 'cred' : r.mopen < 0 ? 'due' : ''}">${r.mopen == null ? '—' : n(r.mopen / 100)}</b></span>
+    <span class="sr-v"><small>${r.mstate === 'set' ? 'تسوية' : 'الشهر'}</small><b class="${r.mnet > 0 ? 'cred' : r.mnet < 0 ? 'due' : ''}">${r.mnet == null ? (r.mstate === 'set' ? 'كشف' : '—') : (r.mnet > 0 ? '+' : r.mnet < 0 ? '−' : '') + n(r.mnet / 100)}</b></span>
+    <span class="sr-v"><small>${bal < 0 ? 'عليه' : bal > 0 ? 'ليه' : 'آخر الشهر'}</small><b class="${bal > 0 ? 'cred' : bal < 0 ? 'due' : ''}">${n(bal)}</b></span>
     <button class="sr-more" onclick="event.stopPropagation();empMore(${r.id})" aria-label="المزيد">${I.dots}</button>
   </div>`;
 }
@@ -82,7 +121,9 @@ window.empMore = async id => {
 };
 async function viewEmployees(){
   if(!$('#emplist')) shell({title:'الموظفين', nav:'employees', page:{sub:'حسابات الموظفين والمرتبات والسلف', icon:'users'}, body:skeleton('home')});
-  const all = await empApi.balances();
+  empMonth = empMonth || today().slice(0, 7);
+  // رصيد كل موظف في الشهر المختار = آخر الشهر (للشهر الحالي = الرصيد الحالي بالظبط)
+  const all = (await empApi.balances()).map(r => { const st = empMonthState(r.id, empMonth); return {...r, ...st, cur_balance:r.balance, balance:st.mclose / 100}; });
   if(!EMP_F[empFilter]) empFilter = 'all';
   const rows = all.filter(empInAct);
   const due = rows.filter(r => empC(r.balance) > 0), owe = rows.filter(r => empC(r.balance) < 0);
@@ -106,7 +147,15 @@ async function viewEmployees(){
     ${fc(empFilter === 'owe', "empFilter=empFilter==='owe'?'all':'owe'", 'عليهم', cnt('owe'))}
   </div>`;
   const fNote = empFilter === 'zero' ? `<div class="sp-note">${I.filter}معروض: خالص (${cnt('zero')}) — <a onclick="empFilter='all';viewEmployees()">عرض الكل</a></div>` : '';
+  const curM = today().slice(0, 7), mRows = rows.filter(r => r.mstate === 'month');
+  const mSum = k => mRows.reduce((a, r) => { const M = empMonthly(r.id).months.find(x => x.ym === empMonth); return a + (M ? M[k] : 0); }, 0);
   const body = `
+    <div class="month-bar emp-mbar">
+      <button class="iconbtn" onclick="empMonth=addMonthsYM(empMonth,-1);viewEmployees()" aria-label="الشهر اللي فات">${I.back}</button>
+      <b>${empMonthName(empMonth)}${empMonth === curM ? ' <small>(الشهر ده)</small>' : ''}</b>
+      <button class="iconbtn" style="transform:scaleX(-1)" onclick="empMonth=addMonthsYM(empMonth,1);viewEmployees()" aria-label="الشهر الجاي" ${empMonth >= curM ? 'disabled' : ''}>${I.back}</button>
+    </div>
+    ${mRows.length ? `<div class="emp-mstrip"><span>مرتبات<b class="num">${fmtN(mSum('sal'))}</b></span><span>عمولات<b class="num">${fmtN(mSum('com'))}</b></span><span>سلف وخصومات<b class="num">${fmtN(mSum('adv') + mSum('ded'))}</b></span><span>اتصرف<b class="num">${fmtN(mSum('pay'))}</b></span></div>` : ''}
     <div class="sp-sum">
       <div class="sp-t hl"><i>${I.coins2}</i><span>ليهم</span><b>${m(sumDue)}</b></div>
       <div class="sp-t"><i>${I.warn}</i><span>عليهم</span><b class="due">${m(sumOwe)}</b></div>
@@ -147,11 +196,32 @@ async function viewEmployee(id){
   if(!$('.emp-prof')) shell({title:'...', back:true, nav:'employees', body:skeleton('sup')});
   const [e, sets, txs] = await Promise.all([empApi.one(id), empApi.settlements(id), empApi.txs(id)]);
   window._emp = {e, sets, txs};
-  const last = sets[0], t = empTab[id] || 'sum';
+  const last = sets[0], t = empTab[id] || 'mon';
   const kv = (k, v, cls='') => `<div class="ek ${cls}"><span>${k}</span><b>${v}</b></div>`;
   const after = txs.filter(x => !last || x.tx_date > last.period_to);
   let body;
-  if(t === 'sum'){
+  if(t === 'mon'){
+    const D = empMonthly(id), cm = c => money(Math.abs(c) / 100), sg = c => c < 0 ? `<span class="neg">(${cm(c)})</span>` : cm(c);
+    const line = (l, c, sign, cls = '') => c ? `<div class="em-l ${cls}"><span>${l}</span><b>${sign}${cm(c)}</b></div>` : '';
+    body = D.months.slice().reverse().map((M, i) => `
+      <details class="card em-month" ${i === 0 ? 'open' : ''}>
+        <summary><span class="em-mt"><b>${empMonthName(M.ym)}</b><small>${M.ym === today().slice(0, 7) ? 'الشهر ده' : 'اترحّل للشهر اللي بعده'}</small></span>
+          <span class="em-mv"><small>${M.close < 0 ? 'عليه' : M.close > 0 ? 'ليه' : 'آخر الشهر'}</small><b class="${M.close < 0 ? 'debt' : M.close > 0 ? 'ok' : ''}">${cm(M.close)}</b></span>${I.chev}</summary>
+        <div class="em-body">
+          <div class="em-l open"><span>مرحّل من الشهر اللي فات</span><b>${sg(M.open)}</b></div>
+          ${line('مرتب الشهر', M.sal, '+ ', 'p')}${line('عمولات', M.com, '+ ', 'p')}
+          ${line('سلف', M.adv, '− ', 'm')}${line('خصومات وغياب', M.ded, '− ', 'm')}${line('اتصرف له', M.pay, '− ', 'm')}
+          ${M.adj ? `<div class="em-l ${M.adj > 0 ? 'p' : 'm'}"><span>تسويات</span><b>${M.adj > 0 ? '+ ' : '− '}${cm(M.adj)}</b></div>` : ''}
+          <div class="em-l tot"><span>${M.ym === today().slice(0, 7) ? 'الرصيد لحد دلوقتي' : 'آخر الشهر (اترحّل)'}</span><b>${sg(M.close)}</b></div>
+          ${M.rows.length ? `<div class="list em-rows">${M.rows.slice().reverse().map(txRow).join('')}</div>` : '<div class="hint" style="padding:6px 2px">مفيش حركات في الشهر ده</div>'}
+          <button class="btn ghost block" style="margin-top:8px" onclick="go('/emp-tx?e=${id}&d=${M.ym === today().slice(0, 7) ? today() : M.ym + '-28'}')">${I.plus}حركة في ${empMonthName(M.ym)}</button>
+        </div>
+      </details>`).join('') + (D.last ? `
+      <div class="card em-set" onclick="showSettlement(${D.last.id})">
+        <div class="em-l"><span><b>آخر كشف مستورد</b><br><small>${fmtDate(D.last.period_from)} — ${fmtDate(D.last.period_to)}</small></span><b>${signMoney(D.last.net_balance)}</b></div>
+        <div class="hint">صافي الكشف ده اترحّل لأول شهر بعده. دوس عشان تشوف تفاصيله.</div>
+      </div>` : '');
+  } else if(t === 'sum'){
     const plus = n0(last?.earned_salary) + n0(last?.comm_total), minus = n0(last?.adv_ded_total) + n0(last?.late_ded);
     const mx = Math.max(plus, minus, Math.abs(n0(last?.prev_balance)), 1);
     const bar = (l, v, c) => `<div class="fbar"><span>${l}</span><i style="--w:${Math.round(Math.abs(v) / mx * 100)}%;--c:${c}"></i><b>${signMoney(v)}</b></div>`;
@@ -194,8 +264,9 @@ async function viewEmployee(id){
     </div>
     <button class="btn ${e.active === false ? 'green' : 'ghost'} block emp-act" onclick="setEmpActive(${id}, ${e.active === false})">${e.active === false ? 'رجّعه للعمل' : 'ترك العمل'}</button>
     <div class="tabs">
-      <button class="${t==='sum'?'on':''}" onclick="empTab[${id}]='sum';viewEmployee(${id})">الملخص</button>
-      <button class="${t==='sets'?'on':''}" onclick="empTab[${id}]='sets';viewEmployee(${id})">التسويات (${sets.length})</button>
+      <button class="${t==='mon'?'on':''}" onclick="empTab[${id}]='mon';viewEmployee(${id})">الشهور</button>
+      <button class="${t==='sum'?'on':''}" onclick="empTab[${id}]='sum';viewEmployee(${id})">آخر كشف</button>
+      <button class="${t==='sets'?'on':''}" onclick="empTab[${id}]='sets';viewEmployee(${id})">الكشوف (${sets.length})</button>
       <button class="${t==='tx'?'on':''}" onclick="empTab[${id}]='tx';viewEmployee(${id})">الحركات (${txs.length})</button>
     </div>
     ${body}
@@ -205,7 +276,7 @@ function txRow(x){
   const plus = TX_PLUS(x.kind) || (x.kind === 'adjustment' && n0(x.amount) > 0);
   return `<div class="item" onclick="go('/emp-tx/${x.id}')" style="cursor:pointer">
     <div class="ico ${plus ? 'pay' : 'bounced'}">${plus ? I.plus : I.cash}</div>
-    <div class="grow"><div class="t">${TX_KIND[x.kind]}${x.branch ? ` <span class="tag">${esc(x.branch)}</span>` : ''}</div><div class="s">${fmtDate(x.tx_date)}${x.notes ? ' · ' + esc(x.notes) : ''}</div></div>
+    <div class="grow"><div class="t">${x.auto ? 'مرتب الشهر' : TX_KIND[x.kind]}${x.auto ? ' <span class="tag">تلقائي</span>' : ''}${x.branch ? ` <span class="tag">${esc(x.branch)}</span>` : ''}</div><div class="s">${fmtDate(x.tx_date)}${x.notes && !x.auto ? ' · ' + esc(x.notes) : ''}</div></div>
     <div class="amt ${plus ? 'ok' : 'debt'}">${plus ? '+' : '−'} ${money(Math.abs(n0(x.amount)))}</div></div>`;
 }
 window.showSettlement = id => {
@@ -258,10 +329,11 @@ async function formEmpTx(id, presetEmp){
       <button type="button" data-v="cash" class="${x?.method === 'transfer' ? '' : 'on'}">كاش</button><button type="button" data-v="transfer" class="${x?.method === 'transfer' ? 'on' : ''}">تحويل من البنك</button></div>
       <div class="hint">التحويل بيتخصم من رصيد البنك.</div></div>
     <div class="row2">
-      <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x ? x.tx_date : today()}"></div>
+      <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x ? x.tx_date : (new URLSearchParams(location.hash.split('?')[1] || '').get('d') || today())}"></div>
       <div class="field"><label>الفرع</label><select id="branch"><option value="">—</option>${['زهرة','ورد'].map(b => `<option ${x?.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
     </div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>
+    ${x?.auto ? '<div class="note-line" style="margin-bottom:10px">ده مرتب الشهر اللي نزل لوحده أول الشهر. لو فيه غياب أو تأخير سجّل «خصم» أحسن، أو عدّل المبلغ هنا. لو مسحته مش هينزل تاني للشهر ده.</div>' : ''}
     ${x ? `<button type="button" class="btn danger block" style="margin-bottom:14px" onclick="delEmpTx(${x.id}, ${x.employee_id})">مسح الحركة</button>` : ''}`,
   async () => {
     const eid = $('#emp').value, amt = readAmount($('#amount').value);

@@ -1064,3 +1064,77 @@ end $$;
 revoke execute on function public.members_guard() from public, anon, authenticated;
 drop trigger if exists members_guard on public.members;
 create trigger members_guard before update on public.members for each row execute function public.members_guard();
+
+-- الموظفين بالشهر (الإصدار 16): أول كل شهر مرتب كل موظف شغال (الأساسي) بينزل في حسابه لوحده كحركة «مرتب مستحق»
+-- emp_salary_runs بيتسجل فيه كل (موظف، شهر) اتعمل — فلو الحركة اتمسحت أو اتعدلت مبتتعملش تاني
+-- البداية: الشهر اللي بعد آخر تسوية للموظف (أو شهر إضافته)، ومش قبل نوفمبر 2026 (أول شهر للنظام ده)
+-- الرصيد نفسه بنفس القاعدة: صافي آخر تسوية + الحركات اللي بعدها — والشهر اللي فات بيترحّل للي بعده
+alter table public.emp_transactions add column if not exists auto boolean not null default false;
+create table if not exists public.emp_salary_runs (
+  employee_id bigint not null references public.employees(id) on delete cascade,
+  month       date not null,
+  tx_id       bigint,
+  created_at  timestamptz not null default now(),
+  primary key (employee_id, month)
+);
+alter table public.emp_salary_runs enable row level security;
+do $$ begin
+  if not exists (select 1 from pg_policies where schemaname = 'public' and policyname = 'emp_salary_runs_read') then
+    create policy emp_salary_runs_read on public.emp_salary_runs for select to authenticated using ((select public.is_member()));
+  end if;
+end $$;
+grant select on public.emp_salary_runs to authenticated;
+revoke insert, update, delete on public.emp_salary_runs from authenticated, anon;
+revoke all on public.emp_salary_runs from anon;
+do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') then grant select on public.emp_salary_runs to service_role; end if; end $$;
+
+create or replace function public.ensure_monthly_salaries()
+returns int language plpgsql security definer set search_path = public as $$
+declare e record; m date; st date; tid bigint; n int := 0;
+        cur date := date_trunc('month', now() at time zone 'Africa/Cairo')::date;
+begin
+  if not public.is_member() then raise exception 'not allowed'; end if;
+  perform pg_advisory_xact_lock(hashtext('ensure_monthly_salaries'));     -- موبايلين في نفس اللحظة: مفيش تكرار
+  for e in select x.id, x.base_salary, x.created_at, (select max(s.period_to) from public.emp_settlements s where s.employee_id = x.id) last_to
+           from public.employees x where x.active is not false and coalesce(x.base_salary, 0) > 0 loop
+    st := case when e.last_to is not null then (date_trunc('month', e.last_to) + interval '1 month')::date
+               else date_trunc('month', e.created_at at time zone 'Africa/Cairo')::date end;
+    m := greatest(st, date '2026-11-01');
+    while m <= cur loop
+      if not exists (select 1 from public.emp_salary_runs r where r.employee_id = e.id and r.month = m) then
+        insert into public.emp_transactions(employee_id, kind, amount, tx_date, notes, auto)
+          values (e.id, 'salary', e.base_salary, m, 'مرتب الشهر (تلقائي)', true) returning id into tid;
+        insert into public.emp_salary_runs(employee_id, month, tx_id) values (e.id, m, tid);
+        n := n + 1;
+      end if;
+      m := (m + interval '1 month')::date;
+    end loop;
+  end loop;
+  return n;
+end $$;
+revoke execute on function public.ensure_monthly_salaries() from public, anon;
+grant execute on function public.ensure_monthly_salaries() to authenticated;
+
+-- لما موظف يرجع للشغل: الشهور اللي كان فيها سايب الشغل متتحسبش له مرتب (بتتعلّم إنها اتعدّت)
+create or replace function public.emp_reactivate_guard()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare m date; last_m date; cur date := date_trunc('month', now() at time zone 'Africa/Cairo')::date;
+begin
+  if old.active is false and new.active is not false then
+    select max(month) into last_m from public.emp_salary_runs where employee_id = new.id;
+    if last_m is not null then
+      m := (last_m + interval '1 month')::date;
+      while m < cur loop
+        insert into public.emp_salary_runs(employee_id, month, tx_id) values (new.id, m, null) on conflict do nothing;
+        m := (m + interval '1 month')::date;
+      end loop;
+    end if;
+  end if;
+  return new;
+end $$;
+revoke execute on function public.emp_reactivate_guard() from public, anon, authenticated;
+do $$ begin
+  if not exists (select 1 from pg_trigger where tgname = 'emp_reactivate_guard' and tgrelid = 'public.employees'::regclass) then
+    create trigger emp_reactivate_guard before update on public.employees for each row execute function public.emp_reactivate_guard();
+  end if;
+end $$;

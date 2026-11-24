@@ -189,11 +189,11 @@ window.addEventListener('offline', () => { health.state = 'offline'; health.sinc
 
 /* ---------- 4) النسخ الاحتياطي اليدوي ---------- */
 const BK_FORMAT = 'mawredin-backup', BK_VERSION = 1, BK_KEY = 'mawredin_last_backup';
-const BK_TABLES = ['suppliers','invoices','payments','check_payments','employees','emp_settlements','emp_transactions','emp_import_batches','loans','loan_payments','daily_sales','expenses','bank_moves','members','activity_log'];
+const BK_TABLES = ['suppliers','invoices','payments','check_payments','employees','emp_settlements','emp_transactions','emp_import_batches','emp_salary_runs','loans','loan_payments','daily_sales','expenses','bank_moves','members','activity_log'];
 const BK_REL = {invoices:{supplier_id:'suppliers.id'}, payments:{supplier_id:'suppliers.id', invoice_id:'invoices.id', replaced_by:'payments.id'}, check_payments:{payment_id:'payments.id'},
   emp_settlements:{employee_id:'employees.id', batch_id:'emp_import_batches.id'}, emp_transactions:{employee_id:'employees.id'}, loan_payments:{loan_id:'loans.id'}};
 const BK_AR = {suppliers:'الموردين', invoices:'الفواتير', payments:'المدفوعات والمرتجعات والخصومات والشيكات', check_payments:'دفعات سداد الشيكات', employees:'الموظفين',
-  emp_settlements:'تسويات المرتبات', emp_transactions:'حركات الموظفين (سلف وخصومات وعمولات)', emp_import_batches:'كشوف الموظفين المستوردة', loans:'القروض', loan_payments:'أقساط القروض', daily_sales:'المبيع اليومي', expenses:'المصروفات', bank_moves:'حركات البنك', members:'المستخدمين', activity_log:'سجل التعديلات'};
+  emp_settlements:'تسويات المرتبات', emp_transactions:'حركات الموظفين (سلف وخصومات وعمولات)', emp_import_batches:'كشوف الموظفين المستوردة', emp_salary_runs:'المرتبات الشهرية اللي نزلت', loans:'القروض', loan_payments:'أقساط القروض', daily_sales:'المبيع اليومي', expenses:'المصروفات', bank_moves:'حركات البنك', members:'المستخدمين', activity_log:'سجل التعديلات'};
 const backupAge = () => { const d = localStorage.getItem(BK_KEY); return d ? Math.floor((new Date(today()) - new Date(d)) / 864e5) : null; };
 function computeTotals(T){
   const C2 = v => Math.round(Number(v || 0) * 100);

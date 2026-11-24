@@ -256,6 +256,13 @@ function viewNotMember(){
     <button class="link" style="margin-top:10px" onclick="logout()">خروج</button></div>`;
 }
 const USER_KEY = 'mawredin_user';
+// مرتب الشهر: السيرفر بينزّله لوحده لكل موظف شغال (مرة واحدة لكل شهر) — بنطلبه لما التطبيق يفتح أو يرجع، مرة في اليوم
+async function ensureSalaries(){
+  const k = 'mawredin_sal_' + today();
+  try{ if(localStorage.getItem(k) || !navigator.onLine) return; }catch(e){}
+  try{ const n = await rpcNet('ensure_monthly_salaries', {}, 15000); try{ localStorage.setItem(k, '1'); }catch(e){} if(n > 0) syncNow(true); }catch(e){}
+}
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && typeof me !== 'undefined' && me) ensureSalaries(); });
 async function afterLogin(){
   let session = null, cached = null;
   try{ cached = JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }catch(e){}
@@ -297,6 +304,7 @@ async function afterLogin(){
   }
   route();
   scheduleSync(400);
+  setTimeout(ensureSalaries, 2500);
   setTimeout(() => healthCheck(), 1500);
   setTimeout(() => movedCheck(), 2500);
   setTimeout(() => usageCheck().then(() => { if((location.hash === '' || location.hash === '#/') && usageAlert() && !document.querySelector('.us-alert')) viewDashboard(); }), 4000);
