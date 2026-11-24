@@ -1141,3 +1141,7 @@ end $$;
 
 -- الموظفين (الإصدار 16.1): الحركة ممكن تتحسب على شهر غير شهر تاريخها (صرف مستحقات أكتوبر في أول نوفمبر) — للعرض الشهري بس، الرصيد زي ما هو
 alter table public.emp_transactions add column if not exists for_month date;
+
+-- الموظفين (الإصدار 16.2): نوع الخصم (sub: late تأخير / absence غياب / clothes ملابس / other) والكمية (qty: دقايق التأخير أو أيام الغياب) — إضافة بس
+alter table public.emp_transactions add column if not exists sub text;
+alter table public.emp_transactions add column if not exists qty numeric(10,2);

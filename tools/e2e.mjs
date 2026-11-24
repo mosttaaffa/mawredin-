@@ -117,6 +117,22 @@ try{
   await ev(A, () => go('/sync')).catch(() => {}); await A.waitForTimeout(800); await A.screenshot({path:join(SHOTS, '4 التعارض.png')});
   await ctx2.close();
 
+  // 6.4) كشف حساب الموظف: المستحقات − الاستقطاعات = الصافي، وآخر رصيد = رصيد الموظف (مفيش تكرار ولا نقص)
+  {
+    const eid = await ev(A, async () => { const e = (await sb.from('employees').insert({name:'موظف اختبار', base_salary:3000, phone:'01000000000'}).select().single()).data;
+      await sb.from('emp_settlements').insert({employee_id:e.id, period_from:'2025-01-01', period_to:'2025-01-31', earned_salary:3000, comm_ward:100, comm_zahra:50, adv_ward:500, adv_zahra:0, ded_general:0, ded_clothes:200, late_ded:0, prev_balance:-100, net_balance:2350});
+      await sb.from('emp_transactions').insert([{employee_id:e.id, kind:'payment', amount:2000, tx_date:today(), for_month:'2025-01-01'},
+        {employee_id:e.id, kind:'commission', branch:'ورد', amount:300, tx_date:today()}, {employee_id:e.id, kind:'deduction', sub:'late', qty:20, amount:40, tx_date:today()}]);
+      return e.id; });
+    await ev(A, () => syncNow(true)).catch(() => {}); await waitIdle(A); await A.waitForTimeout(1500);
+    const g = await ev(A, `(() => { const G = empLedger(${eid}), K = G.entries[0], L = G.entries[G.entries.length - 1];
+      return {kNet:K.net, kClose:K.close, lCarry:L.L.carry, ok:G.entries.every(M => M.net === M.earn - M.ded && M.close === M.net - M.L.paid), bal:G.balance, eb:Math.round(Number(employeeBalances().find(e => e.id === ${eid}).balance) * 100),
+        txt:eaText(${eid}, L.key, true).includes('صافي حساب الشهر')}; })()`);
+    expect(g.ok && g.kNet === 235000 && g.kClose === 35000 && g.lCarry === 35000 && g.bal === g.eb && g.txt, 'كشف حساب الموظف: الصافي والمرحّل والرصيد متطابقين', JSON.stringify(g));
+    await ev(A, `go('/emp/${eid}')`); await A.waitForTimeout(800);
+    expect(await ev(A, () => !!document.querySelector('.ea-sum') && document.documentElement.scrollWidth <= innerWidth), 'صفحة الموظف بتفتح من غير تمرير بالعرض');
+  }
+
   // 6.5) كشف الحساب لازم يعرض كل الحركات (حتى القديمة جدًا) — حتى لو المستخدم كان مختار فترة قبل كده
   {
     const ss = await ev(A, async () => { const s = (await sb.from('suppliers').insert({name:'مورد كشف قديم'}).select().single()).data;
