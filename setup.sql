@@ -1173,3 +1173,9 @@ begin
     end if;
   end loop;
 end $$;
+
+-- مراجعة الأمان (الإصدار 16.4): الدوال المساعدة مش متاحة للزوار من غير تسجيل دخول + فهرس — إضافة بس
+alter function public.table_perm(text) set search_path = public;
+revoke execute on function public.table_perm(text), public.current_email(), public.check_payments_guard(), public.payments_check_guard() from public, anon;
+grant execute on function public.table_perm(text), public.current_email(), public.check_payments_guard(), public.payments_check_guard() to authenticated;
+create index if not exists payments_replaced_by_idx on public.payments(replaced_by);
