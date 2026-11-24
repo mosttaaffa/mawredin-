@@ -286,6 +286,7 @@ class LQ {
       const sec = TABLE_PERM[this.t];
       if(sec && !can(sec) && !(this.t === 'payments' && this.mode === 'update' && can('checks') && this.rows().every(x => x.method === 'check'))) return {data:null, error:{message:permDenied(sec)}};
       if(this.mode === 'delete' && sec && !can('delete')) return {data:null, error:{message:permDenied('delete')}};
+      if(this.mode === 'update' && sec && !can('edit') && Object.keys(this.row || {}).some(c => !(EDIT_FREE[this.t] || []).includes(c))) return {data:null, error:{message:permDenied('edit')}};
       if(this.t === 'members' && this.row && 'perms' in this.row) return {data:null, error:{message:'تغيير الصلاحيات لصاحب التطبيق بس'}};
     }
     try{

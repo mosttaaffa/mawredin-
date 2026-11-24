@@ -1148,3 +1148,28 @@ alter table public.emp_transactions add column if not exists qty numeric(10,2);
 
 -- الموظفين (الإصدار 16.3): نوع الموظف (m راجل / f ست) لأيقونة الكارت — إضافة بس
 alter table public.employees add column if not exists gender text;
+
+-- الصلاحيات (الإصدار 15.1): مفتاح «التعديل» — لو مقفول (perms.edit = false) المستخدم يضيف بس، ومايعدّلش حاجة متسجلة
+-- مستثنى: الخانات اللي بتتعدل لوحدها وقت الإضافة (حالة الشيك لما يتسدد بالكامل، حالة القرض لما آخر قسط يتدفع)
+-- من غير مستخدم (السيرفر نفسه / النسخ الاحتياطي) مفيش منع
+create or replace function public.perm_edit_guard()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare ok_cols text[];
+begin
+  if public.current_email() = '' or public.has_perm('edit') then return new; end if;
+  ok_cols := case tg_table_name when 'payments' then array['check_status'] when 'loans' then array['status'] else array[]::text[] end;
+  if (to_jsonb(old) - ok_cols) is distinct from (to_jsonb(new) - ok_cols) then
+    raise exception 'التعديل مقفول لحسابك — تقدر تضيف بس';
+  end if;
+  return new;
+end $$;
+revoke execute on function public.perm_edit_guard() from public, anon, authenticated;
+do $$
+declare t text;
+begin
+  foreach t in array array['suppliers','invoices','payments','check_payments','employees','emp_settlements','emp_transactions','emp_import_batches','loans','loan_payments','daily_sales','expenses','bank_moves'] loop
+    if not exists (select 1 from pg_trigger where tgname = 'perm_edit_guard' and tgrelid = ('public.' || t)::regclass) then
+      execute format('create trigger perm_edit_guard before update on public.%I for each row execute function public.perm_edit_guard()', t);
+    end if;
+  end loop;
+end $$;

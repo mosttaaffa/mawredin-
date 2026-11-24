@@ -313,12 +313,16 @@ let sb = null, me = null, isOwner = false;
 /* ---------- الصلاحيات (صاحب التطبيق بيفتح ويقفل للمستخدم التاني) ----------
    members.perms: null = كله مفتوح. مفتاح = false يبقى مقفول. السيرفر بيمنع نفس الحاجات (RLS + sync_apply) — ده عشان الشكل والرسالة. */
 const PERM_SECTIONS = {suppliers:'الموردين', checks:'الشيكات', employees:'الموظفين', loans:'القروض', sales:'المبيعات', expenses:'المصروفات', banks:'البنك'};
-const PERM_GLOBAL = {delete:'المسح', log:'سجل التعديلات', backup:'النسخ الاحتياطي والتصدير'};
+const PERM_GLOBAL = {edit:'التعديل', delete:'المسح', log:'سجل التعديلات', backup:'النسخ الاحتياطي والتصدير'};
+// «التعديل» مقفول: يقدر يضيف بس — إلا الخانات اللي بتتعدل لوحدها وقت الإضافة (حالة الشيك لما يتسدد، حالة القرض لما يخلص)
+const EDIT_FREE = {payments:['check_status'], loans:['status']};
+// الشاشة دي بتعدّل حاجة متسجلة؟ (فيها رقم السجل) — loan-pay/القرض/الدفعة بس هي اللي تعديل
+const isEditRoute = () => { const p = location.hash.replace(/^#\/?/, '').split('?')[0].split('/'); return p[0] === 'loan-pay' ? !!p[2] : !!p[1] && /^\d+$/.test(p[1]); };
 const TABLE_PERM = {suppliers:'suppliers', invoices:'suppliers', payments:'suppliers', check_payments:'checks', employees:'employees', emp_settlements:'employees', emp_transactions:'employees', emp_import_batches:'employees', loans:'loans', loan_payments:'loans', daily_sales:'sales', expenses:'expenses', bank_moves:'banks'};
 const ROUTE_PERM = {supplier:'suppliers', invoice:'suppliers', payment:'suppliers', adjust:'suppliers', 'emp-edit':'employees', 'emp-tx':'employees', 'emp-set':'employees', 'emp-import':'employees', 'loan-form':'loans', 'loan-pay':'loans', sale:'sales', expense:'expenses', 'bank-move':'banks'};
 function myPerms(){ const e = (typeof store !== 'undefined' && store.email) || me?.email; return (e && store.eff?.members?.get(String(e).toLowerCase())?.perms) || null; }
 function can(k){ if(isOwner) return true; const p = myPerms(); return !p || p[k] !== false; }
-const permDenied = k => PERM_SECTIONS[k] ? `مش مسموحلك تضيف أو تعدّل في ${PERM_SECTIONS[k]}` : k === 'delete' ? 'مش مسموحلك تمسح' : 'مش مسموحلك';
+const permDenied = k => PERM_SECTIONS[k] ? `مش مسموحلك تضيف أو تعدّل في ${PERM_SECTIONS[k]}` : k === 'delete' ? 'مش مسموحلك تمسح' : k === 'edit' ? 'التعديل مقفول لحسابك — تقدر تضيف بس' : 'مش مسموحلك';
 // إخفاء أزرار الإضافة والمسح المقفولة (من غير ما نلف على كل شاشة)
 const PERM_HIDE = {
   suppliers:["go('/invoice", "go('/payment", "go('/adjust", "go('/supplier'", "go('/supplier?", "go('/supplier/"],

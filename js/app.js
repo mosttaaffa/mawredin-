@@ -61,7 +61,7 @@ function permCard(m){
     <div class="ios-grp">${Object.entries(PERM_SECTIONS).map(([k, l]) => row(k, l)).join('')}</div>
     <div class="ios-f">المقفول بيبقى «عرض بس»: يشوف القسم ومايقدرش يضيف أو يعدّل فيه. التقارير ظاهرة دايمًا.</div>
     <div class="ios-h">صلاحيات عامة</div>
-    <div class="ios-grp">${row('delete', 'المسح', 'يمسح فواتير ودفعات وحركات')}${row('log', 'سجل التعديلات', 'يشوف مين عمل إيه')}${row('backup', 'النسخ الاحتياطي والتصدير', 'ينزّل نسخة أو Excel')}</div>
+    <div class="ios-grp">${row('edit', 'التعديل', 'يعدّل حاجة اتسجلت قبل كده — الإضافة بتفضل مفتوحة')}${row('delete', 'المسح', 'يمسح فواتير ودفعات وحركات')}${row('log', 'سجل التعديلات', 'يشوف مين عمل إيه')}${row('backup', 'النسخ الاحتياطي والتصدير', 'ينزّل نسخة أو Excel')}</div>
     ${isOwner ? '' : '<div class="ios-f">الصلاحيات بيغيرها صاحب التطبيق بس.</div>'}`;
 }
 window.setPerm = async (email, k, val, el) => {

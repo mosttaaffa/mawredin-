@@ -456,8 +456,9 @@ function formShell(title, body, onSave){
         : `<button class="btn primary block" type="submit" style="padding:15px;font-size:17px">حفظ</button>`}</form></main></div>`;
   applyPerms();
   const sec = ROUTE_PERM[location.hash.replace(/^#\/?/, '').split(/[/?]/)[0]];
-  if(sec && !can(sec)){   // عرض بس: نفس البيانات من غير حفظ
-    $('#frm').insertAdjacentHTML('afterbegin', `<div class="sp-note" style="margin-bottom:12px">${I.warn}عرض بس — ${permDenied(sec)}</div>`);
+  const noEdit = sec && can(sec) && !can('edit') && isEditRoute();
+  if((sec && !can(sec)) || noEdit){   // عرض بس: نفس البيانات من غير حفظ
+    $('#frm').insertAdjacentHTML('afterbegin', `<div class="sp-note" style="margin-bottom:12px">${I.warn}عرض بس — ${permDenied(noEdit ? 'edit' : sec)}</div>`);
     $('#frm').querySelectorAll('input,select,textarea').forEach(el => el.disabled = true);
     $('#frm').querySelectorAll('button').forEach(b => { if(b.type === 'submit' || b.classList.contains('danger') || !/history\.back/.test(b.getAttribute('onclick') || '')) b.style.display = 'none'; });
     $('#frm').addEventListener('submit', e => e.preventDefault());
