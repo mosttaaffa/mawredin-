@@ -1145,3 +1145,6 @@ alter table public.emp_transactions add column if not exists for_month date;
 -- الموظفين (الإصدار 16.2): نوع الخصم (sub: late تأخير / absence غياب / clothes ملابس / other) والكمية (qty: دقايق التأخير أو أيام الغياب) — إضافة بس
 alter table public.emp_transactions add column if not exists sub text;
 alter table public.emp_transactions add column if not exists qty numeric(10,2);
+
+-- الموظفين (الإصدار 16.3): نوع الموظف (m راجل / f ست) لأيقونة الكارت — إضافة بس
+alter table public.employees add column if not exists gender text;

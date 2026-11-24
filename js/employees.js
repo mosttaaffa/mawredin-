@@ -97,28 +97,14 @@ window.empFilterMenu = async () => {
   const sec = (t, obj, cur, varn, cnt, ic) => `<div class="section-t"${t.m ? ' style="margin-top:12px"' : ''}>${t.l}</div><div class="menu-list">${Object.entries(obj).map(([k, l]) => `<button class="${cur === k ? 'on' : ''}" onclick="${varn}='${k}';closeModal();viewEmployees()">${I[ic]}${l}${cnt ? ` (${cnt(k)})` : ''}${cur === k ? ' ✓' : ''}</button>`).join('')}</div>`;
   openModal(`<h3>تصفية وترتيب</h3>${sec({l:'الحالة'}, EMP_ACT, empAct, 'empAct', ca, 'users')}${sec({l:'الرصيد', m:1}, EMP_F, empFilter, 'empFilter', cf, 'filter')}${sec({l:'الترتيب', m:1}, EMP_SORT, empSort, 'empSort', null, 'sort')}`);
 };
-function empCard(r){
-  const bal = n0(r.balance), ph = String(r.phone || '').replace(/[^\d+]/g, '');
-  const n = v => `<span class="num">${Math.abs(n0(v)).toLocaleString('en-US', {maximumFractionDigits:2})}</span><i class="cur"> ج</i>`;
-  const code = r.emp_no ? `رقم ${esc(r.emp_no)}` : (r.branch ? esc(r.branch) : '');
-  return `<div class="srow" data-n="${esc((r.name + ' ' + (r.emp_no || '') + ' ' + ph.replace(/\D/g, '')).toLowerCase())}" onclick="go('/emp/${r.id}')">
-    <span class="sr-go">${I.chevL ? `<i style="display:inline-flex;transform:scaleX(-1)">${I.chevL}</i>` : '›'}</span>
-    <span class="sr-ic">${I.emp}</span>
-    <span class="sr-name"><b>${esc(r.name)}${empOn(r) ? '' : ' <span class="tag left">ترك العمل</span>'}</b>
-      <small>${code ? `<span class="num">${code}</span>` : ''}${r.last_to ? `<span>تسوية <span class="num">${String(r.last_to).slice(0, 10).split('-').reverse().slice(0, 2).join('/')}</span></span>` : ''}${ph ? `<span class="ph">${I.phone}<span class="num" dir="ltr">${esc(ph)}</span></span>` : ''}</small></span>
-    <span class="sr-v"><small>مرحّل</small><b class="${r.mopen > 0 ? 'cred' : r.mopen < 0 ? 'due' : ''}">${r.mopen == null ? '—' : n(r.mopen / 100)}</b></span>
-    <span class="sr-v"><small>${r.mstate === 'set' ? 'تسوية' : 'الشهر'}</small><b class="${r.mnet > 0 ? 'cred' : r.mnet < 0 ? 'due' : ''}">${r.mnet == null ? (r.mstate === 'set' ? 'كشف' : '—') : (r.mnet > 0 ? '+' : r.mnet < 0 ? '−' : '') + n(r.mnet / 100)}</b></span>
-    <span class="sr-v"><small>${bal < 0 ? 'عليه' : bal > 0 ? 'ليه' : 'آخر الشهر'}</small><b class="${bal > 0 ? 'cred' : bal < 0 ? 'due' : ''}">${n(bal)}</b></span>
-    <button class="sr-more" onclick="event.stopPropagation();empMore(${r.id})" aria-label="المزيد">${I.dots}</button>
-  </div>`;
-}
-window.empMore = async id => {
-  const r = (await empApi.balances()).find(x => x.id === id); if(!r) return;
-  openModal(`<h3>${esc(r.name)}</h3><div class="hint" style="margin-bottom:10px">${r.emp_no ? 'رقم ' + esc(r.emp_no) + ' · ' : ''}الرصيد ${signMoney(r.balance)}</div>
+function empCard(r){ return eaCard(r, empMonth); }   // الكارت الجديد في js/empaccount.js
+window.empMore = id => {
+  const e = store.eff.employees.get(id), ym = empMonth || today().slice(0, 7), D = eaMonth(id, ym); if(!e) return;
+  openModal(`<h3>${esc(e.name)}</h3><div class="hint" style="margin-bottom:10px">${e.emp_no ? 'رقم ' + esc(e.emp_no) + ' · ' : ''}${empMonthName(ym)} · الرصيد ${eaMH(D.close)}</div>
     <div class="menu-list">
-      <button onclick="closeModal();go('/emp/${id}')">${I.folder}فتح الحساب</button>
-      <button onclick="closeModal();go('/emp-tx?e=${id}')">${I.coins2}إضافة حركة (صرف / سلفة / خصم)</button>
-      <button onclick="closeModal();go('/emp-statement/${id}')">${I.doc}كشف حساب</button>
+      <button onclick="closeModal();eaSel[${id}]='${D.M.virt ? '' : D.M.key}';go('/emp/${id}')">${I.doc}عرض كشف الحساب</button>
+      <button onclick="closeModal();eaNewTx(${id},'${ym}')">${I.plus}إضافة حركة جديدة</button>
+      <button onclick="closeModal();eaShare(${id},'${D.M.virt ? (D.G.entries.length ? D.G.entries[D.G.entries.length - 1].key : ym) : D.M.key}')">${I.wa}إرسال كشف الحساب واتساب</button>
       <button onclick="closeModal();go('/emp-edit/${id}')">${I.edit}تعديل بيانات الموظف</button>
     </div>`);
 };
@@ -126,7 +112,7 @@ async function viewEmployees(){
   if(!$('#emplist')) shell({title:'الموظفين', nav:'employees', page:{sub:'حسابات الموظفين والمرتبات والسلف', icon:'users'}, body:skeleton('home')});
   empMonth = empMonth || today().slice(0, 7);
   // رصيد كل موظف في الشهر المختار = آخر الشهر (للشهر الحالي = الرصيد الحالي بالظبط)
-  const all = (await empApi.balances()).map(r => { const st = empMonthState(r.id, empMonth); return {...r, ...st, cur_balance:r.balance, balance:st.mclose / 100}; });
+  const all = (await empApi.balances()).map(r => { const st = empMonthState(r.id, empMonth); return {...r, ...st, gender:store.eff.employees.get(r.id)?.gender, cur_balance:r.balance, balance:eaMonth(r.id, empMonth).close / 100}; });
   if(!EMP_F[empFilter]) empFilter = 'all';
   const rows = all.filter(empInAct);
   const due = rows.filter(r => empC(r.balance) > 0), owe = rows.filter(r => empC(r.balance) < 0);
@@ -189,8 +175,8 @@ async function viewEmployees(){
 }
 window.filterEmp = v => {
   v = v.trim().toLowerCase(); const d = v.replace(/\D/g, ''); let n = 0;
-  document.querySelectorAll('#emplist .srow').forEach(el => { const ok = el.dataset.n.includes(v) || (d.length >= 7 && el.dataset.n.includes(d.replace(/^(00)?20|^0/, ''))); el.style.display = ok ? '' : 'none'; n += ok; });
-  const e = $('#enores'); if(e) e.style.display = n || !document.querySelector('#emplist .srow') ? 'none' : '';
+  document.querySelectorAll('#emplist .ecard').forEach(el => { const ok = el.dataset.n.includes(v) || (d.length >= 7 && el.dataset.n.includes(d.replace(/^(00)?20|^0/, ''))); el.style.display = ok ? '' : 'none'; n += ok; });
+  const e = $('#enores'); if(e) e.style.display = n || !document.querySelector('#emplist .ecard') ? 'none' : '';
 };
 
 /* =================== ملف الموظف: في js/empaccount.js (كشف حساب الموظف) =================== */
@@ -315,13 +301,16 @@ async function formEmployee(id){
       <div class="field"><label>الفرع</label><select id="branch"><option value="">—</option>${['زهرة','ورد','زهرة وورد'].map(b => `<option ${x?.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
       <div class="field"><label>التليفون</label><input id="phone" type="tel" value="${esc(x?.phone || '')}"></div>
     </div>
+    <div class="field"><label>النوع</label><div class="seg" id="egen" style="grid-template-columns:1fr 1fr">
+      <button type="button" data-v="m" class="${(x ? eaGender(x) : 'm') === 'm' ? 'on' : ''}" onclick="segPick(this)">راجل</button>
+      <button type="button" data-v="f" class="${x && eaGender(x) === 'f' ? 'on' : ''}" onclick="segPick(this)">ست</button></div></div>
     <div class="field"><label>حالة الموظف</label><div class="seg" id="eact" style="grid-template-columns:1fr 1fr">
       <button type="button" data-v="1" class="${x?.active === false ? '' : 'on'}" onclick="segPick(this)">بيشتغل</button>
       <button type="button" data-v="0" class="${x?.active === false ? 'on' : ''}" onclick="segPick(this)">ترك العمل</button></div></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>`,
   async () => {
     const name = $('#name').value.trim(); if(!name) return markErr('name', 'اكتب الاسم');
-    const row = {name, emp_no:$('#no').value.trim() || null, base_salary: $('#base').value.trim() ? readAmount($('#base').value) : null, branch:$('#branch').value || null, phone:$('#phone').value.trim() || null, notes:$('#notes').value.trim() || null, active: $('#eact .on').dataset.v === '1'};
+    const row = {name, emp_no:$('#no').value.trim() || null, base_salary: $('#base').value.trim() ? readAmount($('#base').value) : null, branch:$('#branch').value || null, phone:$('#phone').value.trim() || null, notes:$('#notes').value.trim() || null, active: $('#eact .on').dataset.v === '1', gender:$('#egen .on')?.dataset.v || null};
     if(x){ await q(ldb.from('employees').update(row).eq('id', x.id)); busy(false); toast('اتحفظ ✓'); location.replace('#/emp/' + x.id); }
     else { const r = await q(ldb.from('employees').insert(row).select().single()); busy(false); toast('اتضاف الموظف ✓'); location.replace('#/emp/' + r.id); }
   });

@@ -2092,3 +2092,46 @@ main.enter{animation-duration:.16s}
 .ea-prev{max-height:46vh;overflow:auto;border:1px solid #F1DDE1;border-radius:14px;background:#fff}
 .ea-prev img{display:block;width:100%;height:auto}
 @media (max-width:360px){.ea-a{min-width:84px;font-size:13.5px}.ea-mh{grid-template-columns:minmax(0,1.2fr) repeat(4,minmax(0,1fr)) auto;gap:2px}.ea-mh span{font-size:10.5px}.ea-txd{width:62px}.ea-acts .btn{font-size:12.5px}}
+/* ===== كروت الموظفين (قايمة الموظفين) ===== */
+.sp-list .ecard{grid-column:1 / -1}
+.ecard{background:#fff;border:1px solid #EFDDE1;border-inline-start:3px solid var(--brand);border-radius:16px;padding:8px 8px 6px;cursor:pointer;box-shadow:0 2px 6px -5px rgba(110,12,31,.4)}
+.ecard:active{background:#FFF9FA}
+.ec-r1{display:flex;align-items:center;gap:6px;min-height:52px}
+.ec-av{flex:none;width:44px;height:44px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px #fff,0 2px 6px rgba(110,12,31,.18)}
+.ec-av svg{width:100%;height:100%;display:block}
+.ec-nm{flex:1.25;min-width:0;display:flex;flex-direction:column;line-height:1.3;padding-inline-end:4px;border-inline-end:1px solid #F0E2E5}
+.ec-nm b{font-size:16px;font-weight:900;color:#7A0F22;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ec-nm small{font-size:11px;color:var(--ink);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ec-nm small .tag{font-size:9.5px;font-style:normal}
+.ec-cr{color:var(--muted) !important;font-weight:600 !important}.ec-cr bdi{font-weight:800}.ec-cr .p{color:var(--green)}.ec-cr .m{color:var(--red)}
+.ec-m{flex:.8;min-width:0;display:flex;flex-direction:column;align-items:center;text-align:center;line-height:1.25;padding:0 2px;border-inline-end:1px solid #F0E2E5}
+.ec-m i{font-style:normal;color:var(--brand);display:grid}.ec-m i svg{width:16px;height:16px}
+.ec-m small{font-size:10px;color:var(--muted);font-weight:700;white-space:nowrap}
+.ec-m b{font-size:12px;font-weight:800;white-space:nowrap}.ec-m b.p{color:var(--green)}.ec-m b.m{color:var(--red)}
+.ec-bal{flex:1.05;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;padding:4px 3px;line-height:1.2;text-align:center}
+.ec-bal i{font-style:normal;display:grid}.ec-bal i svg{width:16px;height:16px}
+.ec-bal b{font-size:clamp(13px,4vw,17px);font-weight:900;white-space:nowrap}
+.ec-bal small{font-size:9.5px;font-weight:800;white-space:nowrap}
+.ec-bal.due{background:#E6F6EC;color:#178A3C}.ec-bal.owe{background:#FDECEE;color:#C0283F}.ec-bal.zero{background:#F1F1F3;color:#555}
+.ec-more{flex:none;width:28px;height:28px;border-radius:50%;border:0;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center}
+.ec-more svg{width:16px;height:16px}
+.ec-r2{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));margin-top:6px;padding-top:5px;border-top:1px solid #F3E6E9}
+.ec-v{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;border:0;background:none;font:inherit;padding:2px 1px;cursor:pointer;border-inline-start:1px solid #F0E2E5}
+.ec-v:first-child{border-inline-start:0}
+.ec-v:active{background:var(--brand-soft);border-radius:8px}
+.ec-v small{font-size:10px;color:var(--ink);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.ec-v b{font-size:clamp(11.5px,3.5vw,14px);font-weight:900;white-space:nowrap}
+.ec-v b.p{color:var(--green)}.ec-v b.m{color:var(--red)}.ec-v b.z{color:#8a8a8a}
+#emplist{gap:7px}
+@media (max-width:360px){.ec-av{width:36px;height:36px}.ec-nm b{font-size:14px}.ec-m small{font-size:9px}.ec-m b{font-size:11px}.ec-bal b{font-size:12.5px}.ec-bal small{font-size:8.5px}.ec-v small{font-size:8.8px}.ec-v b{font-size:11px}.ec-r1{gap:4px}}
+.ec-r1{gap:4px}
+.ec-av{width:40px;height:40px}
+.ec-nm{flex:1.55}.ec-m{flex:.72;padding:0 1px}.ec-bal{flex:1}
+.ec-more{width:24px;height:24px}
+.ec-m b{font-size:11.5px}
+.ec-lt{display:none}
+.ec-v small{font-size:9.8px}.ec-v small i{font-style:normal}.ec-v small .ls{display:none}
+@media (max-width:400px){.ec-v small .lf{display:none}.ec-v small .ls{display:inline}}
+@media (max-width:360px){.ec-mlt{display:none}.ec-lt{display:inline}.ec-nm{flex:1.6}.ec-av{width:34px;height:34px}}
+.ec-m small{font-size:9.5px}
+@media (max-width:360px){.ec-lt{display:block}.ec-nm small{white-space:nowrap}}

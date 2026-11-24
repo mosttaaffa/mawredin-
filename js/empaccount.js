@@ -78,6 +78,65 @@ function empLedger(id){
   return {e, sets, last, entries, txs, balance:entries.length ? entries[entries.length - 1].closeActual : 0};
 }
 
+// حساب موظف في شهر معيّن (لكروت القايمة) — من نفس دفتر الحساب، فالأرقام برّه = جوه
+function eaMonth(id, ym){
+  const G = empLedger(id), E = G.entries, zero = {carry:0, base:0, comW:0, comZ:0, comX:0, adjP:0, late:0, absent:0, clothes:0, advW:0, advZ:0, advX:0, dedX:0, adjM:0, paid:0};
+  let M = E.find(x => x.key === ym);
+  if(!M && G.last && ym >= empYM(G.last.period_from) && ym <= empYM(G.last.period_to)) M = E[0];
+  if(!M && E.length && ym > E[E.length - 1].key){ const P = E[E.length - 1]; M = {key:ym, virt:true, L:{...zero, carry:P.closeActual}, src:{}, rows:[], proj:0, net:P.closeActual, close:P.closeActual, closeActual:P.closeActual}; }
+  if(!M) M = {key:ym, virt:true, L:{...zero}, src:{}, rows:[], proj:0, net:0, close:0, closeActual:0};
+  const L = M.L;
+  return {G, M, carry:L.carry, close:M.closeActual, mov:M.closeActual - L.carry, base:L.base, proj:M.proj,
+    com:L.comW + L.comZ + L.comX, adv:L.advW + L.advZ + L.advX, ded:L.late + L.absent + L.dedX + L.adjM, clothes:L.clothes};
+}
+// أيقونة الموظف: راجل / ست (من بيانات الموظف — ولو مش متحددة بنخمّن من الاسم)
+const EA_F_NAMES = ['رحاب', 'نور', 'دنيا', 'شهد', 'سارة', 'ساره', 'هايدي', 'حبيبة', 'فرح', 'سلمى', 'رودي', 'جنى', 'جنات', 'صابرين', 'بسمة', 'منى', 'مي', 'هند', 'ياسمين', 'إيمان', 'ايمان', 'مريم', 'آية', 'اية', 'أسماء', 'اسماء', 'رنا', 'دينا', 'نهى', 'هدى', 'سماح', 'أمل', 'امل', 'ندى', 'شيماء', 'ريم', 'ملك', 'روان', 'هالة', 'نادية', 'سلوى', 'عبير', 'نسمة', 'زينب', 'فاطمة', 'منة', 'جيهان', 'نيرة', 'ميار', 'رحمة', 'مروة', 'سمر', 'غادة', 'هبة'];
+function eaGender(e){
+  if(e.gender === 'f' || e.gender === 'm') return e.gender;
+  const first = String(e.name || '').trim().split(/\s+/)[0] || '';
+  if(EA_F_NAMES.includes(first) || /[ةى]$/.test(first)) return 'f';
+  return 'm';
+}
+const EA_AV = {
+  m:`<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="32" fill="#F6E8EB"/><path d="M12 60c2-11 10-17 20-17s18 6 20 17a32 32 0 0 1-40 0z" fill="#2F2A3A"/><path d="M27 43h10l-5 13z" fill="#fff"/><path d="M31 45h2l1.6 7-2.6 3-2.6-3z" fill="#C0283F"/><circle cx="32" cy="27" r="11" fill="#F2C9A8"/><path d="M21 26c0-8 5-13 11-13s11 5 11 13c-2-4-6-6-11-6s-9 2-11 6z" fill="#3A2A22"/></svg>`,
+  f:`<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="32" fill="#F6E8EB"/><path d="M11 60c2-12 10-19 21-19s19 7 21 19a32 32 0 0 1-42 0z" fill="#2F2A3A"/><path d="M18 34c0-11 6-20 14-20s14 9 14 20c0 7-3 12-6 14H24c-3-2-6-7-6-14z" fill="#2F2A3A"/><ellipse cx="32" cy="30" rx="8.5" ry="10" fill="#F2C9A8"/><path d="M23.5 27c1-6 4.5-9 8.5-9s7.5 3 8.5 9c-2-3-5-4.5-8.5-4.5S25.5 24 23.5 27z" fill="#2F2A3A"/></svg>`,
+};
+function eaCard(r, ym){
+  const D = eaMonth(r.id, ym), bal = D.close, ph = String(r.phone || '').replace(/[^\d+]/g, '');
+  const n = c => (Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:2});
+  const st = bal > 0 ? ['due', I.coins2, 'مستحق للموظف'] : bal < 0 ? ['owe', I.store, 'مستحق للمحل'] : ['zero', I.layers, 'الحساب متوازن'];
+  const it = (k, l, c, cls) => `<button class="ec-v" onclick="event.stopPropagation();eaItem(${r.id},'${ym}','${k}')"><small>${l}</small><b class="${c ? cls : 'z'}"><bdi dir="ltr">${n(c)}</bdi> ج</b></button>`;
+  const lastTo = r.last_to ? (([y, m, d]) => `${d}/${m}/${y.slice(2)}`)(String(r.last_to).slice(0, 10).split('-')) : '—';
+  return `<div class="ecard" data-n="${esc((r.name + ' ' + (r.emp_no || '') + ' ' + ph.replace(/\D/g, '')).toLowerCase())}" onclick="go('/emp/${r.id}')">
+    <div class="ec-r1">
+      <span class="ec-av">${EA_AV[eaGender(r)]}</span>
+      <span class="ec-nm"><b>${esc(r.name)}</b><small>${r.emp_no ? 'موظف رقم ' + esc(r.emp_no) : (r.branch ? esc(r.branch) : '')}<span class="ec-lt">تسوية ${lastTo}</span>${empOn(r) ? '' : ' <i class="tag left">ترك العمل</i>'}</small>
+        <small class="ec-cr">مرحّل <bdi dir="ltr" class="${D.carry > 0 ? 'p' : D.carry < 0 ? 'm' : ''}">${D.carry < 0 ? '−' : ''}${n(D.carry)}</bdi> ج</small></span>
+      <span class="ec-m"><i>${I.stats || I.chart}</i><small>حركات الشهر</small><b class="${D.mov > 0 ? 'p' : D.mov < 0 ? 'm' : ''}"><bdi dir="ltr">${D.mov > 0 ? '+' : D.mov < 0 ? '−' : ''}${n(D.mov)}</bdi> ج</b></span>
+      <span class="ec-m ec-mlt"><i>${I.cal}</i><small>آخر تسوية</small><b class="num">${lastTo}</b></span>
+      <span class="ec-bal ${st[0]}"><i>${st[1]}</i><b><bdi dir="ltr">${bal < 0 ? '−' : ''}${n(bal)}</bdi> ج</b><small>${st[2]}</small></span>
+      <button class="ec-more" onclick="event.stopPropagation();empMore(${r.id})" aria-label="المزيد">${I.dots}</button>
+    </div>
+    <div class="ec-r2">
+      ${it('base', '<i class="lf">المرتب الأساسي</i><i class="ls">الأساسي</i>', D.base, 'p')}${it('com', 'عمولات', D.com, 'p')}${it('adv', 'السلف', D.adv, 'm')}${it('ded', 'الخصومات', D.ded, 'm')}${it('clothes', '<i class="lf">مسحوبات ملابس</i><i class="ls">ملابس</i>', D.clothes, 'm')}
+    </div>
+  </div>`;
+}
+// تفاصيل بند من برّه (نفس حركات صفحة الموظف للشهر ده)
+window.eaItem = (id, ym, k) => {
+  const D = eaMonth(id, ym), M = D.M, e = D.G.e;
+  const keys = {base:['base'], com:['comW', 'comZ', 'comX'], adv:['advW', 'advZ', 'advX'], ded:['late', 'absent', 'dedX', 'adjM'], clothes:['clothes']}[k];
+  const title = {base:'المرتب الأساسي', com:'العمولات', adv:'السلف', ded:'الخصومات', clothes:'مسحوبات ملابس'}[k];
+  const rows = keys.flatMap(x => (M.src[x] || [])).sort((a, b) => String(a.tx_date).localeCompare(String(b.tx_date)));
+  const kashf = M.kashf ? keys.filter(x => M.kashf.K[x]).map(x => `<div class="ea-tx kashf"><span class="ea-txd">${fmtDate(M.kashf.set.period_to)}</span><span class="ea-txt"><b>من كشف ${M.label}</b><small>${{base:'المرتب', comW:'عمولات ورد', comZ:'عمولات زهرة', advW:'سلف ورد', advZ:'سلف زهرة', late:'تأخير وغياب', dedX:'خصومات', clothes:'ملابس'}[x] || ''}</small></span><b class="ea-txa">${eaN(M.kashf.K[x])}</b></div>`).join('') : '';
+  const proj = k === 'base' && M.proj ? `<div class="ea-tx proj"><span class="ea-txd"></span><span class="ea-txt"><b>مرتب ${M.label} (متوقع)</b><small>هينزل لوحده أول الشهر الجاي — مش محسوب في الرصيد لحد دلوقتي</small></span><b class="ea-txa">${eaN(M.proj)}</b></div>` : '';
+  const list = rows.map(x => `<div class="ea-tx"><span class="ea-txd">${fmtDate(x.tx_date)}</span><span class="ea-txt"><b>${eaTxLabel(x)}${x.branch ? ` <i class="tag">${esc(x.branch)}</i>` : ''}</b><small>${[eaQty(x), x.notes && !x.auto ? esc(x.notes) : ''].filter(Boolean).join(' · ') || '—'}</small></span><b class="ea-txa">${eaN(Math.abs(eaC(x.amount)))}</b></div>`).join('');
+  const tot = {base:D.base, com:D.com, adv:D.adv, ded:D.ded, clothes:D.clothes}[k];
+  openModal(`<h3>${title} — ${esc(e.name)}</h3><div class="hint" style="margin-bottom:8px">${M.label || empMonthName(ym)} · الإجمالي ${eaMH(tot)}</div>
+    <div class="ea-det">${kashf + proj + list || '<div class="ea-none">مفيش حركات على البند ده في الشهر ده</div>'}</div>
+    <div class="actions" style="margin-top:10px"><button class="btn ghost" onclick="closeModal();eaSel[${id}]='${M.virt ? '' : M.key}';go('/emp/${id}')">${I.doc}كشف الحساب</button><button class="btn primary" onclick="closeModal();eaNewTx(${id},'${ym}')">${I.plus}حركة جديدة</button></div>`);
+};
+
 /* ---------- الصفحة ---------- */
 async function viewEmployee(id){
   id = Number(id);
