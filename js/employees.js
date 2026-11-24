@@ -213,6 +213,7 @@ async function viewEmployee(id){
           ${line('سلف', M.adv, '− ', 'm')}${line('خصومات وغياب', M.ded, '− ', 'm')}${line('اتصرف له', M.pay, '− ', 'm')}
           ${M.adj ? `<div class="em-l ${M.adj > 0 ? 'p' : 'm'}"><span>تسويات</span><b>${M.adj > 0 ? '+ ' : '− '}${cm(M.adj)}</b></div>` : ''}
           <div class="em-l tot"><span>${M.ym === today().slice(0, 7) ? 'الرصيد لحد دلوقتي' : 'آخر الشهر (اترحّل)'}</span><b>${sg(M.close)}</b></div>
+          ${M.ym === today().slice(0, 7) && e.active !== false && n0(e.base_salary) > 0 ? `<div class="hint" style="padding:6px 2px">مرتب ${empMonthName(M.ym)} (${money(e.base_salary)}) هينزل لوحده يوم 1/${String(+M.ym.slice(5, 7) % 12 + 1)} — أول الشهر الجاي</div>` : ''}
           ${M.rows.length ? `<div class="list em-rows">${M.rows.slice().reverse().map(txRow).join('')}</div>` : '<div class="hint" style="padding:6px 2px">مفيش حركات في الشهر ده</div>'}
           <button class="btn ghost block" style="margin-top:8px" onclick="go('/emp-tx?e=${id}&d=${M.ym === today().slice(0, 7) ? today() : M.ym + '-28'}')">${I.plus}حركة في ${empMonthName(M.ym)}</button>
         </div>
