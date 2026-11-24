@@ -133,7 +133,7 @@ async function viewDashboard(){
       </div>
       <details class="db-why"><summary>الأرقام دي جاية منين؟</summary>
         <div>لنا: موردين رصيدهم لصالح المحل ${fmt0(supCred / 100)} + سلف وخصومات على موظفين ${fmt0(empOwe / 100)}</div>
-        <div>علينا: مستحقات الموردين ${fmt0(supDue / 100)} + المتبقي من الشيكات ${fmt0(chkRemC / 100)} + مستحق للموظفين ${fmt0(empDue / 100)}${LS.remaining ? ` + المتبقي من القروض ${fmt0(LS.remaining / 100)}` : ''}</div></details>
+        <div>علينا: مستحقات الموردين ${fmt0(supDue / 100)} + المتبقي من الشيكات ${fmt0(chkRemC / 100)} + مستحق للموظفين ${fmt0(empDue / 100)}${LS.remaining ? ` + المتبقي من القروض ${fmt0(LS.remaining / 100)}${LS.penOwed ? ' (منها غرامات ' + fmt0(LS.penOwed / 100) + ')' : ''}` : ''}</div></details>
     </div>
     <div class="db-rh"><span>${I.doc}آخر العمليات</span><button class="link" onclick="go('/log')">عرض السجل ${I.chevL}</button></div>
     <div class="card db-ops">${ops.length ? ops.map(o => `<button class="db-op" onclick="go('${o.go}')">
