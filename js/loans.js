@@ -53,6 +53,109 @@ function loanInfo(L){
 }
 const LST = {paid:'مسدد', partial:'مسدد جزئيًا', late:'متأخر', due:'مستحق النهارده', next:'لسه'};
 
+
+/* ---------- كشف القرض: صورة احترافية للواتساب (زي كشف حساب المورد) ---------- */
+const LOAN_PER_PAGE = 26;
+function loanNext(i){ return i.sched.find(s => s.st === 'next' || s.st === 'due') || null; }   // أول قسط ميعاده لسه مجاش (مش المتأخر)
+function loanLateSum(i){ return i.lateInst.reduce((a, s) => a + (s.amt - s.cover), 0); }
+function loanImageHTML(L, i, page, pages, rows){
+  const cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim();
+  const brand = '#9B1B30', soft = '#FBEFF1', red = '#C0392B', green = '#178A3C';   // ألوان المحل ثابتة في الصورة (مهما كان ثيم التطبيق)
+  const f = c => `<span style="direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums">${(c / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span>`;
+  const dd = d => { const [y, m, x] = String(d || '').slice(0, 10).split('-'); return d ? `<span style="direction:ltr;unicode-bidi:isolate">${x}/${m}/${y}</span>` : '—'; };
+  const late = loanLateSum(i), first = page === 0, nx = loanNext(i);
+  const st = s => s.st === 'paid' ? ['مسدد', '#e8f5ee', green] : s.st === 'partial' ? [`جزئي${s.late ? ' · متأخر ' + s.late + ' يوم' : ''}`, '#fff4e0', '#b7791f'] : s.st === 'late' ? [`متأخر ${s.late} يوم`, '#fdecef', red] : s.st === 'due' ? ['مستحق النهارده', '#fff4e0', '#b7791f'] : ['لسه', '#f3f3f3', '#777'];
+  const tile = (l, val, bg, col, big) => `<div style="flex:1;border-radius:20px;padding:16px 10px;background:${bg};text-align:center"><div style="font-size:21px;color:#666">${l}</div><div style="font-size:${big ? 38 : 32}px;font-weight:800;color:${col}">${val}</div></div>`;
+  return `<div style="width:1080px;background:#fff;font-family:Cairo,Tahoma,Arial,sans-serif;color:#262626;direction:rtl;padding:46px 52px 38px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:22px;padding-bottom:20px;border-bottom:4px solid ${soft}">
+      <img src="icons/ward.png" style="width:92px;height:92px;border-radius:50%">
+      <div style="flex:1;text-align:center">
+        <div style="font-size:23px;color:#888;font-weight:700">ورد · زهرة</div>
+        <div style="font-size:44px;font-weight:800;color:${brand};line-height:1.25">كشف قرض</div>
+        <div style="font-size:33px;font-weight:800">${esc(L.bank)}</div>
+        <div style="font-size:21px;color:#777;margin-top:4px">من ${dd(L.start_date)} · ${i.n ? i.n + ' قسط' : ''}${i.inst ? ' × ' + f(i.inst) + ' ج' : ''}${L.account_no ? ' · رقم ' + esc(L.account_no) : ''}</div>
+      </div>
+      <img src="icons/zahra.png" style="width:92px;height:92px;border-radius:50%">
+    </div>
+    ${first ? `
+    <div style="display:flex;gap:14px;margin:24px 0 10px">
+      ${tile('إجمالي القرض', f(i.total), '#eef4fb', '#2b6cb0')}
+      ${tile('اتسدد', f(i.paid), '#e8f5ee', green)}
+      ${tile(i.closed ? 'القرض اتسدد' : 'المتبقي', i.closed ? '✓' : f(i.remaining), i.closed ? '#e8f5ee' : '#fdecef', i.closed ? green : red, true)}
+    </div>
+    <div style="display:flex;gap:14px;margin:0 0 6px">
+      ${late ? tile(`متأخر (${i.lateInst.length} قسط)`, f(late), '#fdecef', red) : tile('متأخر', 'مفيش', '#e8f5ee', green)}
+      ${tile('القسط الجاي', nx ? dd(nx.due) : '—', '#faf7f2', '#555')}
+      ${tile('غرامات التأخير', f(i.pen), '#faf7f2', i.pen ? red : '#555')}
+    </div>
+    <div style="margin:14px 0 4px;height:18px;border-radius:9px;background:#f1e6e8;overflow:hidden"><div style="height:100%;width:${i.pct}%;background:${green};border-radius:9px"></div></div>
+    <div style="font-size:20px;color:#666;text-align:center">اتسدد ${i.pct}% من القرض</div>` : ''}
+    <table style="width:100%;border-collapse:collapse;margin-top:18px;font-size:22px">
+      <thead><tr style="background:${brand};color:#fff">
+        <th style="background:${brand};color:#fff;padding:12px 8px;text-align:center;border-radius:0 14px 0 0">م</th><th style="background:${brand};color:#fff;padding:12px 8px;text-align:right">ميعاد القسط</th>
+        <th style="background:${brand};color:#fff;padding:12px 8px;text-align:left">القسط</th><th style="background:${brand};color:#fff;padding:12px 8px;text-align:left">المسدد</th>
+        <th style="background:${brand};color:#fff;padding:12px 8px;text-align:right">اتدفع يوم</th><th style="background:${brand};color:#fff;padding:12px 8px;text-align:center;border-radius:14px 0 0 0">الحالة</th></tr></thead>
+      <tbody>
+        ${rows.map((s, k) => { const [l, bg, col] = st(s), pd = s.pays.length ? s.pays.map(x => dd(x.p.pay_date)).join('<br>') : '—';
+          return `<tr style="background:${k % 2 ? '#faf8f5' : '#fff'}">
+          <td style="padding:9px 8px;text-align:center;color:#777">${s.i}</td>
+          <td style="padding:9px 8px;white-space:nowrap">${dd(s.due)}</td>
+          <td style="padding:9px 8px;text-align:left;font-weight:700">${f(s.amt)}</td>
+          <td style="padding:9px 8px;text-align:left;font-weight:700;color:${s.cover ? green : '#bbb'}">${s.cover ? f(s.cover) : '—'}</td>
+          <td style="padding:9px 8px;font-size:19px;color:#555">${pd}</td>
+          <td style="padding:9px 8px;text-align:center"><span style="display:inline-block;padding:4px 12px;border-radius:14px;background:${bg};color:${col};font-weight:800;font-size:19px;white-space:nowrap">${l}</span></td></tr>`; }).join('')}
+        ${page === pages - 1 ? `<tr style="background:${soft};font-weight:800"><td></td><td style="padding:12px 8px">الإجمالي</td><td style="padding:12px 8px;text-align:left">${f(i.sched.reduce((a, s) => a + s.amt, 0))}</td><td style="padding:12px 8px;text-align:left;color:${green}">${f(i.sched.reduce((a, s) => a + s.cover, 0))}</td><td colspan="2" style="padding:12px 8px;text-align:center;color:${i.remaining ? red : green}">${i.remaining ? 'المتبقي ' + f(i.remaining) : 'اتسدد بالكامل'}</td></tr>` : ''}
+      </tbody>
+    </table>
+    <div style="display:flex;justify-content:space-between;margin-top:20px;font-size:19px;color:#888">
+      <span>اتعمل يوم ${dd(today())}</span>${pages > 1 ? `<span>صفحة ${page + 1} من ${pages}</span>` : '<span></span>'}<span style="color:${brand};font-weight:700">ورد · زهرة</span>
+    </div></div>`;
+}
+async function loanImages(L){
+  const i = loanInfo(L);
+  await loadScript('vendor/html2canvas.min.js');
+  const pages = Math.max(1, Math.ceil(i.sched.length / LOAN_PER_PAGE)), files = [];
+  const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:-20000px;top:0;z-index:-1'; document.body.appendChild(box);
+  try{
+    for(let p = 0; p < pages; p++){
+      box.innerHTML = loanImageHTML(L, i, p, pages, i.sched.slice(p * LOAN_PER_PAGE, (p + 1) * LOAN_PER_PAGE));
+      await Promise.all([...box.querySelectorAll('img')].map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
+      if(document.fonts) await document.fonts.ready;
+      const canvas = await html2canvas(box.firstElementChild, {scale:1, backgroundColor:'#ffffff', useCORS:true});
+      const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+      files.push(new File([blob], `كشف قرض ${L.bank} ${today()}${pages > 1 ? ' - ' + (p + 1) : ''}.jpg`.replace(/[\\/:*?"<>|]/g, ' '), {type:'image/jpeg'}));
+    }
+  } finally { box.remove(); }
+  return files;
+}
+function loanCaption(L){
+  const i = loanInfo(L), f = c => (c / 100).toLocaleString('en-US', {maximumFractionDigits:2}) + ' ج', late = loanLateSum(i);
+  const d = x => String(x || '').slice(0, 10).split('-').reverse().join('/');
+  return [`كشف قرض: ${L.bank}`, `إجمالي القرض: ${f(i.total)}${i.n ? ` (${i.n} قسط${i.inst ? ' × ' + f(i.inst) : ''})` : ''}`,
+    `اتسدد: ${f(i.paid)} (${i.pct}%)`, i.closed ? 'القرض اتسدد بالكامل ✓' : `المتبقي: ${f(i.remaining)}`,
+    late ? `متأخر: ${i.lateInst.length} قسط بإجمالي ${f(late)} (أقدمهم من ${d(i.lateInst[0].due)})` : (i.closed ? '' : 'مفيش أقساط متأخرة'),
+    loanNext(i) && !i.closed ? `القسط الجاي: ${d(loanNext(i).due)} بـ ${f(loanNext(i).amt - loanNext(i).cover)}` : '',
+    i.pen ? `غرامات التأخير: ${f(i.pen)}` : '', '— ورد · زهرة'].filter(Boolean).join('\n');
+}
+window.loanSendWA = async id => {
+  const L = store.eff.loans.get(id); if(!L) return;
+  busy(true); let files;
+  try{ files = await loanImages(L); } catch(e){ console.error(e); busy(false); return toast('مقدرتش أعمل الصورة', true); }
+  busy(false);
+  if(navigator.canShare && navigator.canShare({files})){
+    try{ await navigator.share({files, text:loanCaption(L)}); buzz(15); return; } catch(e){ if(e.name === 'AbortError') return; }
+  }
+  files.forEach((f, k) => setTimeout(() => download(f, f.name), k * 400));
+  setTimeout(() => window.open(`https://wa.me/?text=${encodeURIComponent(loanCaption(L))}`, '_blank'), files.length * 400 + 300);
+  toast('اتحفظت الصورة — ارفقها في شات واتساب اللي هيفتح');
+};
+window.loanSaveImg = async id => {
+  const L = store.eff.loans.get(id); busy(true);
+  try{ const files = await loanImages(L); files.forEach((f, k) => setTimeout(() => download(f, f.name), k * 400)); toast('اتحفظت الصورة ✓'); }
+  catch(e){ console.error(e); toast('مقدرتش أعمل الصورة', true); } finally{ busy(false); }
+};
+window.loanSendText = id => window.open(`https://wa.me/?text=${encodeURIComponent(loanCaption(store.eff.loans.get(id)))}`, '_blank');
+
 /* ---------- القائمة ---------- */
 async function viewLoans(){
   const loans = [...(store.eff.loans?.values() || [])].sort((a, b) => (a.status === 'closed') - (b.status === 'closed') || String(b.start_date).localeCompare(String(a.start_date)));
@@ -91,6 +194,11 @@ async function viewLoan(id){
       <span class="dt-amt"><span class="num">${((i.closed ? i.outlay : i.remaining) / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج.م</span>
       <span class="dt-d">${I.cal}من ${fmtDate(L.start_date)} · اتسدد ${i.pct}%</span>
       <span class="dt-art single"><i class="a1">${I.bank}</i></span>
+    </div>
+    <button class="btn green block wa-big" onclick="loanSendWA(${L.id})">${I.wa}ابعت كشف القرض على واتساب</button>
+    <div class="mini-acts" style="margin-bottom:12px;grid-template-columns:1fr 1fr">
+      <button onclick="loanSaveImg(${L.id})">${I.img}<span>حفظ صورة</span></button>
+      <button onclick="loanSendText(${L.id})">${I.wa}<span>رسالة نص</span></button>
     </div>
     <div class="card ln-sum">
       <div class="ln-g"><span>إجمالي مبلغ القرض</span><b>${lmoney(i.total)}</b></div>

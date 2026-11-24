@@ -78,7 +78,8 @@ const STMT_PER_PAGE = 28;
 function stmtImageHTML(page, pages, chunk){
   const {s, open, td, tc, run, from, to} = window._stmt;
   const cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim();
-  const brand = v('--brand'), soft = v('--brand-soft'), accent = v('--accent'), red = v('--red'), green = v('--green');
+  const brand = '#9B1B30', soft = '#FBEFF1',   // ألوان المحل ثابتة في الصورة
+  accent = v('--accent'), red = v('--red'), green = v('--green');
   const f = n => `<span style="direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums">${Number(n).toLocaleString('en-US', {maximumFractionDigits:2})}</span>`;
   const dd = d => { const [y,m,x] = String(d).slice(0,10).split('-'); return `<span style="direction:ltr;unicode-bidi:isolate">${x}/${m}/${y}</span>`; };
   const period = from || to ? `${from ? dd(from) : 'من البداية'} — ${to ? dd(to) : 'لحد النهارده'}` : 'كل الحركات';
@@ -101,8 +102,8 @@ function stmtImageHTML(page, pages, chunk){
     </div>` : ''}
     <table style="width:100%;border-collapse:collapse;margin-top:18px;font-size:23px">
       <thead><tr style="background:${brand};color:#fff">
-        <th style="padding:12px 10px;text-align:right;border-radius:0 14px 0 0">التاريخ</th><th style="padding:12px 10px;text-align:right">البيان</th>
-        <th style="padding:12px 10px;text-align:left">فواتير</th><th style="padding:12px 10px;text-align:left">مدفوع</th><th style="padding:12px 10px;text-align:left;border-radius:14px 0 0 0">الرصيد</th></tr></thead>
+        <th style="background:${brand};color:#fff;padding:12px 10px;text-align:right;border-radius:0 14px 0 0">التاريخ</th><th style="background:${brand};color:#fff;padding:12px 10px;text-align:right">البيان</th>
+        <th style="background:${brand};color:#fff;padding:12px 10px;text-align:left">فواتير</th><th style="background:${brand};color:#fff;padding:12px 10px;text-align:left">مدفوع</th><th style="background:${brand};color:#fff;padding:12px 10px;text-align:left;border-radius:14px 0 0 0">الرصيد</th></tr></thead>
       <tbody>
         ${first && from ? `<tr style="background:#faf7f2"><td style="padding:10px"></td><td style="padding:10px;font-weight:700">رصيد أول المدة</td><td></td><td></td><td style="padding:10px;text-align:left;font-weight:700">${f(open)}</td></tr>` : ''}
         ${chunk.map((e,i) => `<tr style="background:${i % 2 ? '#faf8f5' : '#fff'}">
