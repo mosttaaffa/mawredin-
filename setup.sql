@@ -1178,4 +1178,5 @@ end $$;
 alter function public.table_perm(text) set search_path = public;
 revoke execute on function public.table_perm(text), public.current_email(), public.check_payments_guard(), public.payments_check_guard() from public, anon;
 grant execute on function public.table_perm(text), public.current_email(), public.check_payments_guard(), public.payments_check_guard() to authenticated;
+do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') then grant execute on function public.table_perm(text), public.current_email(), public.check_payments_guard(), public.payments_check_guard() to service_role; end if; end $$;
 create index if not exists payments_replaced_by_idx on public.payments(replaced_by);
