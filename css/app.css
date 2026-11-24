@@ -2135,3 +2135,9 @@ main.enter{animation-duration:.16s}
 @media (max-width:360px){.ec-mlt{display:none}.ec-lt{display:inline}.ec-nm{flex:1.6}.ec-av{width:34px;height:34px}}
 .ec-m small{font-size:9.5px}
 @media (max-width:360px){.ec-lt{display:block}.ec-nm small{white-space:nowrap}}
+
+/* البحث أول حاجة في الصفحة وبمقاس أصغر */
+.sp-search .search-w .search{min-height:38px;padding-block:6px;font-size:13px;border-radius:19px;padding-inline-start:36px}
+.sp-search .search-w svg{width:17px;height:17px;inset-inline-start:11px}
+.sp-search .sp-fbtn{width:40px;border-radius:12px}
+.sp-search .sp-fbtn svg{width:19px;height:19px}

@@ -93,6 +93,10 @@ async function viewSuppliers(){
   const chip = (k, ic) => `<button class="sp-chip ${supFilter === k ? 'on' : ''}" onclick="supFilter='${k}';viewSuppliers()">${I[ic]}${SUP_F[k]} (${cnt(k)})</button>`;
   const dueSoon = checks.filter(c => daysUntil(c.due_date) <= 3).length;
   const body = `
+    <div class="sp-search">
+      <label class="search-w">${I.search}<input class="search" id="srch" placeholder="ابحث باسم المورد أو رقم الهاتف أو الكود..." value="${esc(supQ)}" oninput="supQ=this.value;filterSup(this.value)"></label>
+      <button class="sp-fbtn" onclick="supFilterMenu()" aria-label="تصفية">${I.filter}</button>
+    </div>
     <div class="sp-sum">
       <div class="sp-t hl"><i>${I.coins2}</i><span>إجمالي المستحق</span><b>${m(owed)}</b></div>
       <div class="sp-t"><i>${I.doc}</i><span>إجمالي الفواتير</span><b>${m(tInv)}</b></div>
@@ -100,10 +104,6 @@ async function viewSuppliers(){
       <div class="sp-t"><i>${I.users}</i><span>إجمالي الموردين</span><b>${rows.length}</b></div>
     </div>
     ${N(cs.n) ? `<button class="sp-note" onclick="go('/checks')">${I.check}شيكات لسه (${N(cs.n)}) · متبقي ${m(cs.sum)}${cs.next ? ` · أقرب ${fmtDate(cs.next.due_date)}` : ''}</button>` : ''}
-    <div class="sp-search">
-      <label class="search-w">${I.search}<input class="search" id="srch" placeholder="ابحث باسم المورد أو رقم الهاتف أو الكود..." value="${esc(supQ)}" oninput="supQ=this.value;filterSup(this.value)"></label>
-      <button class="sp-fbtn" onclick="supFilterMenu()" aria-label="تصفية">${I.filter}</button>
-    </div>
     <div class="sp-chips">${chip('all', 'layers')}${chip('due', 'warn')}${chip('zero', 'okc')}</div>
     ${supFilter === 'cred' ? `<div class="sp-note">${I.filter}معروض: لصالح المحل (${cnt('cred')}) — <a onclick="supFilter='all';viewSuppliers()">عرض الكل</a></div>` : ''}
     <div class="sp-bar">

@@ -139,6 +139,10 @@ async function viewEmployees(){
   const curM = today().slice(0, 7), mRows = rows.filter(r => r.mstate === 'month');
   const mSum = k => mRows.reduce((a, r) => { const M = empMonthly(r.id).months.find(x => x.ym === empMonth); return a + (M ? M[k] : 0); }, 0);
   const body = `
+    <div class="sp-search">
+      <label class="search-w">${I.search}<input class="search" id="esrch" placeholder="ابحث باسم الموظف أو الرقم أو التليفون..." value="${esc(empQ)}" oninput="empQ=this.value;filterEmp(this.value)"></label>
+      <button class="sp-fbtn" onclick="empFilterMenu()" aria-label="تصفية">${I.filter}</button>
+    </div>
     <div class="month-bar emp-mbar">
       <button class="iconbtn" onclick="empMonth=addMonthsYM(empMonth,-1);viewEmployees()" aria-label="الشهر اللي فات">${I.back}</button>
       <b>${empMonthName(empMonth)}${empMonth === curM ? ' <small>(الشهر ده)</small>' : ''}</b>
@@ -150,10 +154,6 @@ async function viewEmployees(){
       <div class="sp-t"><i>${I.warn}</i><span>عليهم</span><b class="due">${m(sumOwe)}</b></div>
       <div class="sp-t"><i>${I.layers}</i><span>الصافي</span><b class="${net < 0 ? 'due' : net > 0 ? 'pay' : ''}">${net < 0 ? '(' + m(net) + ')' : m(net)}</b></div>
       <div class="sp-t"><i>${I.users}</i><span>الموظفين</span><b>${rows.length}</b></div>
-    </div>
-    <div class="sp-search">
-      <label class="search-w">${I.search}<input class="search" id="esrch" placeholder="ابحث باسم الموظف أو الرقم أو التليفون..." value="${esc(empQ)}" oninput="empQ=this.value;filterEmp(this.value)"></label>
-      <button class="sp-fbtn" onclick="empFilterMenu()" aria-label="تصفية">${I.filter}</button>
     </div>
     ${actRow}
     ${fNote}
