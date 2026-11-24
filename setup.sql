@@ -1138,3 +1138,6 @@ do $$ begin
     create trigger emp_reactivate_guard before update on public.employees for each row execute function public.emp_reactivate_guard();
   end if;
 end $$;
+
+-- الموظفين (الإصدار 16.1): الحركة ممكن تتحسب على شهر غير شهر تاريخها (صرف مستحقات أكتوبر في أول نوفمبر) — للعرض الشهري بس، الرصيد زي ما هو
+alter table public.emp_transactions add column if not exists for_month date;

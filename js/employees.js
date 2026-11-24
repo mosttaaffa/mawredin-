@@ -46,13 +46,16 @@ function empMonthly(empId){
   const txs = [...E.emp_transactions.values()].filter(x => Number(x.employee_id) === id && (!last || String(x.tx_date).slice(0, 10) > lastTo))
     .sort((a, b) => String(a.tx_date).localeCompare(String(b.tx_date)) || a.id - b.id);
   const cur = today().slice(0, 7);
-  let start = last ? empYM(addDays(lastTo, 1)) : (txs.length ? empYM(txs[0].tx_date) : cur);
-  let end = cur; for(const x of txs) if(empYM(x.tx_date) > end) end = empYM(x.tx_date);
+  // الحركة بتتحسب على شهرها (for_month) لو متحدد — زي صرف مستحقات أكتوبر في أول نوفمبر — وإلا على شهر تاريخها
+  const lastYM = last ? empYM(lastTo) : '';
+  const aym = x => { const m = x.for_month ? empYM(x.for_month) : empYM(x.tx_date); return lastYM && m < lastYM ? lastYM : m; };
+  let start = last ? (txs.some(x => aym(x) === lastYM) ? lastYM : empYM(addDays(lastTo, 1))) : (txs.length ? txs.map(aym).sort()[0] : cur);
+  let end = cur; for(const x of txs) if(aym(x) > end) end = aym(x);
   if(start > end) end = start;
   const months = []; let open = last ? C(last.net_balance) : 0;
   for(let ym = start; ym <= end; ym = addMonthsYM(ym, 1)){
-    const rows = txs.filter(x => empYM(x.tx_date) === ym), sum = k => rows.filter(x => x.kind === k).reduce((a, x) => a + Math.abs(C(x.amount)), 0);
-    const M = {ym, open, rows, sal:sum('salary'), com:sum('commission'), adv:sum('advance'), ded:sum('deduction'), pay:sum('payment'),
+    const rows = txs.filter(x => aym(x) === ym), sum = k => rows.filter(x => x.kind === k).reduce((a, x) => a + Math.abs(C(x.amount)), 0);
+    const M = {ym, open, rows, isSet:!!last && ym === lastYM, sal:sum('salary'), com:sum('commission'), adv:sum('advance'), ded:sum('deduction'), pay:sum('payment'),
       adj:rows.filter(x => x.kind === 'adjustment').reduce((a, x) => a + C(x.amount), 0)};
     M.net = M.sal + M.com - M.adv - M.ded - M.pay + M.adj; M.close = M.open + M.net;
     months.push(M); open = M.close;
@@ -208,7 +211,7 @@ async function viewEmployee(id){
         <summary><span class="em-mt"><b>${empMonthName(M.ym)}</b><small>${M.ym === today().slice(0, 7) ? 'الشهر ده' : 'اترحّل للشهر اللي بعده'}</small></span>
           <span class="em-mv"><small>${M.close < 0 ? 'عليه' : M.close > 0 ? 'ليه' : 'آخر الشهر'}</small><b class="${M.close < 0 ? 'debt' : M.close > 0 ? 'ok' : ''}">${cm(M.close)}</b></span>${I.chev}</summary>
         <div class="em-body">
-          <div class="em-l open"><span>مرحّل من الشهر اللي فات</span><b>${sg(M.open)}</b></div>
+          <div class="em-l open"><span>${M.isSet ? `صافي كشف ${fmtDate(D.last.period_from)} — ${fmtDate(D.last.period_to)}` : 'مرحّل من الشهر اللي فات'}</span><b>${sg(M.open)}</b></div>
           ${line('مرتب الشهر', M.sal, '+ ', 'p')}${line('عمولات', M.com, '+ ', 'p')}
           ${line('سلف', M.adv, '− ', 'm')}${line('خصومات وغياب', M.ded, '− ', 'm')}${line('اتصرف له', M.pay, '− ', 'm')}
           ${M.adj ? `<div class="em-l ${M.adj > 0 ? 'p' : 'm'}"><span>تسويات</span><b>${M.adj > 0 ? '+ ' : '− '}${cm(M.adj)}</b></div>` : ''}
@@ -277,7 +280,7 @@ function txRow(x){
   const plus = TX_PLUS(x.kind) || (x.kind === 'adjustment' && n0(x.amount) > 0);
   return `<div class="item" onclick="go('/emp-tx/${x.id}')" style="cursor:pointer">
     <div class="ico ${plus ? 'pay' : 'bounced'}">${plus ? I.plus : I.cash}</div>
-    <div class="grow"><div class="t">${x.auto ? 'مرتب الشهر' : TX_KIND[x.kind]}${x.auto ? ' <span class="tag">تلقائي</span>' : ''}${x.branch ? ` <span class="tag">${esc(x.branch)}</span>` : ''}</div><div class="s">${fmtDate(x.tx_date)}${x.notes && !x.auto ? ' · ' + esc(x.notes) : ''}</div></div>
+    <div class="grow"><div class="t">${x.auto ? 'مرتب الشهر' : TX_KIND[x.kind]}${x.auto ? ' <span class="tag">تلقائي</span>' : ''}${x.branch ? ` <span class="tag">${esc(x.branch)}</span>` : ''}</div><div class="s">${fmtDate(x.tx_date)}${x.for_month && empYM(x.for_month) !== empYM(x.tx_date) ? ` · <span class="tag">على ${empMonthName(empYM(x.for_month))}</span>` : ''}${x.notes && !x.auto ? ' · ' + esc(x.notes) : ''}</div></div>
     <div class="amt ${plus ? 'ok' : 'debt'}">${plus ? '+' : '−'} ${money(Math.abs(n0(x.amount)))}</div></div>`;
 }
 window.showSettlement = id => {
@@ -333,6 +336,7 @@ async function formEmpTx(id, presetEmp){
       <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x ? x.tx_date : (new URLSearchParams(location.hash.split('?')[1] || '').get('d') || today())}"></div>
       <div class="field"><label>الفرع</label><select id="branch"><option value="">—</option>${['زهرة','ورد'].map(b => `<option ${x?.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></div>
     </div>
+    <div class="field"><label>يتحسب على شهر</label><select id="fmon"></select><div class="hint">مثلًا صرف مستحقات أكتوبر في أول نوفمبر ← اختار أكتوبر.</div></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>
     ${x?.auto ? '<div class="note-line" style="margin-bottom:10px">ده مرتب الشهر اللي نزل لوحده أول الشهر. لو فيه غياب أو تأخير سجّل «خصم» أحسن، أو عدّل المبلغ هنا. لو مسحته مش هينزل تاني للشهر ده.</div>' : ''}
     ${x ? `<button type="button" class="btn danger block" style="margin-bottom:14px" onclick="delEmpTx(${x.id}, ${x.employee_id})">مسح الحركة</button>` : ''}`,
@@ -342,7 +346,8 @@ async function formEmpTx(id, presetEmp){
     if(!kind) return markErr('kind', 'اختار نوع الحركة');
     if(!(amt > 0)) return markErr('amount', 'اكتب المبلغ');
     const row = {employee_id:+eid, kind, amount: kind === 'adjustment' && $('#neg').checked ? -amt : amt, tx_date:$('#date').value || today(), branch:$('#branch').value || null, notes:$('#notes').value.trim() || null,
-      method:(kind === 'payment' || kind === 'advance') ? ($('#tmeth .on')?.dataset.v === 'transfer' ? 'transfer' : 'cash') : null};
+      method:(kind === 'payment' || kind === 'advance') ? ($('#tmeth .on')?.dataset.v === 'transfer' ? 'transfer' : 'cash') : null,
+      for_month:$('#fmon').value && $('#fmon').value !== empYM($('#date').value || today()) ? $('#fmon').value + '-01' : null};
     if(x) await q(ldb.from('emp_transactions').update(row).eq('id', x.id)); else await q(ldb.from('emp_transactions').insert(row));
     busy(false); await celebrate('اتسجلت الحركة');
     location.replace('#/emp/' + eid);
@@ -351,6 +356,9 @@ async function formEmpTx(id, presetEmp){
     $('#adjhint').style.display = $('#negwrap').style.display = k === 'adjustment' ? '' : 'none'; $('#f-kind').classList.remove('err');
     $('#f-meth').style.display = k === 'payment' || k === 'advance' ? '' : 'none'; };
   document.querySelectorAll('#tmeth button').forEach(b => b.onclick = () => segPick(b));
+  const fillMon = () => { const d = empYM($('#date').value || today()), cur = $('#fmon').value || (x?.for_month ? empYM(x.for_month) : d);
+    $('#fmon').innerHTML = [d, addMonthsYM(d, -1)].map(m => `<option value="${m}" ${m === cur ? 'selected' : ''}>${empMonthName(m)}${m === d ? ' (شهر التاريخ)' : ''}</option>`).join(''); };
+  $('#date').addEventListener('change', () => { $('#fmon').value = ''; fillMon(); }); fillMon();
   document.querySelectorAll('#f-kind .seg button').forEach(b => b.onclick = () => setK(b.dataset.k));
   if(kind) setK(kind);
 }
