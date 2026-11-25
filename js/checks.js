@@ -20,7 +20,7 @@ function drawCheckPanel(pid, after){
         <div><span>المتبقي</span><b class="${i.remaining ? 'neg-v' : ''}">${m(i.remaining)}</b></div>
       </div>
       <div class="chk-bar"><i style="width:${pct}%"></i></div>
-      <div class="hint">${i.last ? 'آخر دفعة ' + fmtDate(i.last) + ' · ' : ''}${pct}% مسدد${CHK_DEAD(p.check_status) ? ` · محسوب على المورد المسدد فعليًا بس (${m(i.paidRows)})` : ''}${p.check_status === 'cleared' && i.paidRows < i.orig ? ' · اتصرف بالكامل من البنك' : ''}</div>
+      <div class="hint">${i.last ? 'آخر دفعة ' + fmtDate(i.last) + ' · ' : ''}${pct}% مسدد${CHK_PART(p) ? ` · محسوب على المورد المسدد فعليًا بس (${m(i.paidRows)})` : ''}${p.check_status === 'cleared' && i.paidRows < i.orig ? ' · اتصرف بالكامل من البنك' : ''}</div>
     </div>
     <div class="section-t" style="margin-top:12px">سجل السداد (${i.list.length})</div>
     <div class="list cp-list">${i.list.length ? i.list.map(c => `
@@ -68,7 +68,7 @@ window.cpForm = (pid, cid, bankAll) => {
     <div class="field"><label>رقم العملية أو المرجع</label><input id="cpref" dir="ltr" value="${esc(x?.ref_no || '')}"></div>
     <div class="field"><label>صورة إيصال الدفع ${x?.image_path ? '(فيه صورة — اختار جديدة لو عايز تغيّرها)' : '(اختياري)'}</label><input id="cpimg" type="file" accept="image/*"></div>
     <div class="field"><label>ملاحظات</label><textarea id="cpn" rows="2">${esc(x?.notes || '')}</textarea></div>
-    <div class="hint" style="margin-bottom:10px">الدفعة بتتسجل على الشيك بس. حساب المورد مش هيتخصم منه تاني لأن الشيك محسوب عليه بقيمته من يوم كتابته.</div>
+    <div class="hint" style="margin-bottom:10px">الدفعة دي بتتسجل على الشيك وبتتخصم من حساب المورد بتاريخها (الشيك محسوب على المورد باللي اتسدد منه بس لحد ما يتصرف).</div>
     <button class="btn primary block" id="cpsave">حفظ</button>`);
   $('#cpsave').onclick = async () => {
     const a = readAmount($('#cpa').value);
@@ -112,10 +112,10 @@ window.setCheckSt = async (pid, st, extra = {}) => {
   const p = chkRow(pid), i = checkInfo(p), f = c => (c / 100).toLocaleString('en-US') + ' ج';
   const back = i.orig - i.paidRows;
   const msg = {
-    bounced: `الشيك ارتد من البنك؟\n\n• هيتشال من حساب المورد ويرجع عليك ${f(back)}${i.paidRows ? `\n• اللي اتسدد منه فعلًا (${f(i.paidRows)}) هيفضل محسوب للمورد` : ''}`,
-    cancelled: `تلغي الشيك؟\n\n• هيتشال من حساب المورد ويرجع عليك ${f(back)}${i.paidRows ? `\n• اللي اتسدد منه فعلًا (${f(i.paidRows)}) هيفضل محسوب` : ''}`,
-    replaced: `الشيك اتبدل بشيك تاني؟\n\n• الشيك ده هيتشال من حساب المورد إلا المسدد منه فعلًا (${f(i.paidRows)})\n• الشيك الجديد محسوب بقيمته`,
-    pending: `ترجّع الشيك «لسه ما اتصرفش»؟\n\n• هيتحسب تاني على المورد بقيمته الأصلية ${f(i.orig)}`,
+    bounced: `الشيك ارتد من البنك؟\n\n• حساب المورد محسوب عليه اللي اتسدد من الشيك فعلًا بس (${f(i.paidRows)})${p.check_status === 'cleared' ? `\n• هيرجع عليك ${f(back)}` : ''}`,
+    cancelled: `تلغي الشيك؟\n\n• حساب المورد محسوب عليه اللي اتسدد من الشيك فعلًا بس (${f(i.paidRows)})${p.check_status === 'cleared' ? `\n• هيرجع عليك ${f(back)}` : ''}`,
+    replaced: `الشيك اتبدل بشيك تاني؟\n\n• الشيك ده محسوب على المورد باللي اتسدد منه فعلًا بس (${f(i.paidRows)})\n• الشيك الجديد بيتحسب لما يتدفع أو يتصرف`,
+    pending: `ترجّع الشيك «لسه ما اتصرفش»؟\n\n• هيتحسب على المورد اللي اتسدد منه فعلًا بس ${f(i.paidRows)} بدل قيمته كلها ${f(i.orig)}`,
   }[st];
   if(!confirm(msg)) return;
   busy(true);

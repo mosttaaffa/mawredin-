@@ -159,8 +159,8 @@ async function viewSupplier(id){
     <div class="item" onclick="showPayment(${x.id})">
       <div class="ico ${b?'bounced':adj?'adj':'pay'}">${x.method==='check'?I.check:x.method==='transfer'?I.transfer:x.method==='return'?I.ret:x.method==='discount'?I.disc:I.cash}</div>
       <div class="grow"><div class="t">${adj ? METHOD[x.method] : 'دفعة'} ${adj?'':`<span class="tag ${x.method}">${METHOD[x.method]}</span>`}${x.method==='check'?chkTags(x):''}${syncTag(x)}</div>
-        <div class="s">${fmtDate(x.pay_date)}${x.method==='check'?' · يستحق '+fmtDate(x.due_date):''}${ci && ci.pay==='partial' ? ` · <span class="inv-left">اتسدد ${money(ci.settled/100)} · باقي ${money(ci.remaining/100)}</span>` : ''}${ci && b && ci.paidRows ? ` · <span class="inv-left">محسوب منه المسدد فعليًا ${money(ci.paidRows/100)}</span>` : ''}${x.invoice_id && invNo.has(x.invoice_id)?' · عن فاتورة '+esc(invNo.get(x.invoice_id)):''}</div></div>
-      <div><div class="amt pay ${b?'struck':''}">− ${money(x.amount)}</div>${runbal!=null?`<div class="runbal">الرصيد ${money(runbal)}</div>`:''}</div>
+        <div class="s">${fmtDate(x.pay_date)}${x.method==='check'?' · يستحق '+fmtDate(x.due_date):''}${ci && ci.pay==='partial' ? ` · <span class="inv-left">اتسدد ${money(ci.settled/100)} · باقي ${money(ci.remaining/100)}</span>` : ''}${x.invoice_id && invNo.has(x.invoice_id)?' · عن فاتورة '+esc(invNo.get(x.invoice_id)):''}</div></div>
+      <div><div class="amt pay ${b && !ci.paidRows ?'struck':''}">− ${money(CHK_PART(x) ? ci.paidRows/100 : x.amount)}</div>${CHK_PART(x) ? `<div class="runbal">من شيك ${money(x.amount)}</div>` : ''}${runbal!=null?`<div class="runbal">الرصيد ${money(runbal)}</div>`:''}</div>
     </div>`;
   };
 

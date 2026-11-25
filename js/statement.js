@@ -34,13 +34,13 @@ function buildStatement(sid, opt){
   const all = [
     ...invs.map(x => ({k:'inv', id:x.id, d:String(x.inv_date).slice(0,10), c:String(x.created_at || ''), x,
       doc: x.inv_no || ('ف ' + x.id), type:'فاتورة', desc:['فاتورة مشتريات', x.notes].filter(Boolean).join(' - '), cr:cents(x.amount), dr:0})),
-    ...pays.filter(p => !(p.method === 'check' && CHK_DEAD(p.check_status))).map(p => ({k:'pay', id:p.id, d:String(p.pay_date).slice(0,10), c:String(p.created_at || ''), x:p,
+    ...pays.filter(p => !CHK_PART(p)).map(p => ({k:'pay', id:p.id, d:String(p.pay_date).slice(0,10), c:String(p.created_at || ''), x:p,
       doc: p.method === 'check' ? (p.check_no || ('ش ' + p.id)) : ((IS_ADJ(p.method) ? 'م ' : 'د ') + p.id),
       type: IS_ADJ(p.method) ? PAY_AR[p.method] : 'دفعة', desc: payDesc(p, invs), cr:0, dr:cents(p.amount)})),
-    // شيك مرتد/ملغي/مستبدل: اللي اتسدد منه فعلًا بس، كل دفعة بتاريخها
-    ...pays.filter(p => p.method === 'check' && CHK_DEAD(p.check_status)).flatMap(p => checkInfo(p).live.map(c => ({k:'cp', id:c.id, d:String(c.pay_date).slice(0,10), c:String(c.created_at || ''), x:c,
+    // شيك لسه أو مرتد/ملغي/مستبدل: اللي اتسدد منه فعلًا بس، كل دفعة بتاريخها
+    ...pays.filter(CHK_PART).flatMap(p => checkInfo(p).live.map(c => ({k:'cp', id:c.id, d:String(c.pay_date).slice(0,10), c:String(c.created_at || ''), x:c,
       doc: p.check_no || ('ش ' + p.id), type:'سداد شيك',
-      desc: [`سداد من شيك ${p.check_no || ''} - ${CHK[p.check_status]}`, CP_METHOD[c.method], c.account, c.ref_no ? 'مرجع ' + c.ref_no : '', c.notes].filter(Boolean).join(' - '), cr:0, dr:cents(c.amount)}))),
+      desc: [`سداد من شيك ${p.check_no || ''} - ${CHK[p.check_status || 'pending']}`, CP_METHOD[c.method], c.account, c.ref_no ? 'مرجع ' + c.ref_no : '', c.notes].filter(Boolean).join(' - '), cr:0, dr:cents(c.amount)}))),
   ].sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : (a.c < b.c ? -1 : a.c > b.c ? 1 : (a.k === b.k ? a.id - b.id : (a.k === 'inv' ? -1 : 1))));
   const inR = d => (!from || d >= from) && (!to || d <= to);
   const before = all.filter(e => from && e.d < from);
@@ -92,8 +92,8 @@ function auditStatement(st, invs, pays, all){
   ok(indep === T.closing, 'الرصيد الختامي = حساب مستقل لكل الحركات لحد آخر الفترة');
   if(!to) ok(cents(s.balance) === T.closing, 'الرصيد الختامي = رصيد المورد في التطبيق', `${fmt2(cents(s.balance))}`);
   ok(!from || !to || from <= to, 'تاريخ البداية قبل تاريخ النهاية');
-  const nb = pays.filter(p => p.method === 'check' && CHK_DEAD(p.check_status)).length;
-  ok(true, nb ? `${nb} شيك مرتد/ملغي/مستبدل محسوب منه المسدد فعليًا بس` : 'مفيش شيكات مرتدة أو ملغاة');
+  const nb = pays.filter(CHK_PART).length;
+  ok(true, nb ? `${nb} شيك (لسه أو مرتد/ملغي) محسوب منه المسدد فعليًا بس` : 'كل الشيكات اتصرفت');
   // كل شيك: المتبقي = القيمة - المسدد، والمسدد مايعديش القيمة
   const chks = pays.filter(p => p.method === 'check'), badC = chks.filter(p => { const i = checkInfo(p); return i.paidRows > i.orig || i.remaining < 0 || (p.check_status === 'pending' && i.orig - i.settled !== i.remaining); });
   ok(!badC.length, 'سداد كل شيك ما يعديش قيمته والمتبقي محسوب صح', badC.map(p => p.check_no || p.id).join('، '));
@@ -320,7 +320,7 @@ async function makeStatementPdf(st, imgs){
   if(st.pendChecks.length){
     if(y + 60 > BOTTOM) newPage();
     F('B', 11, NAVY); rtlDraw(doc, 'ملحق: شيكات غير مسددة أو مسددة جزئيًا', R, y); y += 16;
-    F('R', 8.5, GRAY); rtlDraw(doc, 'الشيك محسوب في الجدول بقيمته الأصلية من يوم كتابته - الدفعات دي سداد للشيك نفسه ومش بتتخصم من المورد تاني:', R, y); y += 16;
+    F('R', 8.5, GRAY); rtlDraw(doc, 'الشيك محسوب في الجدول باللي اتسدد منه فعلًا بس (كل دفعة بتاريخها) - المتبقي مش متخصم من المورد لحد ما يتدفع أو يتصرف:', R, y); y += 16;
     st.pendChecks.forEach(p => {
       const ci = checkInfo(p);
       if(y + 30 > BOTTOM) newPage();

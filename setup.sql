@@ -1180,3 +1180,21 @@ revoke execute on function public.table_perm(text), public.current_email(), publ
 grant execute on function public.table_perm(text), public.current_email(), public.check_payments_guard(), public.payments_check_guard() to authenticated;
 do $$ begin if exists (select 1 from pg_roles where rolname = 'service_role') then grant execute on function public.table_perm(text), public.current_email(), public.check_payments_guard(), public.payments_check_guard() to service_role; end if; end $$;
 create index if not exists payments_replaced_by_idx on public.payments(replaced_by);
+
+-- الشيكات (الإصدار 16.5): الشيك بيتحسب على المورد باللي اتسدد منه فعلًا بس، أو بقيمته كلها لما يتصرف (cleared)
+-- (قبل كده: الشيك اللي لسه كان بيتخصم بقيمته كلها من يوم كتابته) — العرض بس، مفيش بيانات بتتغير
+create or replace view public.supplier_balances with (security_invoker = true) as
+with cp as (select payment_id, sum(amount) settled from public.check_payments where not voided group by payment_id),
+pe as (select p.supplier_id, p.method, p.check_status, p.amount, p.pay_date,
+         case when p.method = 'check' and coalesce(p.check_status, 'pending') <> 'cleared' then coalesce(cp.settled, 0)
+              when p.method in ('cash','check','transfer') then p.amount else 0 end eff,
+         case when p.method = 'check' and p.check_status = 'pending' then p.amount - coalesce(cp.settled, 0) else 0 end remaining
+       from public.payments p left join cp on cp.payment_id = p.id)
+select s.id, s.name, s.phone, s.notes,
+  coalesce(i.total, 0) as total_invoices, coalesce(p.paid, 0) as total_paid, coalesce(p.adjust, 0) as total_adjust,
+  coalesce(i.total, 0) - coalesce(p.paid, 0) - coalesce(p.adjust, 0) as balance,
+  coalesce(p.pending_checks, 0) as pending_checks, greatest(i.last_date, p.last_date) as last_activity
+from public.suppliers s
+left join (select supplier_id, sum(amount) total, max(inv_date) last_date from public.invoices group by supplier_id) i on i.supplier_id = s.id
+left join (select supplier_id, sum(eff) paid, sum(amount) filter (where method in ('return','discount')) adjust,
+                  sum(remaining) pending_checks, max(pay_date) last_date from pe group by supplier_id) p on p.supplier_id = s.id;

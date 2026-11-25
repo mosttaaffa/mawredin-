@@ -118,9 +118,10 @@ const keyOf = (t, v) => TABLES[t] === 'id' ? (typeof v === 'string' && /^-?\d+$/
 
 /* ---------- الشيكات: السداد على دفعات (قاعدة واحدة لكل التطبيق) ----------
    قيمة الشيك الأصلية مبتتغيرش. دفعات السداد في check_payments (الملغية مش محسوبة).
-   أثر الشيك على حساب المورد: لسه/جزئي/مسدد → قيمته الأصلية (سياسة التطبيق: بيتحسب من يوم كتابته)
-                               مرتد/ملغي/مستبدل → اللي اتسدد منه فعلًا بس */
+   أثر الشيك على حساب المورد: اتصرف → قيمته الأصلية
+                               لسه/جزئي/مرتد/ملغي/مستبدل → اللي اتسدد منه فعلًا بس (كل دفعة بتاريخها) */
 const CHK_DEAD = st => st === 'bounced' || st === 'cancelled' || st === 'replaced';
+const CHK_PART = p => p.method === 'check' && p.check_status !== 'cleared';   // بيتحسب باللي اتسدد منه بس
 function checkPaysMap(){
   return memo('cpm', () => {
     const m = new Map();
@@ -143,7 +144,8 @@ function checkInfo(p){
 }
 // أثر أي دفعة على حساب المورد بالقروش
 function payEffect(p){
-  if(p.method === 'check') return CHK_DEAD(p.check_status) ? checkInfo(p).paidRows : C(p.amount);
+  // الشيك بيتحسب على المورد باللي اتدفع منه فعلًا بس، أو بقيمته كلها لما يتصرف
+  if(p.method === 'check') return p.check_status === 'cleared' ? C(p.amount) : checkInfo(p).paidRows;
   return C(p.amount);
 }
 
