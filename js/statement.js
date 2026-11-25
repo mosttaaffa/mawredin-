@@ -37,10 +37,13 @@ function buildStatement(sid, opt){
     ...pays.filter(p => !CHK_PART(p)).map(p => ({k:'pay', id:p.id, d:String(p.pay_date).slice(0,10), c:String(p.created_at || ''), x:p,
       doc: p.method === 'check' ? (p.check_no || ('ش ' + p.id)) : ((IS_ADJ(p.method) ? 'م ' : 'د ') + p.id),
       type: IS_ADJ(p.method) ? PAY_AR[p.method] : 'دفعة', desc: payDesc(p, invs), cr:0, dr:cents(p.amount)})),
+    // سطر معلومة للشيك نفسه (قيمته والمدفوع والباقي) — مبيأثرش على الرصيد
+    ...pays.filter(CHK_PART).map(p => ({k:'chk', id:p.id, d:String(p.pay_date).slice(0,10), c:String(p.created_at || ''), x:p,
+      doc: p.check_no || ('ش ' + p.id), type:'شيك', desc:`شيك ${p.check_no || ''}${p.due_date ? ' يستحق ' + dmy(p.due_date) : ''} - ${chkSummary(p)} - بيتخصم المدفوع منه بس`, cr:0, dr:0})),
     // شيك لسه أو مرتد/ملغي/مستبدل: اللي اتسدد منه فعلًا بس، كل دفعة بتاريخها
     ...pays.filter(CHK_PART).flatMap(p => checkInfo(p).live.map(c => ({k:'cp', id:c.id, d:String(c.pay_date).slice(0,10), c:String(c.created_at || ''), x:c,
       doc: p.check_no || ('ش ' + p.id), type:'سداد شيك',
-      desc: [`سداد من شيك ${p.check_no || ''} - ${CHK[p.check_status || 'pending']}`, CP_METHOD[c.method], c.account, c.ref_no ? 'مرجع ' + c.ref_no : '', c.notes].filter(Boolean).join(' - '), cr:0, dr:cents(c.amount)}))),
+      desc: [`سداد من شيك ${p.check_no || ''} (${chkSummary(p)})`, CP_METHOD[c.method], c.account, c.ref_no ? 'مرجع ' + c.ref_no : '', c.notes].filter(Boolean).join(' - '), cr:0, dr:cents(c.amount)}))),
   ].sort((a, b) => a.d < b.d ? -1 : a.d > b.d ? 1 : (a.c < b.c ? -1 : a.c > b.c ? 1 : (a.k === b.k ? a.id - b.id : (a.k === 'inv' ? -1 : 1))));
   const inR = d => (!from || d >= from) && (!to || d <= to);
   const before = all.filter(e => from && e.d < from);
@@ -284,7 +287,7 @@ async function makeStatementPdf(st, imgs){
     table([{t:'التاريخ', w:62}, {t:'البيان', w:0, wrap:true}, {t:'المبلغ', w:126, color:v => String(v[2]).includes('يزيد') ? RED : '#14633F'}, {t:'الرصيد بعد الحركة', w:92}], [
       {vals:[st.from ? dmy(st.from) : '', openingDesc, '', fmt2(st.T.opening)], bold:true, fill:SOFT},
       ...(st.rows.length ? st.rows.map((e, i) => ({vals:[dmy(e.d), `${e.type}${e.k === 'inv' || e.k === 'cp' || e.x.method === 'check' ? ' ' + e.doc : ''}${e.x.notes ? ' - ' + e.x.notes : ''}`,
-          e.cr ? `يزيد المستحق ${fmt2(e.cr)}` : `يقلل المستحق ${fmt2(e.dr)}`, fmt2(e.run)], fill:i % 2 ? ZEBRA : null}))
+          e.k === 'chk' ? 'معلومة - ' + chkSummary(e.x) : e.cr ? `يزيد المستحق ${fmt2(e.cr)}` : `يقلل المستحق ${fmt2(e.dr)}`, fmt2(e.run)], fill:i % 2 ? ZEBRA : null}))
         : [{vals:['', 'لا توجد حركات خلال الفترة المحددة', '', '']}]),
     ]);
     y += 12; if(y + 90 > BOTTOM) newPage();

@@ -122,6 +122,11 @@ const keyOf = (t, v) => TABLES[t] === 'id' ? (typeof v === 'string' && /^-?\d+$/
                                لسه/جزئي/مرتد/ملغي/مستبدل → اللي اتسدد منه فعلًا بس (كل دفعة بتاريخها) */
 const CHK_DEAD = st => st === 'bounced' || st === 'cancelled' || st === 'replaced';
 const CHK_PART = p => p.method === 'check' && p.check_status !== 'cleared';   // بيتحسب باللي اتسدد منه بس
+// وصف الشيك في الكشوف: قيمته · المدفوع منه · الباقي (أو حالته)
+function chkSummary(p){
+  const i = checkInfo(p), f = c => (c / 100).toLocaleString('en-US', {maximumFractionDigits:2});
+  return `قيمة الشيك ${f(i.orig)} · مدفوع منه ${f(i.paidRows)}` + ((p.check_status || 'pending') === 'pending' ? ` · باقي ${f(i.remaining)}` : ` · ${CHK[p.check_status]}`);
+}
 function checkPaysMap(){
   return memo('cpm', () => {
     const m = new Map();

@@ -11,7 +11,12 @@ async function viewStatement(id, from, to){
   const inRange = d => (!from || d >= from) && (!to || d <= to);
   const ev = [
     ...invs.map(x => ({d:String(x.inv_date).slice(0,10), c:x.created_at, desc:'فاتورة' + (x.inv_no ? ' رقم ' + x.inv_no : ''), note:stNote(x.notes), deb:Number(x.amount), cre:0})),
-    ...pays.filter(p => payEffect(p) > 0).map(p => ({d:String(p.pay_date).slice(0,10), c:p.created_at,
+    ...pays.filter(CHK_PART).flatMap(p => [
+      {d:String(p.pay_date).slice(0,10), c:p.created_at, info:true, desc:`شيك ${p.check_no || ''}${(p.check_status || 'pending') === 'pending' && p.due_date ? ` (يستحق ${String(p.due_date).slice(5,10).split('-').reverse().join('/')})` : ''}`.replace('  ', ' '),
+       note:chkSummary(p) + ' — بيتخصم المدفوع بس', deb:0, cre:0},
+      ...checkInfo(p).live.map(c => ({d:String(c.pay_date).slice(0,10), c:c.created_at, desc:`سداد من شيك ${p.check_no || ''}`.trim() + (CP_METHOD[c.method] ? ' — ' + CP_METHOD[c.method] : ''),
+       note:chkSummary(p), deb:0, cre:Number(c.amount)}))]),
+    ...pays.filter(p => !CHK_PART(p) && payEffect(p) > 0).map(p => ({d:String(p.pay_date).slice(0,10), c:p.created_at,
       desc: IS_ADJ(p.method) ? METHOD[p.method] : ('دفعة ' + METHOD[p.method] + (p.method === 'check' ? (p.check_no ? ` ${p.check_no}` : '') + (p.check_status === 'pending' ? ` (يستحق ${String(p.due_date).slice(5,10).split('-').reverse().join('/')})` : '') : '')),
       note:stNote(p.notes), deb:0, cre:payEffect(p) / 100})),
   ].sort((a,b) => a.d === b.d ? (a.c < b.c ? -1 : 1) : (a.d < b.d ? -1 : 1));
@@ -29,7 +34,7 @@ async function viewStatement(id, from, to){
   const period = from || to ? `${from ? fmtDate(from) : 'من البداية'} — ${to ? fmtDate(to) : 'لحد النهارده'}` : 'كل الحركات';
   const mrow = (e) => `<div class="sl">
       <div class="sl-r"><div class="sl-t">${esc(e.desc)}</div>${e.note ? `<div class="sl-n">${esc(e.note)}</div>` : ''}<div class="sl-d">${fmtDate(e.d)}</div></div>
-      <div class="sl-l"><div class="sl-a ${e.deb ? 'deb' : 'cre'}">${e.deb ? '+ ' + money(e.deb) : '− ' + money(e.cre)}</div><div class="sl-b">الرصيد ${money(e.run)}</div></div>
+      <div class="sl-l"><div class="sl-a ${e.info ? 'info' : e.deb ? 'deb' : 'cre'}">${e.info ? 'معلومة' : e.deb ? '+ ' + money(e.deb) : '− ' + money(e.cre)}</div><div class="sl-b">الرصيد ${money(e.run)}</div></div>
     </div>`;
   shell({title:'كشف حساب', back:true, body:`
     <div class="no-print">

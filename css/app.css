@@ -2156,3 +2156,4 @@ main.enter{animation-duration:.16s}
 #emplist.grid .ec-m{grid-area:mv;flex-direction:row;justify-content:space-between;border:0;border-top:1px solid #F3E6E9;padding:4px 2px 0;gap:4px}
 #emplist.grid .ec-m small{font-size:10.5px}
 #emplist.grid .ec-r2{display:none}
+.sl-a.info{color:#8a8a8a;font-size:12px;font-weight:700}
