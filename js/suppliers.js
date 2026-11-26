@@ -226,7 +226,12 @@ function openModal(html){
   b.addEventListener('click', e => { if(e.target === b) closeModal(); });
   document.body.appendChild(b);
 }
-function closeModal(){ $('#mdl')?.remove(); $('.viewer')?.remove(); }
+function closeModal(){
+  const m = $('#mdl');
+  if(m){ m.removeAttribute('id'); m.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+    if(REDUCED) m.remove(); else { m.classList.add('fx-out'); setTimeout(() => m.remove(), 190); } }
+  $('.viewer')?.remove();
+}
 // عارض الصور: لو الفاتورة أكتر من صفحة بتقلّب بينهم (أسهم أو سحب بالصباع)
 window.viewImg = async (path, list) => {
   const pages = (list && list.length ? list : [path]);

@@ -138,7 +138,7 @@ async function vaultRestore(email, pw){
     openModal(`<h3>فيه عمليات محفوظة مشفرة لحسابك</h3><div class="hint" style="margin-bottom:10px">${v.n} عملية من ${new Date(v.at).toLocaleString('ar-EG')} مقدرتش أفتحها بكلمة السر الحالية (ممكن تكون غيرتها). اكتب كلمة السر اللي كانت وقت الخروج:</div>
       <div class="field" id="f-vold"><input id="vold" type="password" dir="ltr"></div><button class="btn primary block" id="vopen">افتح</button>
       <button class="btn ghost block" style="margin-top:8px" onclick="closeModal()">بعدين (هتفضل محفوظة)</button>`);
-    $('#vopen').onclick = async () => { closeModal(); await vaultRestore(email, $('#vold')?.value || ''); };
+    $('#vopen').onclick = async () => { const old = $('#vold')?.value || ''; closeModal(); await vaultRestore(email, old); };
   }
 }
 

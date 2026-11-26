@@ -528,10 +528,10 @@ window.setCell = (i, k, v) => {
   const r = empDraft.rows[i];
   if(k === 'name' || k === 'emp_no') r[k] = v.trim();
   else { r[k] = v.trim() === '' ? null : readAmountSigned(v); r.uncertain = (r.uncertain || []).filter(x => x !== k); r.edited = [...new Set([...(r.edited || []), k])]; }
-  saveDraft(); const y = scrollY; renderEmpReview(); scrollTo(0, y);
+  saveDraft(); const y = scrollY; renderEmpReview(); scrollTo({top:y, behavior:'instant'});
   const det = document.querySelectorAll('details.rev-emp')[i]; if(det) det.open = true;
 };
-window.setTotal = (k, v) => { empDraft.totals_original = empDraft.totals_original || {}; empDraft.totals_original[k] = v.trim() === '' ? null : readAmountSigned(v); saveDraft(); const y = scrollY; renderEmpReview(); scrollTo(0, y); };
+window.setTotal = (k, v) => { empDraft.totals_original = empDraft.totals_original || {}; empDraft.totals_original[k] = v.trim() === '' ? null : readAmountSigned(v); saveDraft(); const y = scrollY; renderEmpReview(); scrollTo({top:y, behavior:'instant'}); };
 window.confirmEmpImport = async (merge=false) => {
   const d = getDraft();
   if(!d.period_from) return markErr('pf', 'اكتب بداية الفترة');

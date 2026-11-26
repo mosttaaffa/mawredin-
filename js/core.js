@@ -102,7 +102,7 @@ function who(email){
 function toast(msg, err=false){
   document.querySelectorAll('.toast').forEach(t=>t.remove());
   const t = document.createElement('div'); t.className = 'toast' + (err?' err':''); t.textContent = msg;
-  document.body.appendChild(t); setTimeout(()=>t.remove(), err?4500:2400);
+  document.body.appendChild(t); setTimeout(()=>{ t.classList.add('fx-out'); setTimeout(()=>t.remove(), 200); }, err?4500:2400);
 }
 let busyEl = null;
 function busy(on){
@@ -143,31 +143,46 @@ function compressImage(file, maxSide=1400, quality=0.72){
 
 
 /* =================== إفكتات =================== */
-const REDUCED = false; // الأنيميشن شغال دايمًا
+const REDUCED = (() => { try{ return matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; } })();   // الموبايل ضابط «تقليل الحركة»
 const buzz = (ms=12) => { try{ navigator.vibrate && navigator.vibrate(ms); }catch(e){} };
 
 // موجة عند الضغط
 document.addEventListener('pointerdown', e => {
-  const el = e.target.closest('.btn,.fab,.iconbtn,.chip,.seg button,.list .item,nav.bottom a');
-  if(!el || REDUCED) return;
-  const r = el.getBoundingClientRect(), d = document.createElement('span');
-  d.className = 'rp'; d.style.left = (e.clientX - r.left) + 'px'; d.style.top = (e.clientY - r.top) + 'px';
-  el.appendChild(d); setTimeout(() => d.remove(), 600);
+  const el = e.target.closest('.btn,.fab,.iconbtn,.chip,.seg button,.list .item,nav.bottom a,.db-tile,.db-op,.srow,.ecard,.sp-chip,.sp-sort,.sp-fbtn,.db-hero,.sl,.db-qa button,.card[onclick]');
+  if(!el || REDUCED || el.disabled) return;
+  if(getComputedStyle(el).position === 'static') el.style.position = 'relative';
+  const r = el.getBoundingClientRect(), w = document.createElement('span'), d = document.createElement('span');
+  w.className = 'rp-w'; d.className = 'rp'; d.style.left = (e.clientX - r.left) + 'px'; d.style.top = (e.clientY - r.top) + 'px';
+  w.appendChild(d); el.appendChild(w); setTimeout(() => w.remove(), 500);
 }, {passive:true});
 
 // عدّاد الأرقام
+// الإجماليات بتعد لفوق أول مرة تتفتح فيها الصفحة بس — الإشارة والعلامة زي ما هي، وفي الآخر النص الأصلي بالظبط
+const COUNTED = new Set();
+const COUNT_SEL = '.hero .big .num, .hero .mini b .num, .bal3 .num, .dh-v .num, .sp-t b, .sp-t b .num, .db-tile em .num, .rp-t b .num, .ec-bal b bdi, .emp-mstrip b, .db-p3 b .num, .sum3 b';
 function countUp(root=document){
   if(REDUCED) return;
-  root.querySelectorAll('.hero .big .num, .hero .mini b .num, .bal3 .num').forEach(el => {
-    const target = Number(el.textContent.replace(/,/g,'')); if(!isFinite(target) || target === 0) return;
-    const dur = 750, t0 = performance.now();
-    const step = t => { const k = Math.min(1, (t - t0) / dur), v = target * (1 - Math.pow(1 - k, 3));
-      el.textContent = v.toLocaleString('en-US', {maximumFractionDigits: k < 1 ? 0 : 2}); if(k < 1) requestAnimationFrame(step); };
+  const key = location.hash.split('?')[0] || '#/'; if(COUNTED.has(key)) return; COUNTED.add(key);
+  root.querySelectorAll(COUNT_SEL).forEach(el => {
+    if(el.children.length) return;
+    const orig = el.textContent, mm = orig.match(/^([^\d]*)([\d,]+(?:\.\d+)?)(.*)$/s); if(!mm) return;
+    const target = Number(mm[2].replace(/,/g, '')); if(!isFinite(target) || target < 10) return;
+    const dur = 600, t0 = performance.now(), dec = (mm[2].split('.')[1] || '').length;
+    const step = t => { const k = Math.min(1, (t - t0) / dur);
+      if(k >= 1 || !el.isConnected){ el.textContent = orig; return; }
+      el.textContent = mm[1] + (target * (1 - Math.pow(1 - k, 3))).toLocaleString('en-US', {maximumFractionDigits:0}) + mm[3]; requestAnimationFrame(step); };
     requestAnimationFrame(step);
   });
 }
 // ترتيب ظهور العناصر
-function stagger(root=document){ root.querySelectorAll('.list .item').forEach((el,i) => { if(i < 15) el.style.setProperty('--i', i); else el.style.animation = 'none'; }); }
+function stagger(root=document){
+  root.querySelectorAll('.list .item').forEach((el,i) => { if(i < 15) el.style.setProperty('--i', i); else el.style.animation = 'none'; });
+  // الكروت بتطلع من تحت بالتتابع (أول 16 بس، والباقي يظهر على طول)
+  if(REDUCED) return;
+  const SEL = '.db-hero,.db-grid>*,.db-qa,.sp-sum>*,.sp-list>*,.ecard,.card,.db-ops,.mini-alert,.rp-k>*,.month-bar,.ea-sec,.sl';
+  const all = [...root.querySelectorAll('main ' + SEL.split(',').join(',main '))].filter(el => !el.closest('.list') && !el.parentElement.closest(SEL));
+  all.slice(0, 16).forEach((el, i) => { el.style.setProperty('--i', i); el.classList.add('fx-in'); });
+}
 
 // تحميل بشكل هيكلي بدل الدوّارة
 function skeleton(kind){
@@ -492,9 +507,24 @@ function shell({title, back, right='', body, nav=null, fabs='', home=null, page=
       <a href="#/reports" class="${nav==='reports'?'on':''}" aria-label="التقارير">${I.chart}<span>التقارير</span></a>
       <a href="#/more" class="${nav==='more'?'on':''}" aria-label="المزيد">${I.grid}<span>المزيد</span></a>
     </nav>` : ''}`;
-  window.scrollTo(0,0);
-  stagger(app); if(!same) countUp(app);
+  window.scrollTo({top:0, behavior:'instant'});
+  if(!same) stagger(app); if(!same) countUp(app);
+  navSlide(app);
   if(same) app.querySelector('.fabs')?.classList.add('calm');
+}
+// الشريط اللي تحت: الخلفية بتتزحلق من القسم اللي فات للجديد
+let navPrev = null;
+function navSlide(app){
+  const nav = app.querySelector('nav.bottom'), on = nav?.querySelector('a.on');
+  if(!on){ navPrev = null; return; }
+  const r = on.getBoundingClientRect(), n = nav.getBoundingClientRect(), cur = {x:r.left - n.left, y:r.top - n.top, w:r.width, h:r.height, href:on.getAttribute('href')};
+  const prev = navPrev; navPrev = cur;
+  if(REDUCED || !prev || prev.href === cur.href || !on.animate) return;
+  const p = document.createElement('i'); p.className = 'fx-pill';
+  Object.assign(p.style, {left:cur.x + 'px', top:cur.y + 'px', width:cur.w + 'px', height:cur.h + 'px', borderRadius:getComputedStyle(on).borderRadius});
+  nav.classList.add('fx-moving'); nav.appendChild(p);
+  p.animate([{transform:`translateX(${prev.x - cur.x}px)`}, {transform:'none'}], {duration:260, easing:'cubic-bezier(.2,.8,.2,1)'})
+    .finished.catch(() => {}).then(() => { p.remove(); nav.classList.remove('fx-moving'); });
 }
 const refreshBtn = `<button class="iconbtn" onclick="route()" aria-label="تحديث">${I.refresh}</button>`;
 const quickFabs = sid => `<div class="fabs">
