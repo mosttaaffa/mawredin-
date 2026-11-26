@@ -98,10 +98,10 @@ async function viewSuppliers(){
       <button class="sp-fbtn" onclick="supFilterMenu()" aria-label="تصفية">${I.filter}</button>
     </div>
     <div class="sp-sum">
-      <div class="sp-t hl"><i>${I.coins2}</i><span>إجمالي المستحق</span><b>${m(owed)}</b></div>
-      <div class="sp-t"><i>${I.doc}</i><span>إجمالي الفواتير</span><b>${m(tInv)}</b></div>
-      <div class="sp-t"><i>${I.layers}</i><span>إجمالي المدفوع</span><b class="pay">${m(tPaid)}</b></div>
-      <div class="sp-t"><i>${I.users}</i><span>إجمالي الموردين</span><b>${rows.length}</b></div>
+      <div class="sp-t hl"><i>${I.coins2}</i><span>المستحق</span><b>${m(owed)}</b></div>
+      <div class="sp-t"><i>${I.doc}</i><span>الفواتير</span><b>${m(tInv)}</b></div>
+      <div class="sp-t"><i>${I.layers}</i><span>المدفوع</span><b class="pay">${m(tPaid)}</b></div>
+      <div class="sp-t"><i>${I.users}</i><span>الموردين</span><b>${rows.length}</b></div>
     </div>
     ${N(cs.n) ? `<button class="sp-note" onclick="go('/checks')">${I.check}شيكات لسه (${N(cs.n)}) · متبقي ${m(cs.sum)}${cs.next ? ` · أقرب ${fmtDate(cs.next.due_date)}` : ''}</button>` : ''}
     <div class="sp-chips">${chip('all', 'layers')}${chip('due', 'warn')}${chip('zero', 'okc')}</div>
