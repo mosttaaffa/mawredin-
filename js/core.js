@@ -449,7 +449,7 @@ async function route(){
     if(parts[0] === 'supplier') return await formSupplier(parts[1] ? +parts[1] : null);
     if(parts[0] === 'adjust') return await formAdjust(parts[1] ? +parts[1] : null, params.get('s'));
     if(parts[0] === 'statement' && parts[1]) return await viewStatement(+parts[1], params.get('from'), params.get('to'));
-    if(parts[0] === 'reports') return await viewReports();
+    if(parts[0] === 'reports'){ if(parts[1] === 'shop' || parts[1] === 'sup'){ repTab = parts[1]; return await viewReports(); } return viewReportsMenu(); }
     if(parts[0] === 'log') return can('log') ? await viewLog() : permBlocked('سجل التعديلات', 'log');
     return await viewDashboard();
   }catch(e){ console.error(e); toast(errMsg(e), true); }

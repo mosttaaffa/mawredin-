@@ -184,7 +184,7 @@ const CH = document.documentElement.dataset.theme === 'bordeaux' ? {buy:'#9B1B30
 let repTab = (() => { try{ return localStorage.getItem('mawredin_rep_tab') || 'shop'; }catch(e){ return 'shop'; } })();
 window.setRepTab = t => { repTab = t; try{ localStorage.setItem('mawredin_rep_tab', t); }catch(e){} viewReports(); };
 const repHead = ym => `
-    <div class="tabs rep-tabs"><button class="${repTab === 'shop' ? 'on' : ''}" onclick="setRepTab('shop')">ملخص المحل</button><button class="${repTab === 'sup' ? 'on' : ''}" onclick="setRepTab('sup')">الموردين</button></div>
+    <div class="tabs rep-tabs" hidden><button class="${repTab === 'shop' ? 'on' : ''}" onclick="setRepTab('shop')">ملخص المحل</button><button class="${repTab === 'sup' ? 'on' : ''}" onclick="setRepTab('sup')">الموردين</button></div>
     <div class="month-bar">
       <button class="iconbtn" onclick="repMonth=addMonth(repMonth,-1);viewReports()" aria-label="الشهر اللي فات">${I.back}</button>
       <b>${monthName(ym)}</b>
@@ -194,6 +194,48 @@ async function viewReports(){
   if(repTab === 'shop') return viewRepShop();
   return viewRepSuppliers();
 }
+/* ---------- قايمة التقارير (زي الرئيسية): بتختار التقرير اللي عايزه ---------- */
+function viewReportsMenu(){
+  const mk = today().slice(0, 7), d = repMonthData(mk), net = d.sales - d.exp;
+  const m = c => `<span class="m"><span class="num">${fmt0(Math.abs(c) / 100)}</span> ج.م</span>`;
+  const sb = supplierBalances(), supDue = sb.reduce((a, r) => a + Math.max(0, Math.round(Number(r.balance) * 100)), 0);
+  const LS = loansSummary(), BS = bankSummary(), XS = expSummary();
+  const chk = [...(store.eff?.payments?.values() || [])].filter(p => p.method === 'check' && p.check_status === 'pending');
+  const chkRem = chk.reduce((a, p) => a + checkInfo(p).remaining, 0);
+  const tile = (k, t, go, extra = '') => `<button class="db-tile${extra ? ' rich' : ''}" onclick="${go}" aria-label="${t}">
+      <span class="db-ic">${dbIcon(k)}</span><span class="db-tb"><b>${t}</b>${extra}</span><span class="db-go">${I.chevL}</span></button>`;
+  const row = (ic, t, s, go) => `<button class="db-op" onclick="${go}"><span class="db-oi">${I[ic] || I.doc}</span><span class="db-ot"><b>${t}</b><small>${s}</small></span><span class="db-go">${I.chevL}</span></button>`;
+  shell({title:'التقارير', nav:'reports', body:`
+    <div class="db one rp-menu">
+    <div class="db-h"><span>${I.chart || I.grid}تقارير الشهر</span><i></i></div>
+    <div class="db-grid">
+      ${tile('cash', 'ملخص المحل', "go('/reports/shop')", `<em class="${net < 0 ? 'neg' : ''}">${net < 0 ? '−' : ''}${m(net)}</em><small class="c">صافي الشهر</small>`)}
+      ${tile('suppliers', 'تقرير الموردين', "go('/reports/sup')", `<em class="neg">${m(supDue)}</em><small class="c">مستحق للموردين</small>`)}
+      ${tile('expenses', 'المصروفات', "go('/expenses')", XS.month ? `<em class="neg">${m(XS.month)}</em><small class="c">مصروفات الشهر</small>` : '<small class="c">مفيش مصروفات الشهر ده</small>')}
+      ${tile('banks', 'البنك', "go('/banks')", BS.n ? `<em class="${BS.bal < 0 ? 'neg' : ''}">${BS.bal < 0 ? '−' : ''}${m(BS.bal)}</em><small class="c">رصيد البنك</small>` : '<small class="c">حركة البنك</small>')}
+      ${tile('checks', 'الشيكات', "go('/checks')", `<em>${m(chkRem)}</em><small class="c">باقي على ${chk.length} شيك</small>`)}
+      ${tile('loans', 'القروض', "go('/loans')", LS.n ? `<em class="neg">${m(LS.remaining)}</em><small class="c">${LS.late ? LS.late + ' قسط متأخر' : LS.n + ' قرض جاري'}</small>` : '<small class="c">مفيش قروض</small>')}
+    </div>
+    <div class="db-h"><span>${I.doc}كشوف الحساب</span><i></i></div>
+    <div class="card db-ops">
+      ${row('box', 'كشف حساب مورد', 'اختار المورد وشوف كل حركاته وابعته واتساب', 'rpPick(\'sup\')')}
+      ${row('users', 'كشف حساب موظف', 'المستحقات والاستقطاعات لكل شهر', 'rpPick(\'emp\')')}
+    </div>
+    <div class="db-h"><span>${I.layers || I.grid}تانية</span><i></i></div>
+    <div class="card db-ops">
+      ${row('hist', 'سجل التعديلات', 'كل اللي اتضاف واتعدل واتمسح ومين عمله', "go('/log')")}
+      ${row('xls', 'تصدير Excel', 'الموردين والفواتير والدفعات والشيكات في ملف واحد', 'exportExcel()')}
+    </div>
+    </div>`});
+}
+// اختيار المورد أو الموظف لكشف الحساب
+window.rpPick = k => {
+  const list = k === 'sup' ? supplierBalances().slice().sort((a, b) => a.name.localeCompare(b.name, 'ar')).map(r => ({id:r.id, n:r.name, b:Number(r.balance), go:`/statement/${r.id}`}))
+    : employeeBalances().filter(r => r.active !== false).sort((a, b) => a.name.localeCompare(b.name, 'ar')).map(r => ({id:r.id, n:r.name, b:Number(r.balance), go:`/emp/${r.id}`}));
+  openModal(`<h3 style="margin:0 0 10px">${k === 'sup' ? 'كشف حساب مورد' : 'كشف حساب موظف'}</h3>
+    <input class="search" placeholder="ابحث بالاسم..." oninput="const q=this.value.trim();document.querySelectorAll('#rpl .db-op').forEach(b=>b.hidden=q&&!b.dataset.n.includes(q))" style="margin-bottom:8px">
+    <div class="db-ops rp-pick" id="rpl">${list.map(r => `<button class="db-op" data-n="${esc(r.n)}" onclick="closeModal();go('${r.go}')"><span class="db-ot"><b>${esc(r.n)}</b></span><span class="db-oa ${r.b > 0 ? 'neg' : r.b < 0 ? 'pos' : ''}"><bdi dir="ltr">${r.b < 0 ? '−' : ''}${fmt0(Math.abs(r.b))}</bdi> ج</span></button>`).join('') || '<div class="empty">مفيش</div>'}</div>`);
+};
 
 /* ---------- ملخص المحل: المبيعات والمصروفات والصافي لكل شهر (من البيانات اللي على الجهاز — بيشتغل من غير نت) ---------- */
 function repMonthData(mk){
@@ -227,7 +269,7 @@ function viewRepShop(){
   const series = []; for(let i = 5; i >= 0; i--){ const k = addMonth(ym, -i), d = repMonthData(k); series.push({m:k, sales:d.sales / 100, exp:d.exp / 100}); }
   const defs = [{k:'sales', c:CH.pay, l:'مبيعات'}, {k:'exp', c:CH.buy, l:'مصروفات'}];
   const pct = (a, t) => t ? Math.round(a / t * 100) : 0;
-  shell({title:'التقارير', right:refreshBtn, nav:'reports', body:`${repHead(ym)}
+  shell({title:repTab === 'shop' ? 'ملخص المحل' : 'تقرير الموردين', back:true, right:refreshBtn, nav:'reports', body:`${repHead(ym)}
     <div class="rp-k">
       <div class="rp-t hl"><span>${I.store}المبيعات</span><b>${m(cur.sales)}</b>${delta(cur.sales, prev.sales, true)}</div>
       <div class="rp-t"><span>${I.expense}المصروفات</span><b>${m(cur.exp)}</b>${delta(cur.exp, prev.exp, false)}</div>
@@ -268,7 +310,7 @@ function viewRepShop(){
 }
 
 async function viewRepSuppliers(){
-  if(!$('.month-bar')) shell({title:'التقارير', right:refreshBtn, nav:'reports', body:skeleton('home')});
+  if(!$('.month-bar')) shell({title:'تقرير الموردين', back:true, right:refreshBtn, nav:'reports', body:skeleton('home')});
   const ym = repMonth;
   const [r, series] = await Promise.all([api.reportMonth(ym), api.reportSeries(ym, 6)]);
   const N = v => Number(v || 0);
@@ -276,7 +318,7 @@ async function viewRepSuppliers(){
   series.forEach(x => { x.buy = N(x.buy); x.pay = N(x.pay); });
   const perRows = r.per || [];
   const PER_MAX = 50;
-  shell({title:'التقارير', right:refreshBtn, nav:'reports', body:`${repHead(ym)}
+  shell({title:repTab === 'shop' ? 'ملخص المحل' : 'تقرير الموردين', back:true, right:refreshBtn, nav:'reports', body:`${repHead(ym)}
     <div class="card hero" style="padding:14px">
       <div class="lbl">مشتريات الشهر (فواتير)</div><div class="big">${money(buy)}</div>
       <div class="row"><div class="mini"><span>اتدفع في الشهر</span><b>${money(paid)}</b></div><div class="mini"><span>الفرق</span><b>${money(buy - paid - adj)}</b></div></div>
