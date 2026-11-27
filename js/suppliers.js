@@ -24,7 +24,6 @@ function supCard(r){
     <span class="sr-v"><small>الفواتير</small><b>${n(r.total_invoices)}</b></span>
     <span class="sr-v"><small>المدفوع</small><b class="pay">${n(r.total_paid)}</b></span>
     <span class="sr-v"><small>${bal < 0 ? 'لنا' : 'الرصيد'}</small><b class="${bal > 0 ? 'due' : bal < 0 ? 'cred' : ''}">${n(bal)}</b></span>
-    <button class="sr-more" onclick="event.stopPropagation();supMore(${r.id})" aria-label="المزيد">${I.dots}</button>
   </div>`;
 }
 window.supMore = id => {
