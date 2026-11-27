@@ -32,13 +32,17 @@ async function viewStatement(id, from, to){
   });
   const custom = !presets.some(p => p.on);
   const period = from || to ? `${from ? fmtDate(from) : 'من البداية'} — ${to ? fmtDate(to) : 'لحد النهارده'}` : 'كل الحركات';
+  const gn = v => `<bdi dir="ltr">${v < 0 ? '−' : ''}${Math.abs(Number(v) || 0).toLocaleString('en-US', {maximumFractionDigits:0})}</bdi>`;
+  const gd = d => { const [y, m, dd] = String(d).slice(0, 10).split('-'); return `${dd}/${m}<small>${y}</small>`; };
+  const grow = e => `<div class="stg-r${e.info ? ' stg-i' : ''}"><span class="stg-d">${gd(e.d)}</span><span class="stg-b"><b>${esc(e.desc)}</b>${e.note ? `<small>${esc(e.note)}</small>` : ''}</span>
+      <span class="deb">${e.deb ? gn(e.deb) : ''}</span><span class="cre">${e.cre ? gn(e.cre) : ''}</span><span class="stg-run">${e.info ? '' : gn(e.run)}</span></div>`;
   const mrow = (e) => `<div class="sl">
       <div class="sl-r"><div class="sl-t">${esc(e.desc)}</div>${e.note ? `<div class="sl-n">${esc(e.note)}</div>` : ''}<div class="sl-d">${fmtDate(e.d)}</div></div>
       <div class="sl-l"><div class="sl-a ${e.info ? 'info' : e.deb ? 'deb' : 'cre'}">${e.info ? 'معلومة' : e.deb ? '+ ' + money(e.deb) : '− ' + money(e.cre)}</div><div class="sl-b">الرصيد ${money(e.run)}</div></div>
     </div>`;
   shell({title:'كشف حساب', back:true, body:`
     <div class="no-print">
-      <div class="chip-row">
+      <div class="chip-row st-per">
         ${presets.map(p => `<button class="chip ${p.on ? 'on' : ''}" onclick="location.replace('#/statement/${id}?from=${p.f}&to=')">${p.l}</button>`).join('')}
         <button class="chip ${custom ? 'on' : ''}" onclick="$('#range').hidden = !$('#range').hidden">فترة تانية…</button>
       </div>
@@ -49,11 +53,11 @@ async function viewStatement(id, from, to){
         </div>
         <button class="btn ghost block" style="margin-top:10px" onclick="location.replace('#/statement/${id}?from='+($('#sf').value||'all')+'&to='+($('#st').value||''))">عرض</button>
       </div>
-      <button class="btn green block wa-big" onclick="sendStatementWA()">${I.wa}ابعت صورة على واتساب</button>
-      <div class="mini-acts">
-        <button onclick="window.print()">${I.print}<span>PDF</span></button>
-        <button onclick="shareStatementImage()">${I.img}<span>حفظ صورة</span></button>
-        <button onclick="shareStatementWA()">${I.wa}<span>رسالة نص</span></button>
+      <div class="qa4 st-acts">
+        <button class="btn green" onclick="sendStatementWA()">${I.wa}صورة واتساب</button>
+        <button class="btn ghost" onclick="shareStatementWA()">${I.wa}رسالة نص</button>
+        <button class="btn ghost" onclick="shareStatementImage()">${I.img}حفظ صورة</button>
+        <button class="btn ghost" onclick="window.print()">${I.print}PDF</button>
       </div>
     </div>
     <div class="stmt" id="stmt">
@@ -63,9 +67,11 @@ async function viewStatement(id, from, to){
         <div class="b"><span>المدفوع</span><b>${money(tc)}</b></div>
         <div class="c ${run > 0 ? '' : 'zero'}"><span>${run >= 0 ? 'الرصيد المستحق' : 'رصيد لينا'}</span><b>${money(Math.abs(run))}</b></div>
       </div>
-      <div class="stmt-list">
-        ${from ? `<div class="sl open"><div class="sl-r"><div class="sl-t">رصيد أول المدة</div></div><div class="sl-l"><div class="sl-a">${money(open)}</div></div></div>` : ''}
-        ${lines.map(mrow).join('') || '<div class="empty" style="padding:18px">مفيش حركات في الفترة دي</div>'}
+      <div class="stg">
+        <div class="stg-r stg-h"><span>التاريخ</span><span>البيان</span><span>فواتير</span><span>مدفوع</span><span>الرصيد</span></div>
+        ${from ? `<div class="stg-r stg-o"><span></span><span><b>رصيد أول المدة</b></span><span></span><span></span><span>${gn(open)}</span></div>` : ''}
+        ${lines.map(grow).join('') || '<div class="empty" style="padding:18px">مفيش حركات في الفترة دي</div>'}
+        ${lines.length ? `<div class="stg-r stg-t"><span></span><span><b>الإجمالي</b></span><span class="deb">${gn(td)}</span><span class="cre">${gn(tc)}</span><span>${gn(run)}</span></div>` : ''}
       </div>
       <div class="stmt-print"><table class="tbl">
         <thead><tr><th>التاريخ</th><th>البيان</th><th class="n">فواتير</th><th class="n">مدفوع</th><th class="n">الرصيد</th></tr></thead>
