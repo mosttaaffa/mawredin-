@@ -57,7 +57,7 @@ async function viewStatement(id, from, to){
         <button class="btn green" onclick="sendStatementWA()">${I.wa}صورة واتساب</button>
         <button class="btn ghost" onclick="shareStatementWA()">${I.wa}رسالة نص</button>
         <button class="btn ghost" onclick="shareStatementImage()">${I.img}حفظ صورة</button>
-        <button class="btn ghost" onclick="window.print()">${I.print}PDF</button>
+        <button class="btn ghost" onclick="go('/stmt/${id}')">${I.doc}كشف PDF</button>
       </div>
     </div>
     <div class="stmt" id="stmt">

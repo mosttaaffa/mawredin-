@@ -192,7 +192,7 @@ async function viewSupplier(id){
         <button class="btn primary" onclick="go('/invoice?s=${id}')">${I.receipt}فاتورة جديدة</button>
         <button class="btn green" onclick="go('/payment?s=${id}')">${I.cash}دفعة جديدة</button>
         <button class="btn ghost" onclick="go('/adjust?s=${id}')">${I.ret}مرتجع / خصم</button>
-        <button class="btn ghost stmt-cta" onclick="stmtMenu(${id})">${I.doc}كشف حساب</button>
+        <button class="btn ghost stmt-cta" onclick="go('/statement/${id}')">${I.doc}كشف حساب</button>
       </div>
       <div class="tabs">
         <button class="${t==='ledger'?'on':''}" onclick="setTab(${id},'ledger')">كشف حساب</button>
