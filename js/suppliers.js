@@ -188,11 +188,9 @@ async function viewSupplier(id){
         ${Number(s.pending_checks)>0 ? `<div class="note-line">منهم شيكات لسه ما اتصرفتش بـ ${money(s.pending_checks)}</div>`:''}
         <div class="sup-meta"><span>${s.inv_n || 0} فاتورة</span><span>${s.pay_n || 0} دفعة</span>${s.adj_n ? `<span>${s.adj_n} مرتجع/خصم</span>` : ''}<span>آخر حركة ${s.last_activity ? fmtDate(s.last_activity) : '—'}</span></div>
       </div>
-      <div class="actions" style="margin-bottom:8px">
+      <div class="qa4">
         <button class="btn primary" onclick="go('/invoice?s=${id}')">${I.receipt}فاتورة جديدة</button>
         <button class="btn green" onclick="go('/payment?s=${id}')">${I.cash}دفعة جديدة</button>
-      </div>
-      <div class="actions sm" style="margin-bottom:12px">
         <button class="btn ghost" onclick="go('/adjust?s=${id}')">${I.ret}مرتجع / خصم</button>
         <button class="btn ghost stmt-cta" onclick="stmtMenu(${id})">${I.doc}كشف حساب</button>
       </div>
