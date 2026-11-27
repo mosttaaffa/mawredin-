@@ -128,7 +128,7 @@ async function formExpense(id){
     <div id="cat-box"><div class="field" id="f-cat"><label>نوع المصروف <span class="req">*</span></label><input id="cat" list="exp-cats" value="${esc(x?.category || '')}" placeholder="مثلًا: كهربا، إيجار، نقل…">
       <datalist id="exp-cats">${used.map(c => `<option value="${esc(c)}">`).join('')}</datalist>
       <div class="ex-chips">${EXP_CATS.slice(0, 8).map(c => `<button type="button" onclick="$('#cat').value='${c}';$('#f-cat').classList.remove('err')">${c}</button>`).join('')}</div></div></div>
-    <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label><input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x ? x.amount : ''}"></div>
+    <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label><input id="amount" class="amount-input" inputmode="numeric" placeholder="0" value="${x ? x.amount : ''}"></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>
     ${pagesField('exp', 'صورة الإيصال', false, '(اختياري)')}
     <div class="hint" style="margin:-4px 0 12px">دفعات الموردين وأقساط القروض وصرف الموظفين بيتسجلوا هنا لوحدهم — متسجلهمش تاني.</div>

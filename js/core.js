@@ -86,7 +86,7 @@ function chkTags(c){
 /* =================== أدوات =================== */
 const $ = (s, r=document) => r.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const money = n => `<span class="m"><span class="num">${Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2})}</span> ج</span>`;
+const money = n => `<span class="m"><span class="num">${Number(n||0).toLocaleString('en-US',{maximumFractionDigits:0})}</span> ج</span>`;
 const fmtDateTime = t => { if(!t) return ''; const d = new Date(t); return d.toLocaleDateString('en-GB') + ' ' + d.toLocaleTimeString('ar-EG', {hour:'numeric', minute:'2-digit'}); };
 const fmtDate = d => { if(!d) return ''; const [y,m,dd] = String(d).slice(0,10).split('-'); return `<span class="num">${dd}/${m}/${y}</span>`; };
 const today = () => { const d = new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };

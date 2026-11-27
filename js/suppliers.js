@@ -15,7 +15,7 @@ function supState(r){
 function supCard(r){
   const bal = Number(r.balance), st = supState(r);
   const digits = String(r.phone || '').replace(/[‪-‮‎‏]/g, '');
-  const n = v => `<span class="num">${Math.abs(Number(v || 0)).toLocaleString('en-US', {maximumFractionDigits:2})}</span><i class="cur"> ج</i>`;
+  const n = v => `<span class="num">${Math.abs(Number(v || 0)).toLocaleString('en-US', {maximumFractionDigits:0})}</span><i class="cur"> ج</i>`;
   return `<div class="srow" data-n="${esc((r.name + ' ' + supCode(r.id) + ' ' + digits.replace(/\D/g, '')).toLowerCase())}" onclick="go('/s/${r.id}')">
     <span class="sr-go">${I.chevL ? `<i style="display:inline-flex;transform:scaleX(-1)">${I.chevL}</i>` : '›'}</span>
     <span class="sr-ic">${I.store}</span>
@@ -89,7 +89,7 @@ async function viewSuppliers(){
   list.sort({high:(a, b) => N(b.balance) - N(a.balance) || a.id - b.id, low:(a, b) => N(a.balance) - N(b.balance) || a.id - b.id,
     name:(a, b) => a.name.localeCompare(b.name, 'ar'), recent:(a, b) => String(b.last_activity || '').localeCompare(String(a.last_activity || '')) || b.id - a.id,
     added:(a, b) => created(b.id).localeCompare(created(a.id)) || b.id - a.id}[supSort]);
-  const m = v => `<span class="num">${Number(v).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
+  const m = v => `<span class="num">${Number(v).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج`;
   const chip = (k, ic) => `<button class="sp-chip ${supFilter === k ? 'on' : ''}" onclick="supFilter='${k}';viewSuppliers()">${I[ic]}${SUP_F[k]} (${cnt(k)})</button>`;
   const dueSoon = checks.filter(c => daysUntil(c.due_date) <= 3).length;
   const body = `
@@ -449,6 +449,8 @@ window.previewPhoto = id => {
 };
 function markErr(id, msg){ buzz(40); const f = $('#f-'+id); f?.classList.remove('err'); void f?.offsetWidth; f?.classList.add('err'); f?.scrollIntoView({behavior:'smooth', block:'center'}); toast(msg, true); return false; }
 document.addEventListener('input', e => e.target.closest('.field')?.classList.remove('err'));
+// المبالغ بالجنيه بس: لو اتكتبت قروش، المبلغ بيتقرّب لأقرب جنيه أول ما تسيب الخانة (قبل الحفظ)
+document.addEventListener('change', e => { const t = e.target; if(!t.matches?.('input[inputmode=numeric]')) return; const n = readAmount(t.value); if(t.value.trim() && isFinite(n) && n !== Math.round(n)) t.value = String(Math.round(n)); }, true);
 function readAmount(v){ v = String(v||'').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[,،\s]/g,'').replace('٫','.'); return Number(v); }
 
 function formShell(title, body, onSave){
@@ -472,6 +474,7 @@ function formShell(title, body, onSave){
   let saving = false;
   $('#frm').addEventListener('submit', async e => {
     e.preventDefault(); if(saving) return; saving = true; busy(true);
+    $('#frm').querySelectorAll('input[inputmode=numeric]').forEach(i => i.dispatchEvent(new Event('change', {bubbles:true})));   // القروش بتتقرّب حتى لو اتحفظ بـ Enter
     try{ await onSave(); }catch(err){ console.error(err); toast(errMsg(err), true); }
     finally{ saving = false; busy(false); }
   });
@@ -490,7 +493,7 @@ async function formInvoice(id, presetSup){
     ${await supplierPicker(x ? x.supplier_id : presetSup)}
     <div class="balhint" id="balhint"></div>
     <div class="field" id="f-amount"><label>قيمة الفاتورة <span class="req">*</span></label>
-      <input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x?x.amount:''}"></div>
+      <input id="amount" class="amount-input" inputmode="numeric" placeholder="0" value="${x?x.amount:''}"></div>
     <div class="row2">
       <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x?x.inv_date:today()}"></div>
       <div class="field"><label>رقم الفاتورة</label><input id="no" inputmode="numeric" value="${esc(x?.inv_no||'')}" placeholder="اختياري"></div>
@@ -592,7 +595,7 @@ window.readAmountFromPhoto = async () => {
     const c = amountCandidates(data.text || '');
     if(!c.length){ out.innerHTML = '<div class="hint">مش لاقي أرقام واضحة في الصورة — اكتب المبلغ بإيدك.</div>'; return; }
     out.innerHTML = `<div class="hint" style="margin-top:8px">اختار المبلغ الصح (اتأكد منه قبل الحفظ):</div>
-      <div class="ocr-chips">${c.map(v => `<button type="button" onclick="pickAmount(${v})">${v.toLocaleString('en-US')}</button>`).join('')}</div>`;
+      <div class="ocr-chips">${c.map(v => `<button type="button" onclick="pickAmount(${Math.round(v)})">${Math.round(v).toLocaleString('en-US')}</button>`).join('')}</div>`;
     buzz(10);
   }catch(e){ console.error(e); out.innerHTML = '<div class="hint" style="color:var(--red)">مقدرتش أقرا الصورة — اكتب المبلغ بإيدك.</div>'; }
 };
@@ -605,7 +608,7 @@ async function formPayment(id, presetSup){
   formShell(x ? 'تعديل دفعة' : 'دفعة جديدة', `
     ${await supplierPicker(x ? x.supplier_id : presetSup)}
     <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label>
-      <input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x?x.amount:''}"></div>
+      <input id="amount" class="amount-input" inputmode="numeric" placeholder="0" value="${x?x.amount:''}"></div>
     <div class="paycalc" id="paycalc"></div>
     ${invoiceField()}
     <div class="field" id="f-method"><label>نوع الدفعة <span class="req">*</span></label>
@@ -735,7 +738,7 @@ async function formAdjust(id, presetSup){
         <button type="button" data-m="discount">${I.disc}خصم من المورد</button>
       </div></div>
     <div class="field" id="f-amount"><label>القيمة <span class="req">*</span></label>
-      <input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x?x.amount:''}"></div>
+      <input id="amount" class="amount-input" inputmode="numeric" placeholder="0" value="${x?x.amount:''}"></div>
     <div class="paycalc" id="paycalc"></div>
     ${invoiceField()}
     <div class="field"><label>التاريخ</label><input id="date" type="date" value="${x?x.pay_date:today()}"></div>

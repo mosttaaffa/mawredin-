@@ -12,7 +12,7 @@ const EA_DED = [['late', 'خصم التأخير', 'clock'], ['absent', 'خصم �
 const EA_DED_X = [['advX', 'سلف (من غير فرع)', 'coins2'], ['dedX', 'خصومات أخرى', 'disc'], ['adjM', 'تسويات عليه', 'disc']];
 const EA_SUB = {late:'خصم تأخير', absence:'خصم غياب', clothes:'مسحوبات ملابس', other:'خصم'};
 const eaC = v => Math.round(Number(v || 0) * 100);
-const eaN = c => (Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:2});
+const eaN = c => (Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:0});
 const eaM = c => `${c < 0 ? '−' : ''}${eaN(c)} ج.م`;                                    // للنص (واتساب)
 const eaMH = c => `<bdi dir="ltr">${c < 0 ? '−' : ''}${eaN(c)}</bdi> ج.م`;         // للصفحة والصورة
 const eaSH = (plus, c) => `<bdi dir="ltr">${plus ? '+' : '−'}${eaN(c)}</bdi>`;
@@ -103,7 +103,7 @@ const EA_AV = {
 };
 function eaCard(r, ym){
   const D = eaMonth(r.id, ym), bal = D.close, ph = String(r.phone || '').replace(/[^\d+]/g, '');
-  const n = c => (Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:2});
+  const n = c => (Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:0});
   const st = bal > 0 ? ['due', I.coins2, 'مستحق للموظف'] : bal < 0 ? ['owe', I.store, 'مستحق للمحل'] : ['zero', I.layers, 'الحساب متوازن'];
   const it = (k, l, c, cls) => `<button class="ec-v" onclick="event.stopPropagation();eaItem(${r.id},'${ym}','${k}')"><small>${l}</small><b class="${c ? cls : 'z'}"><bdi dir="ltr">${n(c)}</bdi> ج</b></button>`;
   const lastTo = r.last_to ? (([y, m, d]) => `${d}/${m}/${y.slice(2)}`)(String(r.last_to).slice(0, 10).split('-')) : '—';

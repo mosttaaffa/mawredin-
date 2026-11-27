@@ -163,7 +163,7 @@ function fitDash(){
   document.body.classList.toggle('dash-fits', pick.ok);
 }
 addEventListener('resize', () => fitDash());
-const fmt0 = v => Number(v || 0).toLocaleString('en-US', {maximumFractionDigits:2});
+const fmt0 = v => Number(v || 0).toLocaleString('en-US', {maximumFractionDigits:0});
 
 /* =================== المزيد =================== */
 const MODULES = [

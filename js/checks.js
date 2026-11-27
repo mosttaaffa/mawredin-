@@ -59,7 +59,7 @@ window.cpForm = (pid, cid, bankAll) => {
   const def = x ? x.amount : (bankAll ? fromC(maxC) : '');
   openModal(`<h3>${x ? 'تعديل دفعة سداد' : bankAll ? 'صرف الشيك من البنك' : 'تسجيل سداد'} — شيك ${esc(p.check_no || '')}</h3>
     <div class="hint" style="margin-bottom:10px">${esc(sup)} · قيمة الشيك ${money(p.amount)} · المتبقي ${money(fromC(maxC))}</div>
-    <div class="field" id="f-cpa"><label>مبلغ السداد <span class="req">*</span></label><input id="cpa" class="amount-input" inputmode="decimal" value="${def}"></div>
+    <div class="field" id="f-cpa"><label>مبلغ السداد <span class="req">*</span></label><input id="cpa" class="amount-input" inputmode="numeric" value="${def}"></div>
     <div class="row2">
       <div class="field" id="f-cpd"><label>تاريخ السداد الفعلي</label><input id="cpd" type="date" value="${x ? x.pay_date : today()}"></div>
       <div class="field"><label>طريقة السداد</label><select id="cpm">${Object.entries(CP_METHOD).map(([k, l]) => `<option value="${k}" ${(x ? x.method : bankAll ? 'bank_debit' : 'cash') === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div>

@@ -113,7 +113,7 @@ async function viewPayDetails(id){
     <div class="dt-hero">
       <span class="dt-st ${st.k}">${st.k === 'ok' ? I.okc : st.k === 'bad' ? I.warn : I.clock}${esc(st.t)}</span>
       <span class="dt-l">${adj ? 'قيمة ' + (x.method === 'return' ? 'المرتجع' : 'الخصم') : x.method === 'check' ? 'قيمة الشيك' : 'قيمة الدفعة'}</span>
-      <span class="dt-amt"><span class="num">${Number(x.amount).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج.م</span>
+      <span class="dt-amt"><span class="num">${Number(x.amount).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج.م</span>
       <span class="dt-d">${I.cal}${longDate(x.pay_date)}</span>
       ${heroIcon(x.method)}
       ${x._pending ? `<span class="dt-sync">${I.refresh}محفوظة على الجهاز — هتتزامن لما النت يرجع</span>` : ''}
@@ -173,7 +173,7 @@ async function viewInvDetails(id){
     <div class="dt-hero">
       <span class="dt-st ${st.k}">${st.k === 'ok' ? I.okc : st.k === 'bad' ? I.warn : I.clock}${esc(st.t)}</span>
       <span class="dt-l">قيمة الفاتورة</span>
-      <span class="dt-amt"><span class="num">${Number(x.amount).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج.م</span>
+      <span class="dt-amt"><span class="num">${Number(x.amount).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج.م</span>
       <span class="dt-d">${I.cal}${longDate(x.inv_date)}</span>
       ${heroIcon('inv')}
       ${x._pending ? `<span class="dt-sync">${I.refresh}محفوظة على الجهاز — هتتزامن لما النت يرجع</span>` : ''}

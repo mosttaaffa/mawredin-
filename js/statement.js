@@ -15,7 +15,7 @@ const ST_DEF = {mode:'full', kind:'detail', imgs:false, from:'', to:''};
 const stOpts = () => { try{ return Object.assign({}, ST_DEF, JSON.parse(localStorage.getItem(STMT_OPTS_KEY) || '{}')); }catch(e){ return {...ST_DEF}; } };
 const saveStOpts = o => { try{ localStorage.setItem(STMT_OPTS_KEY, JSON.stringify(o)); }catch(e){} };
 const cents = v => Math.round(Number(v || 0) * 100);
-const fmt2 = c => (c < 0 ? '-' : '') + (Math.abs(c) / 100).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fmt2 = c => (c < 0 ? '-' : '') + (Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:0});
 const dmy = d => { if(!d) return ''; const [y, m, dd] = String(d).slice(0,10).split('-'); return `${dd}/${m}/${y}`; };
 const PAY_AR = {cash:'نقدي', check:'شيك', transfer:'تحويل بنكي', return:'مرتجع', discount:'خصم'};
 const KIND_AR = {detail:'تفصيلي', brief:'مختصر', total:'إجمالي'};

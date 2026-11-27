@@ -64,13 +64,13 @@ async function viewBanks(){
     M.items.push(x); if(x.kind !== 'opening'){ if(x.amt > 0) M.inn += x.amt; else M.out -= x.amt; } M.end = run; }
   const keys = Object.keys(months).sort().reverse();
   if(!bankOpen) bankOpen = new Set([keys[0] || t.slice(0, 7)]);
-  const m = c => `<span class="num">${(Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
+  const m = c => `<span class="num">${(Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج`;
   const sm = c => c < 0 ? `(${m(c)})` : m(c);
   const ic = {move:'bank', sale:'store', sup:'box', chk:'check', loan:'loan', emp:'users'};
   const row = x => `<div class="item bk-it" onclick="go('${x.go}')">
       <div class="avatar bk-av ${x.amt > 0 ? 'in' : 'out'}">${I[x.src === 'move' ? (x.amt > 0 ? 'down' : 'up') : ic[x.src]]}</div>
       <div class="grow"><div class="t">${esc(x.t)}${x.pend ? ' <i class="tag pend-sync">على الجهاز</i>' : ''}</div><div class="s">${fmtDate(x.d)}${x.sub ? ' · ' + esc(x.sub) : ''}</div></div>
-      <div class="bk-v"><b class="${x.kind === 'opening' ? '' : x.amt > 0 ? 'ok' : 'debt'}"><span dir="ltr">${x.kind === 'opening' ? '' : x.amt > 0 ? '+' : '−'}${(Math.abs(x.amt) / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج</b><small>الرصيد ${sm(x.run)}</small></div>
+      <div class="bk-v"><b class="${x.kind === 'opening' ? '' : x.amt > 0 ? 'ok' : 'debt'}"><span dir="ltr">${x.kind === 'opening' ? '' : x.amt > 0 ? '+' : '−'}${(Math.abs(x.amt) / 100).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج</b><small>الرصيد ${sm(x.run)}</small></div>
     </div>`;
   const month = k => { const M = months[k], open = bankOpen.has(k);
     return `<section class="card cm ${open ? 'open' : ''}">
@@ -114,7 +114,7 @@ function formBankMove(id){
   formShell(x ? 'تعديل حركة بنك' : 'حركة على البنك', `
     <div class="field" id="f-kind"><label>نوع الحركة</label><div class="seg" id="bkind" style="grid-template-columns:repeat(3,1fr)">
       ${Object.entries(BANK_KIND).map(([k, l]) => `<button type="button" data-v="${k}">${l}</button>`).join('')}</div><div class="hint" id="bk-h"></div></div>
-    <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label><input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x ? x.amount : ''}"></div>
+    <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label><input id="amount" class="amount-input" inputmode="numeric" placeholder="0" value="${x ? x.amount : ''}"></div>
     <div class="field"><label>اليوم</label><input id="bdate" type="date" value="${x?.move_date || qp.get('d') || today()}"></div>
     <div class="field"><label>ملاحظات</label><textarea id="notes" rows="2">${esc(x?.notes || '')}</textarea></div>
     ${x ? `<button type="button" class="btn danger block" style="margin-bottom:12px" onclick="bankMoveDelete(${x.id})">${I.trash}مسح الحركة دي</button>` : ''}

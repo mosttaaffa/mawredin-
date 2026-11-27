@@ -35,7 +35,7 @@ const empApi = {
    كل شهر لوحده: المرحّل من الشهر اللي فات + المرتب (بينزل لوحده أول الشهر) + العمولات − السلف − الخصومات − اللي اتصرف له ± التسويات = آخر الشهر (بيترحّل).
    البداية: صافي آخر تسوية (كشف مستورد) — نفس قاعدة الرصيد بالظبط، فرصيد آخر شهر = الرصيد الحالي. كل الحسابات بالقروش. */
 let empMonth = null;
-const fmtN = c => (c / 100).toLocaleString('en-US', {maximumFractionDigits:2});                       // الشهر المختار في شاشة الموظفين (YYYY-MM)
+const fmtN = c => (c / 100).toLocaleString('en-US', {maximumFractionDigits:0});                       // الشهر المختار في شاشة الموظفين (YYYY-MM)
 const empYM = d => String(d || '').slice(0, 7);
 const empMonthName = ym => `${AR_MONTHS[+ym.slice(5, 7) - 1]} ${ym.slice(0, 4)}`;
 function empMonthly(empId){
@@ -124,7 +124,7 @@ async function viewEmployees(){
   list.sort({high:(a, b) => N(b.balance) - N(a.balance) || a.id - b.id, low:(a, b) => N(a.balance) - N(b.balance) || a.id - b.id,
     name:(a, b) => a.name.localeCompare(b.name, 'ar'), no:(a, b) => noN(a) - noN(b) || a.id - b.id,
     recent:(a, b) => String(b.last_to || '').localeCompare(String(a.last_to || '')) || a.id - b.id}[empSort] || (() => 0));
-  const m = v => `<span class="num">${Math.abs(v).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
+  const m = v => `<span class="num">${Math.abs(v).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج`;
   const nAct = k => all.filter(r => k === 'all' || (k === 'on' ? empOn(r) : !empOn(r))).length;
   const fc = (on, act, l, n) => `<button class="ef-chip ${on ? 'on' : ''}" onclick="${act};viewEmployees()"><b>${l}</b><span class="num">${n}</span></button>`;
   const allOn = empAct === 'all' && empFilter === 'all';
@@ -196,7 +196,7 @@ async function formSettlement(id){
   const s = await q(ldb.from('emp_settlements').select('*, employees(name)').eq('id', id).single());
   formShell('تعديل تسوية: ' + esc(s.employees?.name || ''), `
     <div class="hint" style="margin-bottom:10px">الأرقام الأصلية من الكشف بتفضل محفوظة زي ما هي، والتعديل بيتسجل في سجل التعديلات.</div>
-    <div class="row2">${EMP_FIELDS.map(([k,l]) => `<div class="field"><label>${l}</label><input id="s_${k}" inputmode="decimal" value="${s[k] ?? ''}"></div>`).join('')}</div>
+    <div class="row2">${EMP_FIELDS.map(([k,l]) => `<div class="field"><label>${l}</label><input id="s_${k}" inputmode="numeric" value="${s[k] ?? ''}"></div>`).join('')}</div>
     <div class="field"><label>ملاحظات</label><textarea id="s_notes" rows="2">${esc(s.notes || '')}</textarea></div>`,
   async () => {
     const row = {notes: $('#s_notes').value.trim() || null};
@@ -228,7 +228,7 @@ async function formEmpTx(id, presetEmp){
     <div class="field" id="f-sub" style="display:none"><label>نوع الخصم</label><div class="seg" id="tsub" style="grid-template-columns:repeat(4,1fr)">
       ${Object.entries(EA_SUB).map(([k, l]) => `<button type="button" data-v="${k}" class="${sub === k ? 'on' : ''}">${l.replace('خصم ', '').replace('مسحوبات ', '')}</button>`).join('')}</div></div>
     <div class="field" id="f-qty" style="display:none"><label id="qty-l">المدة</label><input id="qty" inputmode="decimal" placeholder="اختياري" value="${x?.qty ?? ''}"></div>
-    <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label><input id="amount" class="amount-input" inputmode="decimal" placeholder="0" value="${x ? Math.abs(n0(x.amount)) : ''}">
+    <div class="field" id="f-amount"><label>المبلغ <span class="req">*</span></label><input id="amount" class="amount-input" inputmode="numeric" placeholder="0" value="${x ? Math.abs(n0(x.amount)) : ''}">
       <div class="hint" id="adjhint" style="display:none">التسوية: اكتب المبلغ، وفعّل «بالسالب» لو هتنقص من رصيد الموظف.</div>
       <label id="negwrap" style="display:none;margin-top:6px;font-weight:600"><input type="checkbox" id="neg" ${x && n0(x.amount) < 0 ? 'checked' : ''}> بالسالب (على الموظف)</label></div>
     <div class="field" id="f-meth" style="display:none"><label>اتدفع إزاي؟</label><div class="seg" id="tmeth" style="grid-template-columns:1fr 1fr">
@@ -295,7 +295,7 @@ async function formEmployee(id){
     <div class="field" id="f-name"><label>الاسم <span class="req">*</span></label><input id="name" value="${esc(x?.name || '')}"></div>
     <div class="row2">
       <div class="field"><label>رقم الموظف</label><input id="no" inputmode="numeric" value="${esc(x?.emp_no || '')}"></div>
-      <div class="field"><label>المرتب الأساسي</label><input id="base" inputmode="decimal" value="${x?.base_salary ?? ''}"></div>
+      <div class="field"><label>المرتب الأساسي</label><input id="base" inputmode="numeric" value="${x?.base_salary ?? ''}"></div>
     </div>
     <div class="row2">
       <div class="field"><label>الفرع</label><select id="branch"><option value="">—</option>${['زهرة','ورد','زهرة وورد'].map(b => `<option ${x?.branch === b ? 'selected' : ''}>${b}</option>`).join('')}</select></div>

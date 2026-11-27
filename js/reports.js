@@ -85,7 +85,7 @@ function stmtImageHTML(page, pages, chunk){
   const cs = getComputedStyle(document.documentElement), v = k => cs.getPropertyValue(k).trim();
   const brand = '#9B1B30', soft = '#FBEFF1',   // ألوان المحل ثابتة في الصورة
   accent = v('--accent'), red = v('--red'), green = v('--green');
-  const f = n => `<span style="direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums">${Number(n).toLocaleString('en-US', {maximumFractionDigits:2})}</span>`;
+  const f = n => `<span style="direction:ltr;unicode-bidi:isolate;font-variant-numeric:tabular-nums">${Number(n).toLocaleString('en-US', {maximumFractionDigits:0})}</span>`;
   const dd = d => { const [y,m,x] = String(d).slice(0,10).split('-'); return `<span style="direction:ltr;unicode-bidi:isolate">${x}/${m}/${y}</span>`; };
   const period = from || to ? `${from ? dd(from) : 'من البداية'} — ${to ? dd(to) : 'لحد النهارده'}` : 'كل الحركات';
   const first = page === 0;
@@ -249,7 +249,7 @@ function repMonthData(mk){
 function viewRepShop(){
   const ym = repMonth, cur = repMonthData(ym), prev = repMonthData(addMonth(ym, -1));
   const net = cur.sales - cur.exp;
-  const m = c => `<span class="num">${(Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج`;
+  const m = c => `<span class="num">${(Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج`;
   const sm = c => c < 0 ? `(${m(c)})` : m(c);
   const shortM = k => `${AR_MONTHS[+k.slice(5, 7) - 1]} ${k.slice(2, 4)}`;
   // مقارنة بالشهر اللي فات: «طالع» في المبيعات كويس، و«طالع» في المصروفات وحش

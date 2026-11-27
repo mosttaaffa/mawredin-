@@ -4,7 +4,7 @@
 
 const BRANCHES = ['ورد', 'زهرة'];
 const SC = v => Math.round(Number(v || 0) * 100);
-const smoney = c => `<span class="m"><span class="num">${(c / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج</span>`;
+const smoney = c => `<span class="m"><span class="num">${(c / 100).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج</span>`;
 const CS_MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
 const CS_DAYS = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 let cashBranch = localStorage.getItem('mawredin_cash_branch') || 'all';
@@ -40,7 +40,7 @@ function salesByMonth(){
 }
 const csMonthName = mk => { const [y, m] = mk.split('-').map(Number); return `${CS_MONTHS[m - 1]} ${y}`; };
 const csDaysWord = n => n === 1 ? 'يوم واحد' : n === 2 ? 'يومين' : n <= 10 ? `${n} أيام` : `${n} يوم`;
-const csNum = c => `<span class="m"><span class="num">${(c / 100).toLocaleString('en-US', {maximumFractionDigits:2})}</span> ج</span>`;
+const csNum = c => `<span class="m"><span class="num">${(c / 100).toLocaleString('en-US', {maximumFractionDigits:0})}</span> ج</span>`;
 let cashOpen = null;   // الشهور المفتوحة
 
 async function viewCash(){
@@ -108,8 +108,8 @@ async function formSale(id){
       ${BRANCHES.map(b => `<button type="button" data-v="${b}" class="${br === b ? 'on' : ''}" onclick="segPick(this);saleDup()">${b}</button>`).join('')}</div></div>
     <div class="field"><label>اليوم</label><input id="sdate" type="date" value="${x?.sale_date || qp.get('d') || today()}" onchange="saleDup()"></div>
     <div id="sdup"></div>
-    <div class="field" id="f-cash"><label>مبيع كاش</label><input id="cash" class="amount-input" inputmode="decimal" placeholder="0" value="${x && Number(x.cash) ? x.cash : ''}"></div>
-    <div class="field" id="f-transfer"><label>مبيع تحويلات</label><input id="transfer" class="amount-input" inputmode="decimal" placeholder="0" value="${x && Number(x.transfer) ? x.transfer : ''}">
+    <div class="field" id="f-cash"><label>مبيع كاش</label><input id="cash" class="amount-input" inputmode="numeric" placeholder="0" value="${x && Number(x.cash) ? x.cash : ''}"></div>
+    <div class="field" id="f-transfer"><label>مبيع تحويلات</label><input id="transfer" class="amount-input" inputmode="numeric" placeholder="0" value="${x && Number(x.transfer) ? x.transfer : ''}">
       <div class="hint">انستاباي، محفظة، فيزا، تحويل بنكي… — بيدخل رصيد البنك</div></div>
     <div class="field"><label>تفاصيل التحويلات <small class="hint">(اختياري)</small></label><input id="tnote" value="${esc(x?.transfer_note || '')}" placeholder="مثلًا: انستاباي 2000 + فودافون كاش 500"></div>
     <div class="cs-live"><span>إجمالي مبيع اليوم</span><b id="stot">—</b></div>
