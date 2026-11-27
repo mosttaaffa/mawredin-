@@ -195,10 +195,7 @@ async function viewSupplier(id){
       </div>
       <div class="actions sm" style="margin-bottom:12px">
         <button class="btn ghost" onclick="go('/adjust?s=${id}')">${I.ret}مرتجع / خصم</button>
-        <button class="btn ghost" onclick="go('/statement/${id}')">${I.wa}كشف سريع واتساب</button>
-      </div>
-      <div class="actions" style="margin-bottom:12px">
-        <button class="btn primary stmt-cta" onclick="go('/stmt/${id}')">${I.doc}إصدار كشف حساب PDF</button>
+        <button class="btn ghost stmt-cta" onclick="stmtMenu(${id})">${I.doc}كشف حساب</button>
       </div>
       <div class="tabs">
         <button class="${t==='ledger'?'on':''}" onclick="setTab(${id},'ledger')">كشف حساب</button>
@@ -226,6 +223,10 @@ function openModal(html){
   b.addEventListener('click', e => { if(e.target === b) closeModal(); });
   document.body.appendChild(b);
 }
+// كشف الحساب: زرار واحد بيفتح الاختيارين (السريع للواتساب، والرسمي PDF)
+window.stmtMenu = id => openModal(`<h3>كشف حساب</h3><div class="menu-list">
+  <button onclick="closeModal();go('/statement/${id}')">${I.wa}<span><b>كشف سريع — واتساب</b><small style="display:block;color:var(--muted);font-weight:600">صورة أو رسالة بكل الحركات والرصيد</small></span></button>
+  <button onclick="closeModal();go('/stmt/${id}')">${I.doc}<span><b>كشف حساب رسمي PDF</b><small style="display:block;color:var(--muted);font-weight:600">كشف كامل أو فترة، بالجدول والإجماليات</small></span></button></div>`);
 function closeModal(){
   const m = $('#mdl');
   if(m){ m.removeAttribute('id'); m.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));

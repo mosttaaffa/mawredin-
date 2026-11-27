@@ -2264,3 +2264,12 @@ html{scroll-behavior:smooth}
   .fx-in,main.enter,.list .item,.modal,.backdrop,.toast,.sheet{animation:none !important}
   :where(button,.btn,.db-tile,.srow,.ecard,.list .item,.db-op,.sp-chip,.chip):active{transform:none !important}
 }
+/* صفحة المورد: صفوف الفواتير والدفعات أصغر عشان الشاشة تشيل حركات أكتر */
+.led .item,.sup-tabs-list .item{gap:9px;padding:8px 2px}
+.led .ico{width:34px;height:34px;border-radius:10px}.led .ico svg{width:18px;height:18px}
+.led .item .t{font-size:14px;line-height:1.35}
+.led .item .t .tag{font-size:10.5px;padding:1px 7px}
+.led .item .s{font-size:11.5px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.led .amt{font-size:14.5px;line-height:1.3}
+.led .runbal{font-size:11px;line-height:1.3}
+.led .item .t .tag{line-height:1.5}.led .item>.grow{min-width:0}
