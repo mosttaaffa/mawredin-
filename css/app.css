@@ -2353,3 +2353,8 @@ html{scroll-behavior:smooth}
 #suplist.list .sr-v:last-of-type b.due{background:#FDECEE}
 #suplist.list .sr-v:last-of-type b.cred{background:#E6F5EA}
 @media (max-width:370px){#suplist.list .srow{gap:0 5px;padding:6px 8px}#suplist.list .sr-v b{font-size:11px !important}#suplist.list .sr-v:last-of-type b{padding:1px 4px}#suplist.list .sr-name small .ph{display:none}}
+/* أندرويد: الخط مايكبرش لوحده (Font boosting) + سطر الشيكات يلف عادي في الشاشات الضيقة */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+button.sp-note{display:block;line-height:1.5}
+button.sp-note svg{display:inline-block;vertical-align:-3px;margin-inline-end:5px}
+.sp-bar{min-width:0}.sp-bar .sp-sort{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis}.sp-bar .sp-view{flex:none}
