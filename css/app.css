@@ -2339,3 +2339,17 @@ html{scroll-behavior:smooth}
 .sc-slate{background:linear-gradient(150deg,#98A3B3,#6E7A8B)}
 .sc-olive{background:linear-gradient(150deg,#BBAA86,#97835D)}
 @media (max-width:360px){.sc-t{min-height:104px;padding:11px}.sc-bot b{font-size:15px}.sc-top em{font-size:11px}}
+/* قائمة الموردين: صف أبيض صغير — أيقونة، الاسم، والأرقام بألوانها والرصيد في فقاعة */
+#suplist.list{gap:6px}
+#suplist.list .srow{grid-template-columns:auto minmax(0,1fr) repeat(3,auto) !important;gap:0 8px;padding:7px 10px;border:1px solid #F1DDE1;border-inline-start-width:1px;border-radius:16px;
+  box-shadow:inset 0 1px 0 #fff,0 4px 10px -8px rgba(90,20,35,.35);contain-intrinsic-size:auto 56px}
+#suplist.list .sr-ic{width:32px;height:32px;border-radius:10px}#suplist.list .sr-ic svg{width:18px;height:18px}
+#suplist.list .sr-name b{font-size:14px !important;white-space:nowrap !important;overflow:hidden;text-overflow:ellipsis;display:block !important}
+#suplist.list .sr-name small{font-size:10px}
+#suplist.list .sr-v{border:0;padding:0;min-width:0}
+#suplist.list .sr-v small{font-size:9.5px}#suplist.list .sr-v small::after{content:none}
+#suplist.list .sr-v b{font-size:12.5px !important;letter-spacing:0}
+#suplist.list .sr-v:last-of-type b{padding:1px 7px;border-radius:9px;background:#F4F1F2}
+#suplist.list .sr-v:last-of-type b.due{background:#FDECEE}
+#suplist.list .sr-v:last-of-type b.cred{background:#E6F5EA}
+@media (max-width:370px){#suplist.list .srow{gap:0 5px;padding:6px 8px}#suplist.list .sr-v b{font-size:11px !important}#suplist.list .sr-v:last-of-type b{padding:1px 4px}#suplist.list .sr-name small .ph{display:none}}
