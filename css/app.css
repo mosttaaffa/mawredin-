@@ -2375,3 +2375,8 @@ button.sp-note svg{display:inline-block;vertical-align:-3px;margin-inline-end:5p
 @media (max-width:380px){#emplist .ecard.er{gap:0 5px;padding:6px 8px}.er .er-av{width:28px;height:28px}.er .er-nm b{font-size:13px}.er .er-v b,.er .er-bal b{font-size:11.5px}.er .er-v small,.er .er-bal small{font-size:9px}.er .er-bal{padding:2px 5px}}
 @media (max-width:330px){.er .er-av{display:none}#emplist .ecard.er{grid-template-columns:minmax(0,1fr) repeat(4,auto)}}
 @media (max-width:380px){.er .er-nm b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.2;overflow-wrap:anywhere}}
+/* الرئيسية: أيقونات الأقسام زي أيقونات الآيفون (صورة مجسمة في مربع أبيض مدوّر بلمعة) */
+:root .db-grid .db-tile .db-ic.ios-ic{width:48px;height:48px;border-radius:13px;background:linear-gradient(160deg,#fff,#F7EEF0) !important;color:inherit;
+  box-shadow:inset 0 1px 1px #fff,inset 0 -2px 4px rgba(155,27,48,.08),0 6px 12px -8px rgba(90,20,35,.5) !important;border:1px solid rgba(155,27,48,.08)}
+.db-ic.ios-ic img{width:36px;height:36px;object-fit:contain;filter:drop-shadow(0 3px 4px rgba(90,20,35,.25))}
+@media (max-width:380px){:root .db-grid .db-tile .db-ic.ios-ic{width:42px;height:42px;border-radius:11px}.db-ic.ios-ic img{width:31px;height:31px}}

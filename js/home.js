@@ -92,7 +92,7 @@ async function viewDashboard(){
   const ready = k => MODULES.find(m => m.k === k)?.ready;
   const m = (v, raw) => `<span class="m"><span class="num">${raw ? v : fmt0(v)}</span> ج.م</span>`;
   const tile = (k, t, ic, go, extra = '') => `<button class="db-tile${extra ? ' rich' : ''}" onclick="${go}" aria-label="${t}">
-      <span class="db-ic">${DB_ICONS[k] ? dbIcon(k) : I[ic]}</span><span class="db-tb"><b>${t}</b>${extra}</span><span class="db-go">${I.chevL}</span></button>`;
+      <span class="db-ic ios-ic"><img src="icons/3d/${k}.webp" alt="" decoding="async"></span><span class="db-tb"><b>${t}</b>${extra}</span><span class="db-go">${I.chevL}</span></button>`;
   const mod = k => ready(k) ? `go('/${k}')` : `soonModule('${k}')`;
   const ops = recentOps(3);
   const sign = o => o.sg < 0 ? 'neg' : o.sg > 0 ? 'pos' : '';
