@@ -2358,3 +2358,20 @@ html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
 button.sp-note{display:block;line-height:1.5}
 button.sp-note svg{display:inline-block;vertical-align:-3px;margin-inline-end:5px}
 .sp-bar{min-width:0}.sp-bar .sp-sort{min-width:0;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis}.sp-bar .sp-view{flex:none}
+/* قائمة الموظفين: كل موظف في صف واحد (زي الموردين) */
+#emplist.list{gap:6px}
+#emplist .ecard.er{display:grid;grid-template-columns:auto minmax(0,1fr) repeat(4,auto);align-items:center;gap:0 8px;padding:7px 10px;border:1px solid #F1DDE1;border-inline-start:1px solid #F1DDE1;border-radius:16px;text-align:center;
+  box-shadow:inset 0 1px 0 #fff,0 4px 10px -8px rgba(90,20,35,.35)}
+.er .er-av{width:32px;height:32px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px #fff,0 2px 6px rgba(110,12,31,.18)}.er .er-av svg{width:100%;height:100%;display:block}
+.er .er-nm{min-width:0;text-align:start;line-height:1.3}
+.er .er-nm b{display:block;font-size:14px;font-weight:900;color:#5A0F1E;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.er .er-nm b .tag{font-size:9.5px;padding:0 5px;vertical-align:middle}
+.er .er-nm small{display:block;font-size:10px;color:var(--muted)}
+.er .er-v{line-height:1.3}.er .er-v small{display:block;font-size:9.5px;color:var(--muted);font-weight:700;white-space:nowrap}
+.er .er-v b{display:block;font-size:12.5px;font-weight:900;white-space:nowrap;font-variant-numeric:tabular-nums}
+.er b.p{color:var(--green)}.er b.m{color:var(--red)}.er b.z{color:#9a9a9a}
+.er .er-bal{border-radius:10px;padding:2px 7px;line-height:1.25}.er .er-bal small{display:block;font-size:9.5px;font-weight:800}.er .er-bal b{display:block;font-size:12.5px;font-weight:900;white-space:nowrap}
+.er .er-bal.due{background:#E6F5EA;color:#178A3C}.er .er-bal.owe{background:#FDECEE;color:#C0283F}.er .er-bal.zero{background:#F4F1F2;color:#666}
+@media (max-width:380px){#emplist .ecard.er{gap:0 5px;padding:6px 8px}.er .er-av{width:28px;height:28px}.er .er-nm b{font-size:13px}.er .er-v b,.er .er-bal b{font-size:11.5px}.er .er-v small,.er .er-bal small{font-size:9px}.er .er-bal{padding:2px 5px}}
+@media (max-width:330px){.er .er-av{display:none}#emplist .ecard.er{grid-template-columns:minmax(0,1fr) repeat(4,auto)}}
+@media (max-width:380px){.er .er-nm b{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.2;overflow-wrap:anywhere}}

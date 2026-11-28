@@ -97,7 +97,20 @@ window.empFilterMenu = async () => {
   const sec = (t, obj, cur, varn, cnt, ic) => `<div class="section-t"${t.m ? ' style="margin-top:12px"' : ''}>${t.l}</div><div class="menu-list">${Object.entries(obj).map(([k, l]) => `<button class="${cur === k ? 'on' : ''}" onclick="${varn}='${k}';closeModal();viewEmployees()">${I[ic]}${l}${cnt ? ` (${cnt(k)})` : ''}${cur === k ? ' ✓' : ''}</button>`).join('')}</div>`;
   openModal(`<h3>تصفية وترتيب</h3>${sec({l:'الحالة'}, EMP_ACT, empAct, 'empAct', ca, 'users')}${sec({l:'الرصيد', m:1}, EMP_F, empFilter, 'empFilter', cf, 'filter')}${sec({l:'الترتيب', m:1}, EMP_SORT, empSort, 'empSort', null, 'sort')}`);
 };
-function empCard(r){ return eaCard(r, empMonth); }   // الكارت الجديد في js/empaccount.js
+function empCard(r){ return empView === 'list' ? empRow(r, empMonth) : eaCard(r, empMonth); }   // القائمة: صف واحد — الشبكة: الكارت الكامل (js/empaccount.js)
+// صف الموظف (زي صف المورد): الصورة، الاسم والمرحّل، الأساسي، العمولات، السلف والخصم، والرصيد في فقاعة
+function empRow(r, ym){
+  const D = eaMonth(r.id, ym), bal = D.close, ph = String(r.phone || '').replace(/[^\d+]/g, '');
+  const n = c => (Math.abs(c) / 100).toLocaleString('en-US', {maximumFractionDigits:0});
+  const v = (l, c, cls) => `<span class="er-v"><small>${l}</small><b class="${c ? cls : 'z'}">${n(c)}</b></span>`;
+  const take = D.adv + D.ded + D.clothes;
+  return `<div class="ecard er" data-n="${esc((r.name + ' ' + (r.emp_no || '') + ' ' + ph.replace(/\D/g, '')).toLowerCase())}" onclick="go('/emp/${r.id}')">
+    <span class="er-av">${EA_AV[eaGender(r)]}</span>
+    <span class="er-nm"><b>${esc(r.name)}${empOn(r) ? '' : ' <i class="tag left">ترك</i>'}</b><small>مرحّل <bdi dir="ltr">${D.carry < 0 ? '−' : ''}${n(D.carry)}</bdi></small></span>
+    ${v('الأساسي', D.base, 'p')}${v('عمولات', D.com, 'p')}${v('سلف وخصم', take, 'm')}
+    <span class="er-bal ${bal < 0 ? 'owe' : bal > 0 ? 'due' : 'zero'}"><small>${bal < 0 ? 'عليه' : bal > 0 ? 'ليه' : 'الرصيد'}</small><b>${n(bal)}</b></span>
+  </div>`;
+}
 window.empMore = id => {
   const e = store.eff.employees.get(id), ym = empMonth || today().slice(0, 7), D = eaMonth(id, ym); if(!e) return;
   openModal(`<h3>${esc(e.name)}</h3><div class="hint" style="margin-bottom:10px">${e.emp_no ? 'رقم ' + esc(e.emp_no) + ' · ' : ''}${empMonthName(ym)} · الرصيد ${eaMH(D.close)}</div>
