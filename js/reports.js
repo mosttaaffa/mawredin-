@@ -208,30 +208,23 @@ function viewReportsMenu(){
   const LS = loansSummary(), BS = bankSummary(), XS = expSummary();
   const chk = [...(store.eff?.payments?.values() || [])].filter(p => p.method === 'check' && p.check_status === 'pending');
   const chkRem = chk.reduce((a, p) => a + checkInfo(p).remaining, 0);
-  const tile = (k, t, go, extra = '') => `<button class="db-tile${extra ? ' rich' : ''}" onclick="${go}" aria-label="${t}">
-      <span class="db-ic">${dbIcon(k)}</span><span class="db-tb"><b>${t}</b>${extra}</span><span class="db-go">${I.chevL}</span></button>`;
-  const row = (ic, t, s, go) => `<button class="db-op" onclick="${go}"><span class="db-oi">${I[ic] || I.doc}</span><span class="db-ot"><b>${t}</b><small>${s}</small></span><span class="db-go">${I.chevL}</span></button>`;
+  // شكل «الاختصارات»: كروت ملونة كبيرة — الأيقونة فوق، والاسم تحت، والرقم المختصر
+  const n0 = c => `<bdi dir="ltr">${c < 0 ? '−' : ''}${fmt0(Math.abs(c) / 100)}</bdi> ج`;
+  const sc = (c, ic, t, go, v = '', sub = '') => `<button class="sc-t sc-${c}" onclick="${go}" aria-label="${t}">
+      <span class="sc-top"><i>${I[ic] || I.doc}</i>${v ? `<em>${v}</em>` : ''}</span>
+      <span class="sc-bot"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
   shell({title:'التقارير', nav:'reports', body:`
-    <div class="db one rp-menu">
-    <div class="db-h"><span>${I.chart || I.grid}تقارير الشهر</span><i></i></div>
-    <div class="db-grid">
-      ${tile('cash', 'ملخص المحل', "go('/reports/shop')", `<em class="${net < 0 ? 'neg' : ''}">${net < 0 ? '−' : ''}${m(net)}</em><small class="c">صافي الشهر</small>`)}
-      ${tile('suppliers', 'تقرير الموردين', "go('/reports/sup')", `<em class="neg">${m(supDue)}</em><small class="c">مستحق للموردين</small>`)}
-      ${tile('expenses', 'المصروفات', "go('/expenses')", XS.month ? `<em class="neg">${m(XS.month)}</em><small class="c">مصروفات الشهر</small>` : '<small class="c">مفيش مصروفات الشهر ده</small>')}
-      ${tile('banks', 'البنك', "go('/banks')", BS.n ? `<em class="${BS.bal < 0 ? 'neg' : ''}">${BS.bal < 0 ? '−' : ''}${m(BS.bal)}</em><small class="c">رصيد البنك</small>` : '<small class="c">حركة البنك</small>')}
-      ${tile('checks', 'الشيكات', "go('/checks')", `<em>${m(chkRem)}</em><small class="c">باقي على ${chk.length} شيك</small>`)}
-      ${tile('loans', 'القروض', "go('/loans')", LS.n ? `<em class="neg">${m(LS.remaining)}</em><small class="c">${LS.late ? LS.late + ' قسط متأخر' : LS.n + ' قرض جاري'}</small>` : '<small class="c">مفيش قروض</small>')}
-    </div>
-    <div class="db-h"><span>${I.doc}كشوف الحساب</span><i></i></div>
-    <div class="card db-ops">
-      ${row('box', 'كشف حساب مورد', 'اختار المورد وشوف كل حركاته وابعته واتساب', 'rpPick(\'sup\')')}
-      ${row('users', 'كشف حساب موظف', 'المستحقات والاستقطاعات لكل شهر', 'rpPick(\'emp\')')}
-    </div>
-    <div class="db-h"><span>${I.layers || I.grid}تانية</span><i></i></div>
-    <div class="card db-ops">
-      ${row('hist', 'سجل التعديلات', 'كل اللي اتضاف واتعدل واتمسح ومين عمله', "go('/log')")}
-      ${row('xls', 'تصدير Excel', 'الموردين والفواتير والدفعات والشيكات في ملف واحد', 'exportExcel()')}
-    </div>
+    <div class="sc-grid">
+      ${sc('wine', 'chart', 'ملخص المحل', "go('/reports/shop')", n0(net), 'صافي الشهر')}
+      ${sc('rose', 'box', 'تقرير الموردين', "go('/reports/sup')", n0(supDue), 'مستحق للموردين')}
+      ${sc('amber', 'expense', 'المصروفات', "go('/expenses')", XS.month ? n0(XS.month) : '', 'مصروفات الشهر')}
+      ${sc('blue', 'bank', 'البنك', "go('/banks')", BS.n ? n0(BS.bal) : '', 'رصيد البنك')}
+      ${sc('teal', 'check', 'الشيكات', "go('/checks')", n0(chkRem), `باقي على ${chk.length} شيك`)}
+      ${sc('violet', 'loan', 'القروض', "go('/loans')", LS.n ? n0(LS.remaining) : '', LS.n ? (LS.late ? LS.late + ' قسط متأخر' : LS.n + ' قرض جاري') : 'مفيش قروض')}
+      ${sc('green', 'doc', 'كشف حساب مورد', "rpPick('sup')", '', 'اختار المورد')}
+      ${sc('orange', 'users', 'كشف حساب موظف', "rpPick('emp')", '', 'اختار الموظف')}
+      ${sc('slate', 'hist', 'سجل التعديلات', "go('/log')", '', 'مين عمل إيه')}
+      ${sc('olive', 'xls', 'تصدير Excel', 'exportExcel()', '', 'ملف واحد بكل حاجة')}
     </div>`});
 }
 // اختيار المورد أو الموظف لكشف الحساب

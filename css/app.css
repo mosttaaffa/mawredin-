@@ -2317,3 +2317,25 @@ html{scroll-behavior:smooth}
 .stg-r{grid-template-columns:40px minmax(0,1fr) 62px 60px 66px}
 @media (max-width:370px){.stg-r{grid-template-columns:34px minmax(0,1fr) 54px 52px 58px}.stg-r>span:nth-child(n+3){font-size:10.5px}}
 @media (max-width:370px){.stg-r{grid-template-columns:32px minmax(0,1fr) 50px 48px 54px;gap:0 3px}.stg-b b{font-size:11px}.stg-b small{font-size:9.5px}}
+/* التقارير بشكل «الاختصارات»: كروت ملونة كبيرة */
+.sc-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sc-t{position:relative;display:flex;flex-direction:column;justify-content:space-between;min-height:118px;padding:13px 14px 12px;border:0;border-radius:24px;color:#fff;text-align:start;font:inherit;cursor:pointer;overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.28),inset 0 -10px 20px -14px rgba(0,0,0,.25),0 10px 20px -14px rgba(0,0,0,.45)}
+.sc-t::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.18),rgba(255,255,255,0) 45%);pointer-events:none}
+.sc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px}
+.sc-top i{display:grid;place-items:center;width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.22);font-style:normal}
+.sc-top i svg{width:21px;height:21px;color:#fff}
+.sc-top em{font-style:normal;font-size:12.5px;font-weight:800;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:12px;white-space:nowrap;max-width:65%;overflow:hidden;text-overflow:ellipsis}
+.sc-bot b{display:block;font-size:17px;font-weight:800;line-height:1.25}
+.sc-bot small{display:block;font-size:11.5px;font-weight:600;opacity:.85}
+.sc-wine{background:linear-gradient(150deg,#C0263E,#8E1426)}
+.sc-rose{background:linear-gradient(150deg,#E2788A,#C2546B)}
+.sc-amber{background:linear-gradient(150deg,#F0B45A,#D98E2B)}
+.sc-blue{background:linear-gradient(150deg,#6E98C4,#3F6A93)}
+.sc-teal{background:linear-gradient(150deg,#4FCDB0,#22A285)}
+.sc-violet{background:linear-gradient(150deg,#9B83D6,#6E52B5)}
+.sc-green{background:linear-gradient(150deg,#5CB97D,#2E8B52)}
+.sc-orange{background:linear-gradient(150deg,#F39A5B,#DB6E2E)}
+.sc-slate{background:linear-gradient(150deg,#98A3B3,#6E7A8B)}
+.sc-olive{background:linear-gradient(150deg,#BBAA86,#97835D)}
+@media (max-width:360px){.sc-t{min-height:104px;padding:11px}.sc-bot b{font-size:15px}.sc-top em{font-size:11px}}

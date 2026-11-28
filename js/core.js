@@ -148,7 +148,7 @@ const buzz = (ms=12) => { try{ navigator.vibrate && navigator.vibrate(ms); }catc
 
 // موجة عند الضغط
 document.addEventListener('pointerdown', e => {
-  const el = e.target.closest('.btn,.fab,.iconbtn,.chip,.seg button,.list .item,nav.bottom a,.db-tile,.db-op,.srow,.ecard,.sp-chip,.sp-sort,.sp-fbtn,.db-hero,.sl,.db-qa button,.card[onclick]');
+  const el = e.target.closest('.btn,.fab,.iconbtn,.chip,.seg button,.list .item,nav.bottom a,.db-tile,.db-op,.srow,.ecard,.sp-chip,.sp-sort,.sp-fbtn,.db-hero,.sl,.db-qa button,.card[onclick],.sc-t');
   if(!el || REDUCED || el.disabled) return;
   if(getComputedStyle(el).position === 'static') el.style.position = 'relative';
   const r = el.getBoundingClientRect(), w = document.createElement('span'), d = document.createElement('span');
@@ -179,7 +179,7 @@ function stagger(root=document){
   root.querySelectorAll('.list .item').forEach((el,i) => { if(i < 15) el.style.setProperty('--i', i); else el.style.animation = 'none'; });
   // الكروت بتطلع من تحت بالتتابع (أول 16 بس، والباقي يظهر على طول)
   if(REDUCED) return;
-  const SEL = '.db-hero,.db-grid>*,.db-qa,.sp-sum>*,.sp-list>*,.ecard,.card,.db-ops,.mini-alert,.rp-k>*,.month-bar,.ea-sec,.sl';
+  const SEL = '.db-hero,.db-grid>*,.sc-grid>*,.db-qa,.sp-sum>*,.sp-list>*,.ecard,.card,.db-ops,.mini-alert,.rp-k>*,.month-bar,.ea-sec,.sl';
   const all = [...root.querySelectorAll('main ' + SEL.split(',').join(',main '))].filter(el => !el.closest('.list') && !el.parentElement.closest(SEL));
   all.slice(0, 16).forEach((el, i) => { el.style.setProperty('--i', i); el.classList.add('fx-in'); });
 }
